@@ -2,6 +2,8 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+// Import FFmpeg for audio conversion
+import { createFFmpeg, fetchFile } from "https://esm.sh/@ffmpeg/ffmpeg@0.11.6";
 
 interface RequestBody {
   trackId: string;
@@ -134,113 +136,29 @@ async function processAudio(supabase: any, trackId: string) {
       return;
     }
 
-    // If there are no chunks or only one chunk, just copy the file
+    // Initialize FFmpeg
+    const ffmpeg = createFFmpeg({
+      log: true, // Enable FFmpeg logs for debugging
+      corePath: "https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js"
+    });
+    
+    await ffmpeg.load();
+    console.log("FFmpeg loaded successfully");
+
+    let mp3Url = '';
+
+    // If there are no chunks or only one chunk, process a single file
     if (!track.chunk_count || track.chunk_count <= 1) {
-      console.log(`Track ${trackId} has only one chunk, copying directly`);
-      const mp3Url = await copyOriginalAudioToMP3(supabase, track);
-      if (mp3Url) {
-        await supabase
-          .from("tracks")
-          .update({
-            mp3_url: mp3Url,
-            processing_status: "completed"
-          })
-          .eq("id", trackId);
-        
-        console.log(`Processing completed for track: ${trackId}`);
-      } else {
-        await updateTrackStatusToFailed(supabase, trackId);
-      }
-      return;
+      console.log(`Track ${trackId} has only one chunk, converting to MP3`);
+      mp3Url = await convertSingleFileToMp3(supabase, track, ffmpeg);
+    } else {
+      // Process multiple chunks
+      console.log(`Track ${trackId} has ${track.chunk_count} chunks that will be converted and reassembled`);
+      mp3Url = await convertMultipleChunksToMp3(supabase, track, ffmpeg);
     }
     
-    // Process multiple chunks
-    console.log(`Track ${trackId} has ${track.chunk_count} chunks that will be reassembled`);
-    
-    // Get the base path from the original URL to locate chunks
-    const baseUrl = track.compressed_url;
-    
-    // We'll create a simple copy of the first chunk as our mp3 for now
-    // In a real implementation, we would download all chunks and combine them
-    
-    // Extract the chunk path from the URL
-    let chunkPath = '';
-    try {
-      // Extract just the path portion of the URL (after the bucket name)
-      const url = new URL(baseUrl);
-      const pathParts = url.pathname.split('/');
-      let relevantPath = '';
-      
-      // Find the portion after 'audio' in the path
-      const audioIndex = pathParts.findIndex(part => part === 'audio');
-      if (audioIndex >= 0 && audioIndex < pathParts.length - 1) {
-        relevantPath = pathParts.slice(audioIndex + 1).join('/');
-      }
-      
-      if (relevantPath) {
-        chunkPath = relevantPath;
-      } else {
-        // Fallback if we can't parse the URL properly
-        chunkPath = baseUrl.split('/public/audio/')[1];
-      }
-      
-      console.log(`Identified chunk path: ${chunkPath}`);
-    } catch (error) {
-      console.error("Error parsing URL:", error);
-      await updateTrackStatusToFailed(supabase, trackId);
-      return;
-    }
-    
-    if (!chunkPath) {
-      console.error("Could not determine chunk path");
-      await updateTrackStatusToFailed(supabase, trackId);
-      return;
-    }
-    
-    try {
-      // Download the first chunk
-      const { data: audioData, error: downloadError } = await supabase
-        .storage
-        .from('audio')
-        .download(chunkPath);
-        
-      if (downloadError || !audioData) {
-        console.error("Error downloading audio chunk:", downloadError);
-        await updateTrackStatusToFailed(supabase, trackId);
-        return;
-      }
-      
-      // For now, we'll just reupload this same data as the "MP3"
-      // In a real implementation, you would transcode the audio here
-      
-      // Generate a unique filename for the processed MP3
-      const mp3Filename = `processed_${trackId}.mp3`;
-      const mp3Path = `${track.user_id}/${mp3Filename}`;
-      
-      // Upload the processed file to the processed_audio bucket with the correct MIME type
-      const { error: uploadError } = await supabase
-        .storage
-        .from("processed_audio")
-        .upload(mp3Path, audioData, {
-          contentType: "audio/mpeg", // Changed from "audio/mp3" to "audio/mpeg" which is the standard MIME type for MP3 files
-          cacheControl: "3600",
-          upsert: true
-        });
-        
-      if (uploadError) {
-        console.error("Error uploading processed MP3:", uploadError);
-        await updateTrackStatusToFailed(supabase, trackId);
-        return;
-      }
-      
-      // Get the URL for the uploaded MP3
-      const { data: urlData } = await supabase.storage
-        .from("processed_audio")
-        .getPublicUrl(mp3Path);
-        
-      const mp3Url = urlData.publicUrl;
-      
-      // Update track with the MP3 URL and mark as completed
+    if (mp3Url) {
+      // Update track with successful processing
       await supabase
         .from("tracks")
         .update({
@@ -248,11 +166,9 @@ async function processAudio(supabase: any, trackId: string) {
           processing_status: "completed"
         })
         .eq("id", trackId);
-        
-      console.log(`Processing completed for track: ${trackId}`);
       
-    } catch (error) {
-      console.error(`Error processing chunks for track ${trackId}:`, error);
+      console.log(`Processing completed for track: ${trackId}`);
+    } else {
       await updateTrackStatusToFailed(supabase, trackId);
     }
   } catch (error) {
@@ -261,7 +177,7 @@ async function processAudio(supabase: any, trackId: string) {
   }
 }
 
-async function copyOriginalAudioToMP3(supabase: any, track: any): Promise<string | null> {
+async function convertSingleFileToMp3(supabase: any, track: any, ffmpeg: any): Promise<string | null> {
   try {
     // Extract the file path from the original URL
     const compressedUrl = track.compressed_url;
@@ -308,22 +224,46 @@ async function copyOriginalAudioToMP3(supabase: any, track: any): Promise<string
       return null;
     }
     
-    // Generate a new filename for the MP3
+    // Convert to ArrayBuffer and process with FFmpeg
+    const arrayBuffer = await fileData.arrayBuffer();
+    const inputFileName = 'input.wav';
+    const outputFileName = 'output.mp3';
+    
+    // Write the file to FFmpeg memory
+    ffmpeg.FS('writeFile', inputFileName, new Uint8Array(arrayBuffer));
+    
+    // Run FFmpeg conversion with high quality settings
+    await ffmpeg.run(
+      '-i', inputFileName,
+      '-c:a', 'libmp3lame',
+      '-q:a', '2', // High quality (0 is highest, 9 is lowest)
+      outputFileName
+    );
+    
+    // Read the converted file
+    const mp3Data = ffmpeg.FS('readFile', outputFileName);
+    const mp3Blob = new Blob([mp3Data.buffer], { type: 'audio/mpeg' });
+    
+    // Clean up FFmpeg memory
+    ffmpeg.FS('unlink', inputFileName);
+    ffmpeg.FS('unlink', outputFileName);
+    
+    // Generate a unique filename for the processed MP3
     const mp3Filename = `processed_${track.id}.mp3`;
     const mp3Path = `${track.user_id}/${mp3Filename}`;
     
-    // Upload the file to the processed_audio bucket with the correct MIME type
+    // Upload the properly converted MP3 file to the processed_audio bucket
     const { error: uploadError } = await supabase
       .storage
       .from("processed_audio")
-      .upload(mp3Path, fileData, {
-        contentType: "audio/mpeg", // Changed from "audio/mp3" to "audio/mpeg" which is the standard MIME type for MP3 files
+      .upload(mp3Path, mp3Blob, {
+        contentType: "audio/mpeg",
         cacheControl: "3600",
         upsert: true
       });
       
     if (uploadError) {
-      console.error("Error uploading MP3:", uploadError);
+      console.error("Error uploading processed MP3:", uploadError);
       return null;
     }
     
@@ -335,7 +275,138 @@ async function copyOriginalAudioToMP3(supabase: any, track: any): Promise<string
     return urlData.publicUrl;
     
   } catch (error) {
-    console.error("Error in copyOriginalAudioToMP3:", error);
+    console.error("Error in convertSingleFileToMp3:", error);
+    return null;
+  }
+}
+
+async function convertMultipleChunksToMp3(supabase: any, track: any, ffmpeg: any): Promise<string | null> {
+  try {
+    // Extract the base path from the original URL
+    const baseUrl = track.compressed_url;
+    let chunkPath = '';
+    
+    try {
+      // Extract the path portion of the URL (after the bucket name)
+      const url = new URL(baseUrl);
+      const pathParts = url.pathname.split('/');
+      let relevantPath = '';
+      
+      // Find the portion after 'audio' in the path
+      const audioIndex = pathParts.findIndex(part => part === 'audio');
+      if (audioIndex >= 0 && audioIndex < pathParts.length - 1) {
+        relevantPath = pathParts.slice(audioIndex + 1).join('/');
+      }
+      
+      if (relevantPath) {
+        chunkPath = relevantPath;
+      } else {
+        // Fallback if we can't parse the URL properly
+        chunkPath = baseUrl.split('/public/audio/')[1];
+      }
+      
+      console.log(`Identified chunk path: ${chunkPath}`);
+    } catch (error) {
+      console.error("Error parsing URL:", error);
+      return null;
+    }
+    
+    if (!chunkPath) {
+      console.error("Could not determine chunk path");
+      return null;
+    }
+    
+    // For multi-chunk processing, we'll download all chunks and concatenate them
+    const chunks: Uint8Array[] = [];
+    const basePath = chunkPath.split('_chunk_0')[0];
+    
+    // Download all chunks
+    for (let i = 0; i < track.chunk_count; i++) {
+      const currentChunkPath = `${basePath}_chunk_${i}`;
+      
+      const { data: chunkData, error: downloadError } = await supabase
+        .storage
+        .from('audio')
+        .download(currentChunkPath);
+        
+      if (downloadError || !chunkData) {
+        console.error(`Error downloading chunk ${i}:`, downloadError);
+        continue;
+      }
+      
+      const arrayBuffer = await chunkData.arrayBuffer();
+      chunks.push(new Uint8Array(arrayBuffer));
+      console.log(`Downloaded chunk ${i}, size: ${arrayBuffer.byteLength} bytes`);
+    }
+    
+    if (chunks.length === 0) {
+      console.error("No chunks were successfully downloaded");
+      return null;
+    }
+    
+    // Combine all chunks into a single file
+    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+    const combinedData = new Uint8Array(totalLength);
+    
+    let offset = 0;
+    for (const chunk of chunks) {
+      combinedData.set(chunk, offset);
+      offset += chunk.length;
+    }
+    
+    console.log(`Combined ${chunks.length} chunks into a ${totalLength} byte file`);
+    
+    // Process the combined file with FFmpeg
+    const inputFileName = 'combined_input.wav';
+    const outputFileName = 'output.mp3';
+    
+    // Write the combined file to FFmpeg memory
+    ffmpeg.FS('writeFile', inputFileName, combinedData);
+    
+    // Run FFmpeg conversion with high quality settings
+    await ffmpeg.run(
+      '-i', inputFileName,
+      '-c:a', 'libmp3lame',
+      '-q:a', '2', // High quality (0 is highest, 9 is lowest)
+      outputFileName
+    );
+    
+    // Read the converted file
+    const mp3Data = ffmpeg.FS('readFile', outputFileName);
+    const mp3Blob = new Blob([mp3Data.buffer], { type: 'audio/mpeg' });
+    
+    // Clean up FFmpeg memory
+    ffmpeg.FS('unlink', inputFileName);
+    ffmpeg.FS('unlink', outputFileName);
+    
+    // Generate a unique filename for the processed MP3
+    const mp3Filename = `processed_${track.id}.mp3`;
+    const mp3Path = `${track.user_id}/${mp3Filename}`;
+    
+    // Upload the properly converted MP3 file to the processed_audio bucket
+    const { error: uploadError } = await supabase
+      .storage
+      .from("processed_audio")
+      .upload(mp3Path, mp3Blob, {
+        contentType: "audio/mpeg",
+        cacheControl: "3600",
+        upsert: true
+      });
+      
+    if (uploadError) {
+      console.error("Error uploading processed MP3:", uploadError);
+      return null;
+    }
+    
+    // Get the URL for the uploaded MP3
+    const { data: urlData } = await supabase.storage
+      .from("processed_audio")
+      .getPublicUrl(mp3Path);
+      
+    return urlData.publicUrl;
+    
+  } catch (error) {
+    console.error("Error in convertMultipleChunksToMp3:", error);
     return null;
   }
 }
