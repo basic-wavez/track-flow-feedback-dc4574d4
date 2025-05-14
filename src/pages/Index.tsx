@@ -19,11 +19,13 @@ const Index = () => {
     setUploadedTrackName(trackName);
     
     // If user is already authenticated, navigate to the track page
-    // Using setTimeout to ensure state is updated before navigation
+    // Using a more robust approach with replace: true
     if (user) {
       setTimeout(() => {
-        navigate("/track/demo-123", { replace: true });
-      }, 100);
+        navigate("/track/demo-123", { 
+          replace: true 
+        });
+      }, 300); // Increased timeout to ensure state updates
     }
   };
   
@@ -41,8 +43,10 @@ const Index = () => {
     // Using replace: true to prevent going back to home page
     if (uploadedFileName) {
       setTimeout(() => {
-        navigate("/track/demo-123", { replace: true });
-      }, 100);
+        navigate("/track/demo-123", { 
+          replace: true 
+        });
+      }, 300); // Increased timeout to ensure state updates
     }
   };
 

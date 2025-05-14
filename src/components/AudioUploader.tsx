@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -91,16 +92,17 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
         setUploading(false);
         setProgress(0);
         
-        // Call onUploadComplete callback with file info
+        // First call onUploadComplete to update parent state
         onUploadComplete(fileToUpload.name, trackName);
         
         // Only require authentication if the user is not logged in
+        // Ensure this happens AFTER onUploadComplete
         if (!user) {
           setTimeout(() => {
             onAuthRequired();
-          }, 100);
+          }, 200);
         }
-      }, 500);
+      }, 600); // Increased timeout for more reliable state updates
     } catch (error) {
       clearInterval(interval);
       setUploading(false);
