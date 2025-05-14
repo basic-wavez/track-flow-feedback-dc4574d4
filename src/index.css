@@ -14,16 +14,16 @@
     --popover: 250 12% 8%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 330 71% 64%;
+    --primary: 330 59% 71%;
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 330 45% 49%;
+    --secondary: 330 48% 63%;
     --secondary-foreground: 0 0% 98%;
 
     --muted: 240 8% 16%;
     --muted-foreground: 240 5% 65%;
 
-    --accent: 330 71% 64%;
+    --accent: 330 59% 71%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
@@ -31,7 +31,7 @@
 
     --border: 240 8% 16%;
     --input: 240 8% 16%;
-    --ring: 330 71% 64%;
+    --ring: 330 59% 71%;
 
     --radius: 0.5rem;
   }
@@ -56,6 +56,6 @@
   }
   
   .waveform-bg {
-    background-color: rgba(229, 98, 162, 0.1);
+    background-color: rgba(231, 162, 200, 0.1);
   }
 }

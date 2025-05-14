@@ -54,8 +54,8 @@ export default {
           foreground: "hsl(var(--card-foreground))"
         },
         wip: {
-          pink: "#E562A2",
-          darkPink: "#B64680",
+          pink: "#E7A2C8",
+          darkPink: "#C87BAB",
           dark: "#151317",
           darker: "#0E0C0F",
           light: "#F5F5F5",
