@@ -8,7 +8,7 @@ import Waveform from "./Waveform";
 
 interface TrackPlayerProps {
   trackName: string;
-  audioUrl?: string; // In a real app, this would be a URL to the audio file
+  audioUrl?: string;
   isOwner?: boolean;
 }
 
@@ -20,9 +20,11 @@ const TrackPlayer = ({ trackName, audioUrl, isOwner = false }: TrackPlayerProps)
   const [isMuted, setIsMuted] = useState(false);
   const [downloadEnabled, setDownloadEnabled] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  
+  // Use a default audio sample if no audioUrl is provided
+  const defaultAudioUrl = "https://assets.mixkit.co/active_storage/sfx/5135/5135.wav";
+  const audioSource = audioUrl || defaultAudioUrl;
 
-  // In a real app, we would use the actual audio URL
-  // For this demo, we'll use a dummy audio element
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -114,8 +116,8 @@ const TrackPlayer = ({ trackName, audioUrl, isOwner = false }: TrackPlayerProps)
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
-      {/* Hidden audio element for playback */}
-      <audio ref={audioRef} src="" />
+      {/* Audio element with proper source */}
+      <audio ref={audioRef} src={audioSource} />
       
       <div className="mb-4 flex justify-between items-center">
         <div>
@@ -166,7 +168,7 @@ const TrackPlayer = ({ trackName, audioUrl, isOwner = false }: TrackPlayerProps)
       </div>
       
       <Waveform 
-        audioUrl={audioUrl}
+        audioUrl={audioSource}
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}

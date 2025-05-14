@@ -16,6 +16,9 @@ const TrackView = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  
+  // Default audio for demo purposes
+  const demoAudioUrl = "https://assets.mixkit.co/active_storage/sfx/5135/5135.wav";
 
   useEffect(() => {
     // In a real app, this would fetch the track details from Supabase
@@ -68,6 +71,7 @@ const TrackView = () => {
         <div className="max-w-5xl mx-auto space-y-12">
           <TrackPlayer 
             trackName={trackName} 
+            audioUrl={demoAudioUrl}
             isOwner={true}
           />
           
