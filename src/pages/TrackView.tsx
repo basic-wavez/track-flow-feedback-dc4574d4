@@ -7,7 +7,8 @@ import AuthModal from "@/components/auth/AuthModal";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import Profile from "@/components/auth/Profile";
-import { getTrack, TrackData } from "@/services/trackService";
+import { getTrack } from "@/services/trackService";
+import { TrackData } from "@/types/track"; // Updated import
 import { toast } from "@/components/ui/use-toast";
 
 const TrackView = () => {
