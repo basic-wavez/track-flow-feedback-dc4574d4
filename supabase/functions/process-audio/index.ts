@@ -217,12 +217,12 @@ async function processAudio(supabase: any, trackId: string) {
       const mp3Filename = `processed_${trackId}.mp3`;
       const mp3Path = `${track.user_id}/${mp3Filename}`;
       
-      // Upload the processed file to the processed_audio bucket
+      // Upload the processed file to the processed_audio bucket with the correct MIME type
       const { error: uploadError } = await supabase
         .storage
         .from("processed_audio")
         .upload(mp3Path, audioData, {
-          contentType: "audio/mp3",
+          contentType: "audio/mpeg", // Changed from "audio/mp3" to "audio/mpeg" which is the standard MIME type for MP3 files
           cacheControl: "3600",
           upsert: true
         });
@@ -312,12 +312,12 @@ async function copyOriginalAudioToMP3(supabase: any, track: any): Promise<string
     const mp3Filename = `processed_${track.id}.mp3`;
     const mp3Path = `${track.user_id}/${mp3Filename}`;
     
-    // Upload the file to the processed_audio bucket
+    // Upload the file to the processed_audio bucket with the correct MIME type
     const { error: uploadError } = await supabase
       .storage
       .from("processed_audio")
       .upload(mp3Path, fileData, {
-        contentType: "audio/mp3",
+        contentType: "audio/mpeg", // Changed from "audio/mp3" to "audio/mpeg" which is the standard MIME type for MP3 files
         cacheControl: "3600",
         upsert: true
       });
