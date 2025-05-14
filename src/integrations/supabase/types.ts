@@ -9,7 +9,122 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      feedback: {
+        Row: {
+          anonymous: boolean | null
+          arrangement_score: number
+          casual_listening: boolean
+          created_at: string | null
+          dj_set_play: boolean
+          harmonies_score: number
+          id: string
+          melodies_score: number
+          mixing_score: number
+          sound_design_score: number
+          track_id: string
+          user_id: string | null
+          written_feedback: string | null
+        }
+        Insert: {
+          anonymous?: boolean | null
+          arrangement_score: number
+          casual_listening: boolean
+          created_at?: string | null
+          dj_set_play: boolean
+          harmonies_score: number
+          id?: string
+          melodies_score: number
+          mixing_score: number
+          sound_design_score: number
+          track_id: string
+          user_id?: string | null
+          written_feedback?: string | null
+        }
+        Update: {
+          anonymous?: boolean | null
+          arrangement_score?: number
+          casual_listening?: boolean
+          created_at?: string | null
+          dj_set_play?: boolean
+          harmonies_score?: number
+          id?: string
+          melodies_score?: number
+          mixing_score?: number
+          sound_design_score?: number
+          track_id?: string
+          user_id?: string | null
+          written_feedback?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          id: string
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          id: string
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          id?: string
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
+      tracks: {
+        Row: {
+          compressed_url: string
+          created_at: string | null
+          description: string | null
+          downloads_enabled: boolean | null
+          id: string
+          original_filename: string
+          original_url: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          compressed_url: string
+          created_at?: string | null
+          description?: string | null
+          downloads_enabled?: boolean | null
+          id?: string
+          original_filename: string
+          original_url?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          compressed_url?: string
+          created_at?: string | null
+          description?: string | null
+          downloads_enabled?: boolean | null
+          id?: string
+          original_filename?: string
+          original_url?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

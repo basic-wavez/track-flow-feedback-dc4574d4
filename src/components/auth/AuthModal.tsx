@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/context/AuthContext";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -17,38 +18,24 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
   const [tab, setTab] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { signUp, signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // In a real app with Supabase integration, we would handle actual authentication here
-      // For this demo, we'll simulate success after a short delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
       if (tab === "signup") {
-        toast({
-          title: "Account created",
-          description: "Your account has been created successfully.",
-        });
+        await signUp(email, password, username);
       } else {
-        toast({
-          title: "Welcome back",
-          description: "You have been logged in successfully.",
-        });
+        await signIn(email, password);
       }
-      
       onSuccess();
     } catch (error) {
-      toast({
-        title: "Authentication failed",
-        description: "Please check your credentials and try again.",
-        variant: "destructive",
-      });
+      // Error is handled in the auth context
     } finally {
       setLoading(false);
     }
@@ -108,12 +95,12 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
           <TabsContent value="signup">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">Username</Label>
                 <Input
                   id="name"
-                  placeholder="Your name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                 />
               </div>

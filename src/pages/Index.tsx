@@ -3,9 +3,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AudioUploader from "@/components/AudioUploader";
 import AuthModal from "@/components/auth/AuthModal";
+import Profile from "@/components/auth/Profile";
+import { useAuth } from "@/context/AuthContext";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [uploadedTrackName, setUploadedTrackName] = useState("");
@@ -34,6 +38,20 @@ const Index = () => {
           <h1 className="text-3xl font-bold gradient-text">
             WIP Manager
           </h1>
+        </div>
+        
+        <div>
+          {user ? (
+            <Profile />
+          ) : (
+            <Button 
+              onClick={() => navigate("/auth")}
+              variant="outline"
+              className="border-wip-pink text-wip-pink hover:bg-wip-pink/10"
+            >
+              Login / Sign Up
+            </Button>
+          )}
         </div>
       </header>
       
