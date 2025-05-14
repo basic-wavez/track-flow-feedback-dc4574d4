@@ -18,6 +18,12 @@ export const uploadTrack = async (
   title?: string
 ): Promise<TrackData | null> => {
   try {
+    // Check if the file size exceeds 80MB (80 * 1024 * 1024 bytes = 83886080 bytes)
+    const MAX_FILE_SIZE = 80 * 1024 * 1024; // 80MB in bytes
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error(`File size exceeds the 80MB limit (your file: ${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
+    }
+
     // Check if user is authenticated
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -35,6 +41,10 @@ export const uploadTrack = async (
       .upload(uniquePath, file);
       
     if (uploadError) {
+      // Check for specific Supabase storage errors related to file size
+      if (uploadError.message && uploadError.message.includes("exceeded the maximum allowed size")) {
+        throw new Error(`File size exceeds the server limit of 80MB (your file: ${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
+      }
       throw uploadError;
     }
     
