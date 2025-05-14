@@ -151,6 +151,7 @@ const FeedbackView = () => {
     <div className="min-h-screen py-12 px-4">
       <div className="max-w-5xl mx-auto space-y-12">
         <TrackPlayer 
+          trackId={trackId || ''}
           trackName={trackName} 
           isOwner={true}
         />
