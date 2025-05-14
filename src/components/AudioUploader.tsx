@@ -1,14 +1,14 @@
-
 import { useState, useRef, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { isAllowedAudioFormat, isLosslessFormat, extractTrackName, compressAudioFile } from "@/lib/audioUtils";
+import { isAllowedAudioFormat, isLosslessFormat, extractTrackName } from "@/lib/audioUtils";
+import { uploadTrack } from "@/services/trackService";
 
 interface AudioUploaderProps {
-  onUploadComplete: (fileName: string, trackName: string) => void;
+  onUploadComplete: (trackId: string, trackName: string) => void;
   onAuthRequired: () => void;
 }
 
@@ -63,56 +63,47 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
   };
 
   const uploadFile = async (fileToUpload: File) => {
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(interval);
-          return 90;
-        }
-        return prev + 10;
-      });
-    }, 300);
-
     try {
-      // Compress the file if needed
-      const compressionResult = await compressAudioFile(fileToUpload);
+      setProgress(10);
       
-      if (!compressionResult.success) {
-        throw new Error("Compression failed");
+      // If user is not logged in, require authentication
+      if (!user) {
+        setUploading(false);
+        setProgress(0);
+        onAuthRequired();
+        return;
       }
-
-      // Complete the upload simulation
-      clearInterval(interval);
+      
+      setProgress(30);
+      
+      // Upload to Supabase
+      const trackName = extractTrackName(fileToUpload.name);
+      const result = await uploadTrack(fileToUpload, trackName);
+      
+      setProgress(90);
+      
+      if (!result) {
+        throw new Error("Upload failed");
+      }
+      
       setProgress(100);
       
       // Wait for progress to update visually before completing
       setTimeout(() => {
-        const trackName = extractTrackName(fileToUpload.name);
-        
         // Reset upload state
         setUploading(false);
         setProgress(0);
         
-        // Call upload complete callback to update parent state
-        onUploadComplete(fileToUpload.name, trackName);
-        
-        // Delay auth required check to ensure parent state is updated
-        setTimeout(() => {
-          // Only require authentication if the user is not logged in
-          if (!user) {
-            onAuthRequired();
-          }
-        }, 300);
+        // Call upload complete callback with track ID and name
+        onUploadComplete(result.id, result.title);
       }, 800);
-    } catch (error) {
-      clearInterval(interval);
+    } catch (error: any) {
       setUploading(false);
       setProgress(0);
       
       toast({
         title: "Processing Failed",
-        description: "There was an error processing your audio file.",
+        description: error.message || "There was an error processing your audio file.",
         variant: "destructive",
       });
     }
@@ -218,8 +209,8 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
           </p>
           <Progress value={progress} className="h-2 mb-4" />
           <p className="text-sm text-gray-500">
-            {progress < 50 ? "Analyzing audio..." : 
-             progress < 90 ? "Optimizing file..." : 
+            {progress < 30 ? "Preparing upload..." : 
+             progress < 90 ? "Uploading to server..." : 
              "Almost done..."}
           </p>
         </div>

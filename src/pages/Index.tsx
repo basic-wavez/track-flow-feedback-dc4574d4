@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AudioUploader from "@/components/AudioUploader";
@@ -11,26 +10,26 @@ const Index = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState("");
+  const [uploadedTrackId, setUploadedTrackId] = useState("");
   const [uploadedTrackName, setUploadedTrackName] = useState("");
   const [shouldNavigate, setShouldNavigate] = useState(false);
   
   useEffect(() => {
     // Handle navigation in an effect to ensure it happens only once
-    if (shouldNavigate && uploadedFileName) {
+    if (shouldNavigate && uploadedTrackId) {
       // Use a timeout to ensure all state updates are processed
       const timer = setTimeout(() => {
-        navigate("/track/demo-123", { 
+        navigate(`/track/${uploadedTrackId}`, { 
           replace: true // Using replace to prevent back navigation
         });
       }, 500);
       
       return () => clearTimeout(timer);
     }
-  }, [shouldNavigate, uploadedFileName, navigate]);
+  }, [shouldNavigate, uploadedTrackId, navigate]);
   
-  const handleUploadComplete = (fileName: string, trackName: string) => {
-    setUploadedFileName(fileName);
+  const handleUploadComplete = (trackId: string, trackName: string) => {
+    setUploadedTrackId(trackId);
     setUploadedTrackName(trackName);
     
     // If user is already authenticated, set flag to navigate
@@ -50,7 +49,7 @@ const Index = () => {
     setIsAuthModalOpen(false);
     
     // Once authentication is successful, set flag to navigate if we have a track
-    if (uploadedFileName) {
+    if (uploadedTrackId) {
       setShouldNavigate(true);
     }
   };
