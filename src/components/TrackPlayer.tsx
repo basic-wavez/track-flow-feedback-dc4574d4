@@ -1,12 +1,11 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Share, Download, Volume2, VolumeX, Loader } from "lucide-react";
+import { Play, Pause, Share, Download, Volume2, VolumeX, Loader, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import Waveform from "./Waveform";
-import { getTrackChunkUrls } from "@/services/trackService";
+import { getTrackChunkUrls, getTrack, requestTrackProcessing } from "@/services/trackService";
 
 interface TrackPlayerProps {
   trackId: string;
@@ -30,6 +29,9 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
   const [isLoading, setIsLoading] = useState(true);
   const [playbackState, setPlaybackState] = useState<PlaybackState>('idle');
   const [loadRetries, setLoadRetries] = useState(0);
+  const [processingStatus, setProcessingStatus] = useState<string>('');
+  const [isRequestingProcessing, setIsRequestingProcessing] = useState(false);
+  const [usingMp3, setUsingMp3] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const nextAudioRef = useRef<HTMLAudioElement>(null);
@@ -37,9 +39,9 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
   // Use a default audio sample if no audioUrl is provided
   const defaultAudioUrl = "https://assets.mixkit.co/active_storage/sfx/5135/5135.wav";
   
-  // Load chunk URLs when component mounts
+  // Load track details and chunk URLs when component mounts
   useEffect(() => {
-    const loadChunkUrls = async () => {
+    const loadTrackDetails = async () => {
       if (!trackId) {
         setChunkUrls(audioUrl ? [audioUrl] : [defaultAudioUrl]);
         setIsLoading(false);
@@ -49,6 +51,24 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
       try {
         setIsLoading(true);
         setPlaybackState('loading');
+        
+        // Get track details
+        const track = await getTrack(trackId);
+        if (track) {
+          setProcessingStatus(track.processing_status || 'pending');
+          
+          // Check if MP3 is available
+          if (track.mp3_url && track.processing_status === 'completed') {
+            console.log("Using processed MP3 for playback");
+            setChunkUrls([track.mp3_url]);
+            setUsingMp3(true);
+            setIsLoading(false);
+            setPlaybackState('idle');
+            return;
+          }
+        }
+        
+        // Fall back to chunks
         const urls = await getTrackChunkUrls(trackId);
         
         if (urls.length === 0) {
@@ -56,15 +76,16 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
           setChunkUrls(audioUrl ? [audioUrl] : [defaultAudioUrl]);
         } else {
           setChunkUrls(urls);
-          console.log(`Loaded ${urls.length} chunk URLs:`, urls);
+          setUsingMp3(urls.length === 1 && track?.mp3_url === urls[0]);
+          console.log(`Loaded ${urls.length} audio URLs:`, urls);
         }
       } catch (error) {
-        console.error("Error loading audio chunks:", error);
+        console.error("Error loading audio:", error);
         setChunkUrls(audioUrl ? [audioUrl] : [defaultAudioUrl]);
         setPlaybackState('error');
         toast({
           title: "Error Loading Audio",
-          description: "Could not load the audio chunks. Please try again later.",
+          description: "Could not load the audio. Please try again later.",
           variant: "destructive",
         });
       } finally {
@@ -75,8 +96,43 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
       }
     };
     
-    loadChunkUrls();
-  }, [trackId, audioUrl]);
+    loadTrackDetails();
+    
+    // Poll for processing status updates if we're not using MP3
+    const statusInterval = setInterval(async () => {
+      if (!trackId || usingMp3) return;
+      
+      try {
+        const track = await getTrack(trackId);
+        if (track) {
+          const newStatus = track.processing_status || 'pending';
+          setProcessingStatus(newStatus);
+          
+          // If processing just completed, reload the track
+          if (newStatus === 'completed' && processingStatus !== 'completed' && track.mp3_url) {
+            setChunkUrls([track.mp3_url]);
+            setUsingMp3(true);
+            setCurrentChunkIndex(0);
+            setCurrentTime(0);
+            
+            toast({
+              title: "MP3 Processing Complete",
+              description: "High quality MP3 version is now available for streaming"
+            });
+            
+            // Stop polling once we have the MP3
+            clearInterval(statusInterval);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking processing status:", error);
+      }
+    }, 10000); // Check every 10 seconds
+    
+    return () => {
+      clearInterval(statusInterval);
+    };
+  }, [trackId, audioUrl, usingMp3]);
 
   // Preload the next chunk when current chunk is playing
   useEffect(() => {
@@ -357,6 +413,67 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
       });
   };
 
+  // Request MP3 processing for better streaming quality
+  const handleRequestProcessing = async () => {
+    if (!trackId || isRequestingProcessing) return;
+    
+    setIsRequestingProcessing(true);
+    try {
+      await requestTrackProcessing(trackId);
+      // Update status immediately for better UX
+      setProcessingStatus('queued');
+    } finally {
+      setIsRequestingProcessing(false);
+    }
+  };
+
+  // Determine if we should show the process button
+  const showProcessButton = isOwner && 
+    (!usingMp3 || processingStatus === 'failed') && 
+    processingStatus !== 'processing' && 
+    processingStatus !== 'queued';
+
+  // Helper function to render processing status
+  const renderProcessingStatus = () => {
+    if (!isOwner || usingMp3) return null;
+    
+    switch (processingStatus) {
+      case 'pending':
+        return (
+          <Badge variant="outline" className="bg-gray-700 text-gray-300">
+            MP3 Processing Pending
+          </Badge>
+        );
+      case 'queued':
+        return (
+          <Badge variant="outline" className="bg-blue-900 text-blue-200 border-blue-700">
+            MP3 Processing Queued
+          </Badge>
+        );
+      case 'processing':
+        return (
+          <Badge variant="outline" className="bg-amber-900 text-amber-200 border-amber-700 flex items-center gap-1">
+            <Loader className="h-3 w-3 animate-spin" />
+            MP3 Processing
+          </Badge>
+        );
+      case 'failed':
+        return (
+          <Badge variant="outline" className="bg-red-900 text-red-200 border-red-700">
+            MP3 Processing Failed
+          </Badge>
+        );
+      case 'completed':
+        return (
+          <Badge variant="outline" className="bg-green-900 text-green-200 border-green-700">
+            MP3 Processing Complete
+          </Badge>
+        );
+      default:
+        return null;
+    }
+  };
+
   // Helper function to render playback status indicator
   const renderPlaybackStatus = () => {
     switch (playbackState) {
@@ -372,6 +489,9 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
       default:
         if (isLoading) {
           return <span className="text-gray-400">Loading audio...</span>;
+        }
+        if (usingMp3) {
+          return <span className="text-green-400">Using high-quality MP3</span>;
         }
         return <span className="text-gray-400">{chunkUrls.length} audio chunks loaded</span>;
     }
@@ -396,13 +516,34 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
       <div className="mb-4 flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold gradient-text">{trackName}</h2>
-          <p className="text-gray-400 text-sm">
-            {renderPlaybackStatus()}
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-gray-400 text-sm">
+              {renderPlaybackStatus()}
+            </p>
+            {renderProcessingStatus()}
+          </div>
         </div>
-        <Badge variant="outline" className="border-wip-pink text-wip-pink">
-          Work In Progress
-        </Badge>
+        <div className="flex items-center gap-3">
+          {showProcessButton && (
+            <Button
+              onClick={handleRequestProcessing}
+              variant="outline"
+              size="sm"
+              className="border-wip-pink text-wip-pink hover:bg-wip-pink/10 flex gap-1 items-center"
+              disabled={isRequestingProcessing}
+            >
+              {isRequestingProcessing ? (
+                <Loader className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <RefreshCw className="h-3 w-3 mr-1" />
+              )}
+              Process MP3
+            </Button>
+          )}
+          <Badge variant="outline" className="border-wip-pink text-wip-pink">
+            Work In Progress
+          </Badge>
+        </div>
       </div>
       
       <div className="flex items-center gap-4 mb-4">

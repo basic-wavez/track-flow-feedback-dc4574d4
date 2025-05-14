@@ -42,13 +42,21 @@ export const uploadTrack = async (
         original_filename: file.name,
         user_id: user.id,
         downloads_enabled: false,
-        chunk_count: totalChunks // Store the number of chunks
+        chunk_count: totalChunks, // Store the number of chunks
+        processing_status: 'pending' // Initial processing status
       })
       .select()
       .single();
       
     if (trackError) {
       throw trackError;
+    }
+
+    // Automatically request MP3 processing for the new track
+    if (track) {
+      requestMp3Processing(track.id)
+        .then(() => console.log("MP3 processing requested"))
+        .catch(error => console.error("Failed to request MP3 processing:", error));
     }
     
     return track;
@@ -60,6 +68,37 @@ export const uploadTrack = async (
       variant: "destructive",
     });
     return null;
+  }
+};
+
+/**
+ * Requests MP3 processing for a track
+ */
+export const requestMp3Processing = async (trackId: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`https://qzykfyavenplpxpdnfxh.supabase.co/functions/v1/process-audio`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabase.auth.session()?.access_token || ''}`
+      },
+      body: JSON.stringify({ trackId })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to request processing');
+    }
+
+    return true;
+  } catch (error: any) {
+    console.error("Processing request error:", error);
+    toast({
+      title: "Processing Request Failed",
+      description: error.message || "There was an error requesting MP3 processing",
+      variant: "destructive",
+    });
+    return false;
   }
 };
 
@@ -99,6 +138,12 @@ export const getTrackChunkUrls = async (trackId: string): Promise<string[]> => {
     const track = await getTrack(trackId);
     if (!track) {
       throw new Error("Track not found");
+    }
+    
+    // If track has a processed MP3, return it as the only "chunk"
+    if (track.mp3_url && track.processing_status === 'completed') {
+      console.log("Using processed MP3:", track.mp3_url);
+      return [track.mp3_url];
     }
     
     // If track doesn't have chunks or just one chunk, return main URL
@@ -233,5 +278,77 @@ export const getUserTracks = async (): Promise<TrackData[]> => {
       variant: "destructive",
     });
     return [];
+  }
+};
+
+/**
+ * Manually request MP3 processing for an existing track
+ */
+export const requestTrackProcessing = async (trackId: string): Promise<boolean> => {
+  try {
+    // Check if track exists and is eligible for processing
+    const track = await getTrack(trackId);
+    
+    if (!track) {
+      throw new Error("Track not found");
+    }
+    
+    // Don't reprocess if already completed
+    if (track.processing_status === 'completed' && track.mp3_url) {
+      toast({
+        title: "Already Processed",
+        description: "This track has already been processed successfully.",
+      });
+      return true;
+    }
+    
+    // Reset status if it was previously failed
+    if (track.processing_status === 'failed') {
+      await supabase
+        .from('tracks')
+        .update({ processing_status: 'pending' })
+        .eq('id', trackId);
+    }
+    
+    // Request processing
+    const success = await requestMp3Processing(trackId);
+    
+    if (success) {
+      toast({
+        title: "Processing Requested",
+        description: "Your track will be processed into an MP3 for improved streaming."
+      });
+    }
+    
+    return success;
+  } catch (error: any) {
+    toast({
+      title: "Processing Request Failed",
+      description: error.message || "Failed to request MP3 processing",
+      variant: "destructive",
+    });
+    return false;
+  }
+};
+
+/**
+ * Get the processing status of a track
+ */
+export const getTrackProcessingStatus = async (trackId: string): Promise<string> => {
+  try {
+    const { data, error } = await supabase
+      .from('tracks')
+      .select('processing_status')
+      .eq('id', trackId)
+      .single();
+      
+    if (error) {
+      throw error;
+    }
+    
+    return data?.processing_status || 'pending';
+  } catch (error: any) {
+    console.error("Error fetching processing status:", error);
+    return 'unknown';
   }
 };

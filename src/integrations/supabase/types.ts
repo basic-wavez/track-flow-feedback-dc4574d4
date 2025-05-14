@@ -94,8 +94,10 @@ export type Database = {
           description: string | null
           downloads_enabled: boolean | null
           id: string
+          mp3_url: string | null
           original_filename: string
           original_url: string | null
+          processing_status: string | null
           title: string
           updated_at: string | null
           user_id: string
@@ -107,8 +109,10 @@ export type Database = {
           description?: string | null
           downloads_enabled?: boolean | null
           id?: string
+          mp3_url?: string | null
           original_filename: string
           original_url?: string | null
+          processing_status?: string | null
           title: string
           updated_at?: string | null
           user_id: string
@@ -120,8 +124,10 @@ export type Database = {
           description?: string | null
           downloads_enabled?: boolean | null
           id?: string
+          mp3_url?: string | null
           original_filename?: string
           original_url?: string | null
+          processing_status?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string

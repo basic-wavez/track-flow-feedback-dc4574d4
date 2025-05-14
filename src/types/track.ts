@@ -7,7 +7,9 @@ export interface TrackData {
   original_filename: string;
   user_id: string;
   created_at?: string;
-  chunk_count?: number; // Add chunk count field
+  chunk_count?: number;
+  mp3_url?: string;
+  processing_status?: string;
 }
 
 export interface TrackUpdateDetails {
