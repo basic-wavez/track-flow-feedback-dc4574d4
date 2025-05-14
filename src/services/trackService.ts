@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "@/components/ui/use-toast";
@@ -57,17 +56,16 @@ const uploadFileInChunks = async (
       return publicUrl;
     }
 
-    // For larger files, use chunked upload
-    const { data: uploadData, error: initError } = await supabase.storage
+    // For larger files, use chunked upload with the correct API method
+    // Note: We're using the standard upload method since uploadOrUpdateBinaryFile doesn't exist
+    const { data, error } = await supabase.storage
       .from('audio')
-      .uploadOrUpdateBinaryFile(uniquePath, file, {
-        duplex: 'half',
-      });
+      .upload(uniquePath, file);
 
-    if (initError) {
-      throw initError;
+    if (error) {
+      throw error;
     }
-
+    
     if (progress.onProgress) {
       progress.onProgress(100);
     }
