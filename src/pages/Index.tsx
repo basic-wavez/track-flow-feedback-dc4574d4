@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AudioUploader from "@/components/AudioUploader";
 import AuthModal from "@/components/auth/AuthModal";
@@ -13,19 +13,29 @@ const Index = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [uploadedTrackName, setUploadedTrackName] = useState("");
+  const [shouldNavigate, setShouldNavigate] = useState(false);
+  
+  useEffect(() => {
+    // Handle navigation in an effect to ensure it happens only once
+    if (shouldNavigate && uploadedFileName) {
+      // Use a timeout to ensure all state updates are processed
+      const timer = setTimeout(() => {
+        navigate("/track/demo-123", { 
+          replace: true // Using replace to prevent back navigation
+        });
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [shouldNavigate, uploadedFileName, navigate]);
   
   const handleUploadComplete = (fileName: string, trackName: string) => {
     setUploadedFileName(fileName);
     setUploadedTrackName(trackName);
     
-    // If user is already authenticated, navigate to the track page
-    // Using a more robust approach with replace: true
+    // If user is already authenticated, set flag to navigate
     if (user) {
-      setTimeout(() => {
-        navigate("/track/demo-123", { 
-          replace: true 
-        });
-      }, 300); // Increased timeout to ensure state updates
+      setShouldNavigate(true);
     }
   };
   
@@ -39,14 +49,9 @@ const Index = () => {
   const handleAuthSuccess = () => {
     setIsAuthModalOpen(false);
     
-    // If we have an uploaded track, navigate to its page
-    // Using replace: true to prevent going back to home page
+    // Once authentication is successful, set flag to navigate if we have a track
     if (uploadedFileName) {
-      setTimeout(() => {
-        navigate("/track/demo-123", { 
-          replace: true 
-        });
-      }, 300); // Increased timeout to ensure state updates
+      setShouldNavigate(true);
     }
   };
 

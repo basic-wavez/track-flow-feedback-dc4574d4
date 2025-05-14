@@ -89,20 +89,22 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
       // Wait for progress to update visually before completing
       setTimeout(() => {
         const trackName = extractTrackName(fileToUpload.name);
+        
+        // Reset upload state
         setUploading(false);
         setProgress(0);
         
-        // First call onUploadComplete to update parent state
+        // Call upload complete callback to update parent state
         onUploadComplete(fileToUpload.name, trackName);
         
-        // Only require authentication if the user is not logged in
-        // Ensure this happens AFTER onUploadComplete
-        if (!user) {
-          setTimeout(() => {
+        // Delay auth required check to ensure parent state is updated
+        setTimeout(() => {
+          // Only require authentication if the user is not logged in
+          if (!user) {
             onAuthRequired();
-          }, 200);
-        }
-      }, 600); // Increased timeout for more reliable state updates
+          }
+        }, 300);
+      }, 800);
     } catch (error) {
       clearInterval(interval);
       setUploading(false);
