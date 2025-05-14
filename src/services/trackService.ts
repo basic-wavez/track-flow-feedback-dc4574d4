@@ -2,138 +2,20 @@
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "@/components/ui/use-toast";
-
-export interface TrackData {
-  id: string;
-  title: string;
-  compressed_url: string;
-  original_url?: string;
-  original_filename: string;
-  user_id: string;
-  created_at?: string;
-}
-
-// Constants for chunked uploads
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
-const MAX_FILE_SIZE = 80 * 1024 * 1024; // 80MB maximum file size
-
-interface UploadProgress {
-  totalChunks: number;
-  currentChunk: number;
-  progress: number; // 0-100
-  onProgress?: (progress: number) => void;
-}
+import { TrackData, TrackUpdateDetails } from "@/types/track";
+import { uploadFileInChunks, validateFileSize } from "./uploadService";
 
 /**
- * Uploads a file in chunks to Supabase Storage
+ * Uploads a track to storage and creates a database record
  */
-const uploadFileInChunks = async (
-  file: File,
-  uniquePath: string,
-  progress: UploadProgress
-): Promise<string> => {
-  // Calculate total chunks
-  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-  progress.totalChunks = totalChunks;
-
-  try {
-    // For small files (< 5MB), upload directly
-    if (file.size <= CHUNK_SIZE) {
-      const { data, error } = await supabase.storage
-        .from('audio')
-        .upload(uniquePath, file);
-
-      if (error) throw error;
-
-      // Get the URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('audio')
-        .getPublicUrl(uniquePath);
-
-      if (progress.onProgress) {
-        progress.onProgress(100);
-      }
-
-      return publicUrl;
-    }
-
-    // True chunked upload implementation for larger files
-    // Create an array buffer from the file
-    const fileBuffer = await file.arrayBuffer();
-    const fileUint8 = new Uint8Array(fileBuffer);
-    
-    // Initialize temporary chunk paths
-    const chunkPaths: string[] = [];
-    
-    // Upload each chunk
-    for (let i = 0; i < totalChunks; i++) {
-      const start = i * CHUNK_SIZE;
-      const end = Math.min(start + CHUNK_SIZE, file.size);
-      const chunkData = fileUint8.slice(start, end);
-      const chunkBlob = new Blob([chunkData]);
-      
-      const chunkPath = `${uniquePath}_chunk_${i}`;
-      chunkPaths.push(chunkPath);
-      
-      progress.currentChunk = i + 1;
-      
-      // Upload the chunk
-      const { error: chunkError } = await supabase.storage
-        .from('audio')
-        .upload(chunkPath, chunkBlob);
-      
-      if (chunkError) {
-        // Clean up already uploaded chunks on error
-        await Promise.all(
-          chunkPaths.map(path => 
-            supabase.storage.from('audio').remove([path])
-          )
-        );
-        throw chunkError;
-      }
-      
-      // Update progress
-      const chunkProgress = Math.floor((i + 1) / totalChunks * 100);
-      if (progress.onProgress) {
-        progress.onProgress(chunkProgress);
-      }
-    }
-    
-    // All chunks uploaded successfully
-    // For a production app, you would typically have a server-side process
-    // to reassemble the chunks. For this demo, we'll use the first chunk's URL
-    // and note this limitation.
-    
-    // Get the URL of the first chunk for demo purposes
-    const { data: { publicUrl } } = supabase.storage
-      .from('audio')
-      .getPublicUrl(chunkPaths[0]);
-    
-    // In a real implementation, you would have an edge function
-    // that combines these chunks server-side
-    
-    return publicUrl;
-  } catch (error: any) {
-    // Handle specific Supabase error codes
-    if (error.statusCode === 413) {
-      throw new Error('Payload too large: The file is too large for the server to process.');
-    } else if (error.message && typeof error.message === 'string' && error.message.includes('size')) {
-      throw new Error(`File size exceeds limit: ${(file.size / (1024 * 1024)).toFixed(1)}MB is too large.`);
-    }
-    throw error;
-  }
-};
-
 export const uploadTrack = async (
   file: File, 
   title?: string,
   onProgress?: (progress: number) => void
 ): Promise<TrackData | null> => {
   try {
-    // Check if the file size exceeds the maximum limit
-    if (file.size > MAX_FILE_SIZE) {
-      throw new Error(`File size exceeds the ${MAX_FILE_SIZE / (1024 * 1024)}MB limit (your file: ${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
-    }
+    // Validate file size
+    validateFileSize(file);
 
     // Check if user is authenticated
     const { data: { user } } = await supabase.auth.getUser();
@@ -146,16 +28,8 @@ export const uploadTrack = async (
     const uniqueFileName = `${uuidv4()}.${fileExt}`;
     const uniquePath = `${user.id}/${uniqueFileName}`;
     
-    // Track upload progress
-    const progress: UploadProgress = {
-      totalChunks: 0,
-      currentChunk: 0,
-      progress: 0,
-      onProgress
-    };
-
     // Upload the file to storage using chunking
-    const compressedUrl = await uploadFileInChunks(file, uniquePath, progress);
+    const compressedUrl = await uploadFileInChunks(file, uniquePath, 'audio', onProgress);
     
     // Create a record in the tracks table
     const trackTitle = title || file.name.split('.')[0]; // Use provided title or extract from filename
@@ -188,6 +62,9 @@ export const uploadTrack = async (
   }
 };
 
+/**
+ * Fetches a track by ID
+ */
 export const getTrack = async (trackId: string): Promise<TrackData | null> => {
   try {
     const { data: track, error } = await supabase
@@ -211,9 +88,12 @@ export const getTrack = async (trackId: string): Promise<TrackData | null> => {
   }
 };
 
+/**
+ * Updates track details
+ */
 export const updateTrackDetails = async (
   trackId: string,
-  details: { title?: string; description?: string; downloads_enabled?: boolean }
+  details: TrackUpdateDetails
 ): Promise<boolean> => {
   try {
     const { error } = await supabase
@@ -236,6 +116,9 @@ export const updateTrackDetails = async (
   }
 };
 
+/**
+ * Fetches all tracks for the current user
+ */
 export const getUserTracks = async (): Promise<TrackData[]> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
