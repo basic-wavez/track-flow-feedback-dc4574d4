@@ -9,6 +9,7 @@ interface WaveformProps {
   duration: number;
   onSeek: (time: number) => void;
   totalChunks?: number;
+  isBuffering?: boolean;
 }
 
 const Waveform = ({ 
@@ -17,7 +18,8 @@ const Waveform = ({
   currentTime, 
   duration, 
   onSeek,
-  totalChunks = 1
+  totalChunks = 1,
+  isBuffering = false
 }: WaveformProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [waveformData, setWaveformData] = useState<number[]>([]);
@@ -75,13 +77,13 @@ const Waveform = ({
         ctx.fillRect(x + barMargin/2, y, effectiveBarWidth, barHeight);
         
         // Add a subtle pulsing effect to bars near the current position when playing
-        if (isPlaying && x >= progressPixel - barWidth * 5 && x <= progressPixel + barWidth * 5) {
+        if ((isPlaying || isBuffering) && x >= progressPixel - barWidth * 5 && x <= progressPixel + barWidth * 5) {
           const distance = Math.abs(x - progressPixel) / (barWidth * 5);
-          const pulseOpacity = 0.5 - (distance * 0.5);
+          const pulseOpacity = isBuffering ? 0.7 - (distance * 0.7) : 0.5 - (distance * 0.5);
           
           if (pulseOpacity > 0) {
             ctx.fillStyle = `rgba(255, 255, 255, ${pulseOpacity})`;
-            const pulseFactor = 1 + (0.2 * (1 - distance));
+            const pulseFactor = isBuffering ? 1 + (0.3 * (1 - distance)) : 1 + (0.2 * (1 - distance));
             const pulseHeight = barHeight * pulseFactor;
             const pulseY = (height - pulseHeight) / 2;
             ctx.fillRect(x + barMargin/2, pulseY, effectiveBarWidth, pulseHeight);
@@ -92,14 +94,25 @@ const Waveform = ({
       // Draw progress line
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(progressPixel - 1, 0, 2, height);
+      
+      // Add buffering indicator
+      if (isBuffering) {
+        const bufferingWidth = 20;
+        const bufferingX = Math.min(progressPixel + 2, width - bufferingWidth);
+        
+        // Draw buffering animation pulse
+        const pulseAlpha = 0.5 + Math.sin(Date.now() / 200) * 0.5;
+        ctx.fillStyle = `rgba(255, 255, 255, ${pulseAlpha})`;
+        ctx.fillRect(bufferingX, 0, bufferingWidth, height);
+      }
     };
     
     // Draw the waveform
     drawWaveform();
     
-    // Set up animation if playing
+    // Set up animation if playing or buffering
     let animationFrame: number;
-    if (isPlaying) {
+    if (isPlaying || isBuffering) {
       const animate = () => {
         drawWaveform();
         animationFrame = requestAnimationFrame(animate);
@@ -113,7 +126,7 @@ const Waveform = ({
         cancelAnimationFrame(animationFrame);
       }
     };
-  }, [isPlaying, currentTime, duration, waveformData]);
+  }, [isPlaying, isBuffering, currentTime, duration, waveformData]);
   
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -135,6 +148,11 @@ const Waveform = ({
         className="w-full h-full cursor-pointer rounded-md waveform-bg"
         onClick={handleClick}
       />
+      {isBuffering && (
+        <div className="absolute bottom-4 right-4 text-sm text-wip-pink bg-wip-darker/80 px-3 py-1 rounded-full">
+          Buffering...
+        </div>
+      )}
     </div>
   );
 };

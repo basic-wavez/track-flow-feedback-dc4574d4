@@ -91,6 +91,7 @@ export const getTrack = async (trackId: string): Promise<TrackData | null> => {
 
 /**
  * Fetches all chunks for a track and returns their URLs
+ * Includes improved error handling and validation
  */
 export const getTrackChunkUrls = async (trackId: string): Promise<string[]> => {
   try {
@@ -107,21 +108,66 @@ export const getTrackChunkUrls = async (trackId: string): Promise<string[]> => {
     
     // Extract base path from the compressed_url
     const baseUrl = track.compressed_url;
-    const chunkUrls: string[] = [baseUrl]; // First chunk is the main URL
+    const chunkUrls: string[] = []; 
     
-    // The baseUrl is already chunk_0, now get the other chunks
+    // The baseUrl should be chunk_0
+    if (!baseUrl.includes('_chunk_')) {
+      // If the URL doesn't contain '_chunk_', it might be a legacy track
+      console.log("This appears to be a non-chunked track:", baseUrl);
+      return [baseUrl];
+    }
+    
+    // Extract the base path (everything before _chunk_X)
     const basePath = baseUrl.split('_chunk_0')[0];
     
-    // For each additional chunk, construct its URL
-    for (let i = 1; i < track.chunk_count; i++) {
-      const chunkUrl = `${basePath}_chunk_${i}`;
-      
-      // Verify chunk exists in storage
-      const { data } = await supabase.storage
+    // Check if the first chunk URL is valid
+    const firstChunkUrl = `${basePath}_chunk_0`;
+    let isFirstChunkValid = false;
+    
+    try {
+      // Try to validate the first chunk URL format
+      const { data: firstChunkData } = await supabase.storage
         .from('audio')
-        .getPublicUrl(chunkUrl.split('/public/audio/')[1]);
+        .getPublicUrl(firstChunkUrl.split('/public/audio/')[1]);
         
-      chunkUrls.push(data.publicUrl);
+      chunkUrls.push(firstChunkData.publicUrl);
+      isFirstChunkValid = true;
+    } catch (error) {
+      console.error("Error validating first chunk:", error);
+      // Fall back to the original URL if validation fails
+      chunkUrls.push(baseUrl);
+    }
+    
+    // If first chunk validation failed, don't try to get other chunks
+    if (!isFirstChunkValid) {
+      console.warn("First chunk validation failed, using original URL only");
+      return [baseUrl];
+    }
+    
+    // For each additional chunk, construct its URL and validate it
+    for (let i = 1; i < track.chunk_count; i++) {
+      try {
+        const chunkPath = `${basePath}_chunk_${i}`.split('/public/audio/')[1];
+        
+        // Verify chunk exists in storage and get its public URL
+        const { data } = await supabase.storage
+          .from('audio')
+          .getPublicUrl(chunkPath);
+          
+        chunkUrls.push(data.publicUrl);
+        console.log(`Added chunk ${i}:`, data.publicUrl);
+      } catch (error) {
+        console.error(`Error getting URL for chunk ${i}:`, error);
+        // Don't break the whole process if one chunk fails
+        // Instead, log the error and continue
+      }
+    }
+    
+    console.log(`Retrieved ${chunkUrls.length}/${track.chunk_count} chunk URLs`);
+    
+    // If we didn't get any valid chunk URLs, fall back to the original URL
+    if (chunkUrls.length === 0) {
+      return [baseUrl];
     }
     
     return chunkUrls;

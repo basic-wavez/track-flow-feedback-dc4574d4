@@ -3,7 +3,8 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Share, Download, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Share, Download, Volume2, VolumeX, Loader } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 import Waveform from "./Waveform";
 import { getTrackChunkUrls } from "@/services/trackService";
 
@@ -13,6 +14,9 @@ interface TrackPlayerProps {
   audioUrl?: string;
   isOwner?: boolean;
 }
+
+// Playback states for clearer state management
+type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'buffering' | 'error';
 
 const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -24,8 +28,11 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
   const [chunkUrls, setChunkUrls] = useState<string[]>([]);
   const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [playbackState, setPlaybackState] = useState<PlaybackState>('idle');
+  const [loadRetries, setLoadRetries] = useState(0);
   
   const audioRef = useRef<HTMLAudioElement>(null);
+  const nextAudioRef = useRef<HTMLAudioElement>(null);
   
   // Use a default audio sample if no audioUrl is provided
   const defaultAudioUrl = "https://assets.mixkit.co/active_storage/sfx/5135/5135.wav";
@@ -41,6 +48,7 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
       
       try {
         setIsLoading(true);
+        setPlaybackState('loading');
         const urls = await getTrackChunkUrls(trackId);
         
         if (urls.length === 0) {
@@ -48,19 +56,43 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
           setChunkUrls(audioUrl ? [audioUrl] : [defaultAudioUrl]);
         } else {
           setChunkUrls(urls);
-          console.log("Loaded chunk URLs:", urls);
+          console.log(`Loaded ${urls.length} chunk URLs:`, urls);
         }
       } catch (error) {
         console.error("Error loading audio chunks:", error);
         setChunkUrls(audioUrl ? [audioUrl] : [defaultAudioUrl]);
+        setPlaybackState('error');
+        toast({
+          title: "Error Loading Audio",
+          description: "Could not load the audio chunks. Please try again later.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
+        if (playbackState === 'loading') {
+          setPlaybackState('idle');
+        }
       }
     };
     
     loadChunkUrls();
   }, [trackId, audioUrl]);
 
+  // Preload the next chunk when current chunk is playing
+  useEffect(() => {
+    if (!nextAudioRef.current || chunkUrls.length <= 1 || currentChunkIndex >= chunkUrls.length - 1) {
+      return;
+    }
+    
+    const nextChunkUrl = chunkUrls[currentChunkIndex + 1];
+    if (nextChunkUrl) {
+      nextAudioRef.current.src = nextChunkUrl;
+      nextAudioRef.current.load();
+      console.log(`Preloading next chunk: ${currentChunkIndex + 1}`);
+    }
+  }, [currentChunkIndex, chunkUrls]);
+
+  // Main audio element event listeners
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -68,89 +100,192 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
     const updateTime = () => setCurrentTime(audio.currentTime);
     
     const handleEnd = () => {
+      console.log(`Chunk ${currentChunkIndex} ended. Total chunks: ${chunkUrls.length}`);
+      
       // Check if there are more chunks to play
       if (currentChunkIndex < chunkUrls.length - 1) {
+        setPlaybackState('buffering');
         setCurrentChunkIndex(prevIndex => prevIndex + 1);
       } else {
         setIsPlaying(false);
+        setPlaybackState('idle');
+        setCurrentTime(0);
+        setCurrentChunkIndex(0);
       }
     };
     
-    const handleLoadedMetadata = () => setDuration(audio.duration);
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration);
+      console.log(`Chunk ${currentChunkIndex} metadata loaded. Duration: ${audio.duration}`);
+    };
+    
+    const handleCanPlay = () => {
+      console.log(`Chunk ${currentChunkIndex} can play now`);
+      if (playbackState === 'buffering' && isPlaying) {
+        audio.play()
+          .then(() => {
+            setPlaybackState('playing');
+            setLoadRetries(0);
+          })
+          .catch(error => {
+            console.error(`Error playing chunk ${currentChunkIndex}:`, error);
+            handlePlaybackError();
+          });
+      } else if (playbackState === 'loading') {
+        setPlaybackState('idle');
+      }
+    };
+    
+    const handleWaiting = () => {
+      console.log(`Chunk ${currentChunkIndex} is waiting/buffering`);
+      setPlaybackState('buffering');
+    };
+    
+    const handleError = () => {
+      console.error(`Error with chunk ${currentChunkIndex}`);
+      handlePlaybackError();
+    };
 
     audio.addEventListener("timeupdate", updateTime);
     audio.addEventListener("ended", handleEnd);
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("canplay", handleCanPlay);
+    audio.addEventListener("waiting", handleWaiting);
+    audio.addEventListener("error", handleError);
+
+    // Set volume and muted state
+    audio.volume = volume;
+    audio.muted = isMuted;
 
     return () => {
       audio.removeEventListener("timeupdate", updateTime);
       audio.removeEventListener("ended", handleEnd);
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("canplay", handleCanPlay);
+      audio.removeEventListener("waiting", handleWaiting);
+      audio.removeEventListener("error", handleError);
     };
-  }, [currentChunkIndex, chunkUrls]);
+  }, [currentChunkIndex, chunkUrls, isPlaying, playbackState]);
+
+  // Handle playback errors with retry logic
+  const handlePlaybackError = () => {
+    if (loadRetries < 3) {
+      setLoadRetries(prev => prev + 1);
+      setPlaybackState('loading');
+      
+      // Retry loading the current chunk
+      const audio = audioRef.current;
+      if (audio && chunkUrls[currentChunkIndex]) {
+        console.log(`Retrying chunk ${currentChunkIndex} (attempt ${loadRetries + 1})`);
+        setTimeout(() => {
+          audio.load();
+        }, 1000); // Wait a second before retrying
+      }
+    } else {
+      setPlaybackState('error');
+      setIsPlaying(false);
+      toast({
+        title: "Playback Error",
+        description: "Could not play this track. Please try again later.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // When current chunk index changes, load and play the new chunk
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || chunkUrls.length === 0) return;
     
-    audio.src = chunkUrls[currentChunkIndex];
+    const currentChunkUrl = chunkUrls[currentChunkIndex];
+    
+    if (!currentChunkUrl) {
+      console.error(`No URL found for chunk ${currentChunkIndex}`);
+      handlePlaybackError();
+      return;
+    }
+    
+    console.log(`Loading chunk ${currentChunkIndex}: ${currentChunkUrl}`);
+    audio.src = currentChunkUrl;
+    
+    // Reset the time for the new chunk
+    if (currentChunkIndex > 0) {
+      setCurrentTime(0);
+    }
+    
+    audio.load();
     
     if (isPlaying) {
-      audio.load();
-      audio.play().catch(error => {
-        console.error("Playback failed:", error);
-      });
+      setPlaybackState('buffering');
     }
   }, [currentChunkIndex, chunkUrls]);
 
+  // Toggle play/pause with improved error handling
   const togglePlayPause = () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || chunkUrls.length === 0) return;
 
     if (isPlaying) {
       audio.pause();
+      setPlaybackState('paused');
+      setIsPlaying(false);
     } else {
-      audio.play().catch(error => {
-        console.error("Playback failed:", error);
-      });
+      setPlaybackState('buffering');
+      audio.play()
+        .then(() => {
+          setPlaybackState('playing');
+          setIsPlaying(true);
+        })
+        .catch(error => {
+          console.error("Playback failed:", error);
+          handlePlaybackError();
+        });
     }
-    
-    setIsPlaying(!isPlaying);
   };
 
+  // Improved seeking with chunk awareness
   const handleSeek = (time: number) => {
     const audio = audioRef.current;
     if (!audio || chunkUrls.length === 0) return;
     
-    // If we have multiple chunks, need to determine which chunk to play
-    if (chunkUrls.length > 1) {
-      // Calculate total duration (approximate)
-      let totalDuration = duration * chunkUrls.length;
-      
-      // Find which chunk contains the target time
-      const targetChunkIndex = Math.min(
-        Math.floor(time / duration),
-        chunkUrls.length - 1
-      );
-      
-      // Calculate the time within that chunk
-      const timeWithinChunk = time - (targetChunkIndex * duration);
-      
-      // Set the new chunk and seek to that time
+    // Calculate total duration (approximate)
+    const estimatedTotalDuration = duration * chunkUrls.length;
+    
+    // Find which chunk contains the target time
+    const targetChunkIndex = Math.min(
+      Math.floor(time / duration),
+      chunkUrls.length - 1
+    );
+    
+    // Calculate the time within that chunk
+    const timeWithinChunk = time - (targetChunkIndex * duration);
+    
+    console.log(`Seeking to ${time}s overall, chunk ${targetChunkIndex}, position ${timeWithinChunk}s`);
+    
+    // If we need to change chunks
+    if (targetChunkIndex !== currentChunkIndex) {
+      setPlaybackState('buffering');
       setCurrentChunkIndex(targetChunkIndex);
       
-      // Need to wait for the new chunk to load before seeking
+      // We'll set the time after the new chunk loads
       setTimeout(() => {
         if (audioRef.current) {
           audioRef.current.currentTime = timeWithinChunk;
+          
+          // If we were playing before seeking, continue playing
+          if (isPlaying) {
+            audioRef.current.play()
+              .catch(error => {
+                console.error("Error resuming after seek:", error);
+                handlePlaybackError();
+              });
+          }
         }
-      }, 100);
-      
+      }, 300); // Short delay to ensure the new chunk has started loading
     } else {
-      // Simple case: just one audio chunk
-      audio.currentTime = time;
-      setCurrentTime(time);
+      // Simple case: just seek within current chunk
+      audio.currentTime = timeWithinChunk;
+      setCurrentTime(timeWithinChunk);
     }
   };
 
@@ -207,26 +342,62 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
     // In a real app, this would generate a shareable link
     navigator.clipboard.writeText(window.location.href)
       .then(() => {
-        alert("Link copied to clipboard!");
+        toast({
+          title: "Link Copied",
+          description: "Track link copied to clipboard!",
+        });
       })
       .catch(err => {
         console.error("Could not copy link:", err);
+        toast({
+          title: "Copy Failed",
+          description: "Could not copy link to clipboard.",
+          variant: "destructive",
+        });
       });
+  };
+
+  // Helper function to render playback status indicator
+  const renderPlaybackStatus = () => {
+    switch (playbackState) {
+      case 'buffering':
+        return (
+          <div className="flex items-center gap-2 text-wip-pink animate-pulse">
+            <Loader className="h-4 w-4 animate-spin" />
+            <span>Buffering...</span>
+          </div>
+        );
+      case 'error':
+        return <span className="text-red-500">Error loading audio</span>;
+      default:
+        if (isLoading) {
+          return <span className="text-gray-400">Loading audio...</span>;
+        }
+        return <span className="text-gray-400">{chunkUrls.length} audio chunks loaded</span>;
+    }
   };
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
-      {/* Audio element with proper source */}
+      {/* Main audio element */}
       <audio 
         ref={audioRef} 
-        src={chunkUrls.length > 0 ? chunkUrls[currentChunkIndex] : defaultAudioUrl} 
+        src={chunkUrls.length > 0 ? chunkUrls[currentChunkIndex] : defaultAudioUrl}
+        preload="auto"
+      />
+      
+      {/* Hidden audio element for preloading next chunk */}
+      <audio 
+        ref={nextAudioRef} 
+        preload="auto" 
+        style={{ display: 'none' }}
       />
       
       <div className="mb-4 flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold gradient-text">{trackName}</h2>
           <p className="text-gray-400 text-sm">
-            {isLoading ? 'Loading audio...' : `${chunkUrls.length} audio chunks loaded`}
+            {renderPlaybackStatus()}
           </p>
         </div>
         <Badge variant="outline" className="border-wip-pink text-wip-pink">
@@ -239,9 +410,11 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
           onClick={togglePlayPause} 
           size="icon" 
           className="h-12 w-12 rounded-full gradient-bg hover:opacity-90"
-          disabled={isLoading}
+          disabled={isLoading || playbackState === 'error'}
         >
-          {isPlaying ? (
+          {playbackState === 'buffering' ? (
+            <Loader className="h-6 w-6 animate-spin" />
+          ) : isPlaying ? (
             <Pause className="h-6 w-6" />
           ) : (
             <Play className="h-6 w-6 ml-1" />
@@ -280,6 +453,7 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
         duration={getTotalDuration()}
         onSeek={handleSeek}
         totalChunks={chunkUrls.length}
+        isBuffering={playbackState === 'buffering'}
       />
       
       <div className="mt-6 flex justify-between items-center">

@@ -88,6 +88,7 @@ export type Database = {
       }
       tracks: {
         Row: {
+          chunk_count: number | null
           compressed_url: string
           created_at: string | null
           description: string | null
@@ -100,6 +101,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          chunk_count?: number | null
           compressed_url: string
           created_at?: string | null
           description?: string | null
@@ -112,6 +114,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          chunk_count?: number | null
           compressed_url?: string
           created_at?: string | null
           description?: string | null
