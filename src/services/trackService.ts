@@ -91,7 +91,8 @@ export const requestMp3Processing = async (trackId: string): Promise<boolean> =>
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to request processing');
+      console.error("MP3 processing request failed:", response.status, errorData);
+      throw new Error(errorData.error || `Processing request failed with status ${response.status}`);
     }
 
     return true;
