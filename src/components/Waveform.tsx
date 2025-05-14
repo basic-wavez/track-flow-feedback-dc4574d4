@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { generateWaveformData } from '@/lib/audioUtils';
 
 interface WaveformProps {
@@ -8,19 +8,32 @@ interface WaveformProps {
   currentTime: number;
   duration: number;
   onSeek: (time: number) => void;
+  totalChunks?: number;
 }
 
-const Waveform = ({ audioUrl, isPlaying, currentTime, duration, onSeek }: WaveformProps) => {
+const Waveform = ({ 
+  audioUrl, 
+  isPlaying, 
+  currentTime, 
+  duration, 
+  onSeek,
+  totalChunks = 1
+}: WaveformProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [waveformData, setWaveformData] = useState<number[]>([]);
   
-  // In a real app, we would extract actual waveform data from the audio file
-  // For this demo, we'll generate random waveform data
-  const waveformData = useRef(generateWaveformData(150));
+  // Generate waveform data when component mounts or audioUrl changes
+  useEffect(() => {
+    // For a complete implementation, we would extract actual waveform data from audio
+    // For now, generate more segments for multi-chunk tracks
+    const segments = Math.max(150, 50 * totalChunks);
+    setWaveformData(generateWaveformData(segments));
+  }, [audioUrl, totalChunks]);
   
   useEffect(() => {
     const drawWaveform = () => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas || waveformData.length === 0) return;
       
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
@@ -36,13 +49,13 @@ const Waveform = ({ audioUrl, isPlaying, currentTime, duration, onSeek }: Wavefo
       const progressPixel = width * progress;
       
       // Draw the waveform bars
-      const barWidth = width / waveformData.current.length;
+      const barWidth = width / waveformData.length;
       const barMargin = barWidth * 0.2;
       const effectiveBarWidth = barWidth - barMargin;
       
-      for (let i = 0; i < waveformData.current.length; i++) {
+      for (let i = 0; i < waveformData.length; i++) {
         const x = i * barWidth;
-        const amplitude = waveformData.current[i] * 0.7; // Reduce max height to 70% of canvas
+        const amplitude = waveformData[i] * 0.7; // Reduce max height to 70% of canvas
         const barHeight = height * amplitude;
         const y = (height - barHeight) / 2;
         
@@ -50,12 +63,12 @@ const Waveform = ({ audioUrl, isPlaying, currentTime, duration, onSeek }: Wavefo
         if (x < progressPixel) {
           // Gradient for played section
           const gradient = ctx.createLinearGradient(0, 0, 0, height);
-          gradient.addColorStop(0, 'rgba(229, 98, 162, 0.9)');
-          gradient.addColorStop(1, 'rgba(182, 70, 128, 0.7)');
+          gradient.addColorStop(0, 'rgba(231, 162, 200, 0.9)'); // Updated to new pink color
+          gradient.addColorStop(1, 'rgba(200, 123, 171, 0.7)'); // Darker shade of the pink
           ctx.fillStyle = gradient;
         } else {
           // Color for unplayed section
-          ctx.fillStyle = 'rgba(229, 98, 162, 0.3)';
+          ctx.fillStyle = 'rgba(231, 162, 200, 0.3)'; // Updated to new pink color with low opacity
         }
         
         // Draw the bar
@@ -100,7 +113,7 @@ const Waveform = ({ audioUrl, isPlaying, currentTime, duration, onSeek }: Wavefo
         cancelAnimationFrame(animationFrame);
       }
     };
-  }, [isPlaying, currentTime, duration]);
+  }, [isPlaying, currentTime, duration, waveformData]);
   
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;

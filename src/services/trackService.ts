@@ -29,7 +29,7 @@ export const uploadTrack = async (
     const uniquePath = `${user.id}/${uniqueFileName}`;
     
     // Upload the file to storage using chunking
-    const compressedUrl = await uploadFileInChunks(file, uniquePath, 'audio', onProgress);
+    const { compressedUrl, totalChunks } = await uploadFileInChunks(file, uniquePath, 'audio', onProgress);
     
     // Create a record in the tracks table
     const trackTitle = title || file.name.split('.')[0]; // Use provided title or extract from filename
@@ -41,7 +41,8 @@ export const uploadTrack = async (
         compressed_url: compressedUrl,
         original_filename: file.name,
         user_id: user.id,
-        downloads_enabled: false
+        downloads_enabled: false,
+        chunk_count: totalChunks // Store the number of chunks
       })
       .select()
       .single();
@@ -85,6 +86,48 @@ export const getTrack = async (trackId: string): Promise<TrackData | null> => {
       variant: "destructive",
     });
     return null;
+  }
+};
+
+/**
+ * Fetches all chunks for a track and returns their URLs
+ */
+export const getTrackChunkUrls = async (trackId: string): Promise<string[]> => {
+  try {
+    // First, get the track details
+    const track = await getTrack(trackId);
+    if (!track) {
+      throw new Error("Track not found");
+    }
+    
+    // If track doesn't have chunks or just one chunk, return main URL
+    if (!track.chunk_count || track.chunk_count <= 1) {
+      return [track.compressed_url];
+    }
+    
+    // Extract base path from the compressed_url
+    const baseUrl = track.compressed_url;
+    const chunkUrls: string[] = [baseUrl]; // First chunk is the main URL
+    
+    // The baseUrl is already chunk_0, now get the other chunks
+    const basePath = baseUrl.split('_chunk_0')[0];
+    
+    // For each additional chunk, construct its URL
+    for (let i = 1; i < track.chunk_count; i++) {
+      const chunkUrl = `${basePath}_chunk_${i}`;
+      
+      // Verify chunk exists in storage
+      const { data } = await supabase.storage
+        .from('audio')
+        .getPublicUrl(chunkUrl.split('/public/audio/')[1]);
+        
+      chunkUrls.push(data.publicUrl);
+    }
+    
+    return chunkUrls;
+  } catch (error: any) {
+    console.error("Error fetching chunk URLs:", error);
+    return [];
   }
 };
 

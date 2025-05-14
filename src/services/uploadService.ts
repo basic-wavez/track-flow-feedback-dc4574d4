@@ -14,6 +14,11 @@ interface UploadProgress {
   onProgress?: (progress: number) => void;
 }
 
+interface UploadResult {
+  compressedUrl: string;
+  totalChunks: number;
+}
+
 /**
  * Uploads a file in chunks to Supabase Storage
  */
@@ -22,7 +27,7 @@ export const uploadFileInChunks = async (
   uniquePath: string,
   bucketName: string = 'audio',
   onProgress?: (progress: number) => void
-): Promise<string> => {
+): Promise<UploadResult> => {
   // Track upload progress
   const progress: UploadProgress = {
     totalChunks: 0,
@@ -53,7 +58,7 @@ export const uploadFileInChunks = async (
         progress.onProgress(100);
       }
 
-      return publicUrl;
+      return { compressedUrl: publicUrl, totalChunks: 1 };
     }
 
     // True chunked upload implementation for larger files
@@ -99,19 +104,16 @@ export const uploadFileInChunks = async (
     }
     
     // All chunks uploaded successfully
-    // For a production app, you would typically have a server-side process
-    // to reassemble the chunks. For this demo, we'll use the first chunk's URL
-    // and note this limitation.
     
-    // Get the URL of the first chunk for demo purposes
+    // Get the URL of the first chunk
     const { data: { publicUrl } } = supabase.storage
       .from(bucketName)
       .getPublicUrl(chunkPaths[0]);
     
-    // In a real implementation, you would have an edge function
-    // that combines these chunks server-side
-    
-    return publicUrl;
+    return {
+      compressedUrl: publicUrl,
+      totalChunks: totalChunks
+    };
   } catch (error: any) {
     // Handle specific Supabase error codes
     if (error.statusCode === 413) {

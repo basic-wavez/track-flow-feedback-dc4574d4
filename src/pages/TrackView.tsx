@@ -103,6 +103,7 @@ const TrackView = () => {
         ) : track ? (
           <div className="max-w-5xl mx-auto space-y-12">
             <TrackPlayer 
+              trackId={trackId || ''}
               trackName={track.title}
               audioUrl={track.compressed_url} 
               isOwner={isOwner}

@@ -5,32 +5,77 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Play, Pause, Share, Download, Volume2, VolumeX } from "lucide-react";
 import Waveform from "./Waveform";
+import { getTrackChunkUrls } from "@/services/trackService";
 
 interface TrackPlayerProps {
+  trackId: string;
   trackName: string;
   audioUrl?: string;
   isOwner?: boolean;
 }
 
-const TrackPlayer = ({ trackName, audioUrl, isOwner = false }: TrackPlayerProps) => {
+const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [isMuted, setIsMuted] = useState(false);
   const [downloadEnabled, setDownloadEnabled] = useState(false);
+  const [chunkUrls, setChunkUrls] = useState<string[]>([]);
+  const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const audioRef = useRef<HTMLAudioElement>(null);
   
   // Use a default audio sample if no audioUrl is provided
   const defaultAudioUrl = "https://assets.mixkit.co/active_storage/sfx/5135/5135.wav";
-  const audioSource = audioUrl || defaultAudioUrl;
+  
+  // Load chunk URLs when component mounts
+  useEffect(() => {
+    const loadChunkUrls = async () => {
+      if (!trackId) {
+        setChunkUrls(audioUrl ? [audioUrl] : [defaultAudioUrl]);
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        setIsLoading(true);
+        const urls = await getTrackChunkUrls(trackId);
+        
+        if (urls.length === 0) {
+          // Fallback to provided audioUrl if no chunks found
+          setChunkUrls(audioUrl ? [audioUrl] : [defaultAudioUrl]);
+        } else {
+          setChunkUrls(urls);
+          console.log("Loaded chunk URLs:", urls);
+        }
+      } catch (error) {
+        console.error("Error loading audio chunks:", error);
+        setChunkUrls(audioUrl ? [audioUrl] : [defaultAudioUrl]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadChunkUrls();
+  }, [trackId, audioUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     const updateTime = () => setCurrentTime(audio.currentTime);
-    const handleEnd = () => setIsPlaying(false);
+    
+    const handleEnd = () => {
+      // Check if there are more chunks to play
+      if (currentChunkIndex < chunkUrls.length - 1) {
+        setCurrentChunkIndex(prevIndex => prevIndex + 1);
+      } else {
+        setIsPlaying(false);
+      }
+    };
+    
     const handleLoadedMetadata = () => setDuration(audio.duration);
 
     audio.addEventListener("timeupdate", updateTime);
@@ -42,7 +87,22 @@ const TrackPlayer = ({ trackName, audioUrl, isOwner = false }: TrackPlayerProps)
       audio.removeEventListener("ended", handleEnd);
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
-  }, []);
+  }, [currentChunkIndex, chunkUrls]);
+
+  // When current chunk index changes, load and play the new chunk
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || chunkUrls.length === 0) return;
+    
+    audio.src = chunkUrls[currentChunkIndex];
+    
+    if (isPlaying) {
+      audio.load();
+      audio.play().catch(error => {
+        console.error("Playback failed:", error);
+      });
+    }
+  }, [currentChunkIndex, chunkUrls]);
 
   const togglePlayPause = () => {
     const audio = audioRef.current;
@@ -61,10 +121,37 @@ const TrackPlayer = ({ trackName, audioUrl, isOwner = false }: TrackPlayerProps)
 
   const handleSeek = (time: number) => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || chunkUrls.length === 0) return;
     
-    audio.currentTime = time;
-    setCurrentTime(time);
+    // If we have multiple chunks, need to determine which chunk to play
+    if (chunkUrls.length > 1) {
+      // Calculate total duration (approximate)
+      let totalDuration = duration * chunkUrls.length;
+      
+      // Find which chunk contains the target time
+      const targetChunkIndex = Math.min(
+        Math.floor(time / duration),
+        chunkUrls.length - 1
+      );
+      
+      // Calculate the time within that chunk
+      const timeWithinChunk = time - (targetChunkIndex * duration);
+      
+      // Set the new chunk and seek to that time
+      setCurrentChunkIndex(targetChunkIndex);
+      
+      // Need to wait for the new chunk to load before seeking
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.currentTime = timeWithinChunk;
+        }
+      }, 100);
+      
+    } else {
+      // Simple case: just one audio chunk
+      audio.currentTime = time;
+      setCurrentTime(time);
+    }
   };
 
   const toggleMute = () => {
@@ -97,6 +184,19 @@ const TrackPlayer = ({ trackName, audioUrl, isOwner = false }: TrackPlayerProps)
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
+  
+  // Calculate total duration across all chunks
+  const getTotalDuration = () => {
+    if (chunkUrls.length <= 1) return duration;
+    
+    // Each chunk should be roughly the same duration
+    return duration * chunkUrls.length;
+  };
+  
+  // Calculate current position across all chunks
+  const getCurrentPosition = () => {
+    return (currentChunkIndex * duration) + currentTime;
+  };
 
   const handleDownload = () => {
     // In a real app, this would initiate a download of the original file
@@ -117,12 +217,17 @@ const TrackPlayer = ({ trackName, audioUrl, isOwner = false }: TrackPlayerProps)
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
       {/* Audio element with proper source */}
-      <audio ref={audioRef} src={audioSource} />
+      <audio 
+        ref={audioRef} 
+        src={chunkUrls.length > 0 ? chunkUrls[currentChunkIndex] : defaultAudioUrl} 
+      />
       
       <div className="mb-4 flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold gradient-text">{trackName}</h2>
-          <p className="text-gray-400 text-sm">Uploaded by You</p>
+          <p className="text-gray-400 text-sm">
+            {isLoading ? 'Loading audio...' : `${chunkUrls.length} audio chunks loaded`}
+          </p>
         </div>
         <Badge variant="outline" className="border-wip-pink text-wip-pink">
           Work In Progress
@@ -134,6 +239,7 @@ const TrackPlayer = ({ trackName, audioUrl, isOwner = false }: TrackPlayerProps)
           onClick={togglePlayPause} 
           size="icon" 
           className="h-12 w-12 rounded-full gradient-bg hover:opacity-90"
+          disabled={isLoading}
         >
           {isPlaying ? (
             <Pause className="h-6 w-6" />
@@ -143,7 +249,7 @@ const TrackPlayer = ({ trackName, audioUrl, isOwner = false }: TrackPlayerProps)
         </Button>
         
         <div className="text-sm font-mono">
-          {formatTime(currentTime)} / {formatTime(duration)}
+          {formatTime(getCurrentPosition())} / {formatTime(getTotalDuration())}
         </div>
         
         <div className="flex items-center ml-auto gap-2">
@@ -168,11 +274,12 @@ const TrackPlayer = ({ trackName, audioUrl, isOwner = false }: TrackPlayerProps)
       </div>
       
       <Waveform 
-        audioUrl={audioSource}
+        audioUrl={chunkUrls.length > 0 ? chunkUrls[0] : undefined}
         isPlaying={isPlaying}
-        currentTime={currentTime}
-        duration={duration}
+        currentTime={getCurrentPosition()}
+        duration={getTotalDuration()}
         onSeek={handleSeek}
+        totalChunks={chunkUrls.length}
       />
       
       <div className="mt-6 flex justify-between items-center">
