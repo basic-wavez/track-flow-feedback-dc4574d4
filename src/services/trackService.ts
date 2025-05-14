@@ -76,11 +76,15 @@ export const uploadTrack = async (
  */
 export const requestMp3Processing = async (trackId: string): Promise<boolean> => {
   try {
+    // Get the current session using the proper method
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token || '';
+
     const response = await fetch(`https://qzykfyavenplpxpdnfxh.supabase.co/functions/v1/process-audio`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabase.auth.session()?.access_token || ''}`
+        'Authorization': `Bearer ${accessToken}`
       },
       body: JSON.stringify({ trackId })
     });
