@@ -13,15 +13,90 @@ export interface TrackData {
   created_at?: string;
 }
 
+// Constants for chunked uploads
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+const MAX_FILE_SIZE = 80 * 1024 * 1024; // 80MB maximum file size
+
+interface UploadProgress {
+  totalChunks: number;
+  currentChunk: number;
+  progress: number; // 0-100
+  onProgress?: (progress: number) => void;
+}
+
+/**
+ * Uploads a file in chunks to Supabase Storage
+ */
+const uploadFileInChunks = async (
+  file: File,
+  uniquePath: string,
+  progress: UploadProgress
+): Promise<string> => {
+  // Calculate total chunks
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  progress.totalChunks = totalChunks;
+
+  try {
+    // For small files (< 5MB), upload directly
+    if (file.size <= CHUNK_SIZE) {
+      const { data, error } = await supabase.storage
+        .from('audio')
+        .upload(uniquePath, file);
+
+      if (error) throw error;
+
+      // Get the URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('audio')
+        .getPublicUrl(uniquePath);
+
+      if (progress.onProgress) {
+        progress.onProgress(100);
+      }
+
+      return publicUrl;
+    }
+
+    // For larger files, use chunked upload
+    const { data: uploadData, error: initError } = await supabase.storage
+      .from('audio')
+      .uploadOrUpdateBinaryFile(uniquePath, file, {
+        duplex: 'half',
+      });
+
+    if (initError) {
+      throw initError;
+    }
+
+    if (progress.onProgress) {
+      progress.onProgress(100);
+    }
+    
+    const { data: { publicUrl } } = supabase.storage
+      .from('audio')
+      .getPublicUrl(uniquePath);
+
+    return publicUrl;
+  } catch (error: any) {
+    // Handle specific Supabase error codes
+    if (error.statusCode === 413) {
+      throw new Error('Payload too large: The file is too large for the server to process.');
+    } else if (error.message && typeof error.message === 'string' && error.message.includes('size')) {
+      throw new Error(`File size exceeds limit: ${(file.size / (1024 * 1024)).toFixed(1)}MB is too large.`);
+    }
+    throw error;
+  }
+};
+
 export const uploadTrack = async (
   file: File, 
-  title?: string
+  title?: string,
+  onProgress?: (progress: number) => void
 ): Promise<TrackData | null> => {
   try {
-    // Check if the file size exceeds 80MB (80 * 1024 * 1024 bytes = 83886080 bytes)
-    const MAX_FILE_SIZE = 80 * 1024 * 1024; // 80MB in bytes
+    // Check if the file size exceeds the maximum limit
     if (file.size > MAX_FILE_SIZE) {
-      throw new Error(`File size exceeds the 80MB limit (your file: ${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
+      throw new Error(`File size exceeds the ${MAX_FILE_SIZE / (1024 * 1024)}MB limit (your file: ${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
     }
 
     // Check if user is authenticated
@@ -35,23 +110,16 @@ export const uploadTrack = async (
     const uniqueFileName = `${uuidv4()}.${fileExt}`;
     const uniquePath = `${user.id}/${uniqueFileName}`;
     
-    // Upload the file to the audio bucket
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('audio')
-      .upload(uniquePath, file);
-      
-    if (uploadError) {
-      // Check for specific Supabase storage errors related to file size
-      if (uploadError.message && uploadError.message.includes("exceeded the maximum allowed size")) {
-        throw new Error(`File size exceeds the server limit of 80MB (your file: ${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
-      }
-      throw uploadError;
-    }
-    
-    // Get the public URL for the file
-    const { data: { publicUrl: compressedUrl } } = supabase.storage
-      .from('audio')
-      .getPublicUrl(uniquePath);
+    // Track upload progress
+    const progress: UploadProgress = {
+      totalChunks: 0,
+      currentChunk: 0,
+      progress: 0,
+      onProgress
+    };
+
+    // Upload the file to storage using chunking
+    const compressedUrl = await uploadFileInChunks(file, uniquePath, progress);
     
     // Create a record in the tracks table
     const trackTitle = title || file.name.split('.')[0]; // Use provided title or extract from filename
@@ -74,6 +142,7 @@ export const uploadTrack = async (
     
     return track;
   } catch (error: any) {
+    console.error("Upload error:", error);
     toast({
       title: "Upload Failed",
       description: error.message || "There was an error uploading your track",

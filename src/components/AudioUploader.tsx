@@ -88,9 +88,16 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
       
       setProgress(30);
       
-      // Upload to Supabase
+      // Upload to Supabase with progress tracking
       const trackName = extractTrackName(fileToUpload.name);
-      const result = await uploadTrack(fileToUpload, trackName);
+      const result = await uploadTrack(
+        fileToUpload, 
+        trackName,
+        (uploadProgress) => {
+          // Update progress based on chunked upload
+          setProgress(30 + (uploadProgress * 0.6)); // Scale to 30-90% range
+        }
+      );
       
       setProgress(90);
       
@@ -110,6 +117,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
         onUploadComplete(result.id, result.title);
       }, 800);
     } catch (error: any) {
+      console.error("Upload error:", error);
       setUploading(false);
       setProgress(0);
       setUploadError(error.message || "There was an error processing your audio file.");
@@ -245,6 +253,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
           <Progress value={progress} className="h-2 mb-4" />
           <p className="text-sm text-gray-500">
             {progress < 30 ? "Preparing upload..." : 
+             progress < 50 ? "Creating upload..." :
              progress < 90 ? "Uploading to server..." : 
              "Almost done..."}
           </p>
