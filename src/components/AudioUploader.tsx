@@ -1,10 +1,9 @@
-
 import { useState, useRef, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
-import { useAuth } from "@/context/AuthContext"; // Add this import
+import { useAuth } from "@/context/AuthContext";
 import { isAllowedAudioFormat, isLosslessFormat, extractTrackName, compressAudioFile } from "@/lib/audioUtils";
 
 interface AudioUploaderProps {
@@ -20,7 +19,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
   const [showQualityWarning, setShowQualityWarning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { user } = useAuth(); // Add this line to get the authentication state
+  const { user } = useAuth();
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -86,16 +85,20 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
       clearInterval(interval);
       setProgress(100);
       
+      // Wait for progress to update visually before completing
       setTimeout(() => {
         const trackName = extractTrackName(fileToUpload.name);
         setUploading(false);
         setProgress(0);
         
+        // Call onUploadComplete callback with file info
         onUploadComplete(fileToUpload.name, trackName);
         
         // Only require authentication if the user is not logged in
         if (!user) {
-          onAuthRequired();
+          setTimeout(() => {
+            onAuthRequired();
+          }, 100);
         }
       }, 500);
     } catch (error) {
@@ -138,7 +141,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
       uploadFile(file);
     }
   };
-
+  
   return (
     <div className="w-full max-w-2xl mx-auto">
       {!uploading && !showQualityWarning ? (

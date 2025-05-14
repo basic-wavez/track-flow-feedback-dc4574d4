@@ -19,8 +19,11 @@ const Index = () => {
     setUploadedTrackName(trackName);
     
     // If user is already authenticated, navigate to the track page
+    // Using setTimeout to ensure state is updated before navigation
     if (user) {
-      navigate("/track/demo-123");
+      setTimeout(() => {
+        navigate("/track/demo-123", { replace: true });
+      }, 100);
     }
   };
   
@@ -35,8 +38,11 @@ const Index = () => {
     setIsAuthModalOpen(false);
     
     // If we have an uploaded track, navigate to its page
+    // Using replace: true to prevent going back to home page
     if (uploadedFileName) {
-      navigate("/track/demo-123");
+      setTimeout(() => {
+        navigate("/track/demo-123", { replace: true });
+      }, 100);
     }
   };
 
