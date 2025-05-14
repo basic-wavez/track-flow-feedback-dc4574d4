@@ -17,18 +17,27 @@ const Index = () => {
   const handleUploadComplete = (fileName: string, trackName: string) => {
     setUploadedFileName(fileName);
     setUploadedTrackName(trackName);
+    
+    // If user is already authenticated, navigate to the track page
+    if (user) {
+      navigate("/track/demo-123");
+    }
   };
   
   const handleAuthRequired = () => {
-    setIsAuthModalOpen(true);
+    // Only open auth modal if user is not logged in
+    if (!user) {
+      setIsAuthModalOpen(true);
+    }
   };
   
   const handleAuthSuccess = () => {
     setIsAuthModalOpen(false);
     
-    // In a real app with Supabase, this would create a new track in the database
-    // For this demo, we'll navigate to a track with a demo ID
-    navigate("/track/demo-123");
+    // If we have an uploaded track, navigate to its page
+    if (uploadedFileName) {
+      navigate("/track/demo-123");
+    }
   };
 
   return (

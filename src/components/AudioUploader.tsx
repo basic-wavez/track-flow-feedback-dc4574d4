@@ -4,6 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
+import { useAuth } from "@/context/AuthContext"; // Add this import
 import { isAllowedAudioFormat, isLosslessFormat, extractTrackName, compressAudioFile } from "@/lib/audioUtils";
 
 interface AudioUploaderProps {
@@ -19,6 +20,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
   const [showQualityWarning, setShowQualityWarning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { user } = useAuth(); // Add this line to get the authentication state
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -91,8 +93,10 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
         
         onUploadComplete(fileToUpload.name, trackName);
         
-        // Force authentication if needed
-        onAuthRequired();
+        // Only require authentication if the user is not logged in
+        if (!user) {
+          onAuthRequired();
+        }
       }, 500);
     } catch (error) {
       clearInterval(interval);
