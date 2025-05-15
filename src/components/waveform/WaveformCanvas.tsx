@@ -142,7 +142,10 @@ const WaveformCanvas = ({
     
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const seekPosition = x / canvas.width;
+    
+    // Important: Use the display width (rect.width) rather than the canvas width
+    // This ensures the seekPosition aligns with the visible position clicked
+    const seekPosition = x / rect.width;
     
     // Ensure seekPosition is valid
     if (isFinite(seekPosition) && !isNaN(seekPosition)) {
