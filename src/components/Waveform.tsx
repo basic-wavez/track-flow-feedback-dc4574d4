@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, useState } from 'react';
-import { generateWaveformData } from '@/lib/audioUtils';
+import { analyzeAudio, generateWaveformData } from '@/lib/audioUtils';
 import { Loader } from 'lucide-react';
 
 interface WaveformProps {
@@ -28,9 +28,11 @@ const Waveform = ({
 }: WaveformProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [waveformData, setWaveformData] = useState<number[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isWaveformGenerated, setIsWaveformGenerated] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   
-  // Helper function to generate waveform with variance
+  // Helper function to generate waveform with variance as fallback
   const generateWaveformWithVariance = (segments: number, variance: number) => {
     // Generate base waveform data
     const baseData = generateWaveformData(segments);
@@ -43,8 +45,7 @@ const Waveform = ({
     });
   };
   
-  // Generate waveform data when component mounts or audioUrl changes
-  // Only regenerate if the MP3 becomes available or the URL changes
+  // Generate or analyze waveform data when component mounts or audioUrl changes
   useEffect(() => {
     if (!audioUrl) return;
     
@@ -52,20 +53,43 @@ const Waveform = ({
     // unless it's specifically for an MP3 that just became available
     if (isWaveformGenerated && !isMp3Available) return;
     
-    // Generate more detailed waveform data for MP3 files
+    // Determine number of samples for the waveform
     const segments = isMp3Available 
       ? 200 // More segments for MP3 for better visualization
       : Math.max(150, 50 * totalChunks);
     
-    // In a production app, we'd analyze the actual MP3 file here
-    // For now, we'll generate random data with a more realistic pattern for MP3
-    const newWaveformData = generateWaveformWithVariance(
-      segments, 
-      isMp3Available ? 0.4 : 0.2 // Higher variance for MP3 waveforms
-    );
-    
-    setWaveformData(newWaveformData);
-    setIsWaveformGenerated(true);
+    // For MP3 files, analyze the actual audio data
+    if (isMp3Available && audioUrl) {
+      setIsAnalyzing(true);
+      setAnalysisError(null);
+      
+      analyzeAudio(audioUrl, segments)
+        .then(analyzedData => {
+          setWaveformData(analyzedData);
+          setIsWaveformGenerated(true);
+        })
+        .catch(error => {
+          console.error("Error analyzing audio:", error);
+          setAnalysisError("Failed to analyze audio. Using fallback visualization.");
+          
+          // Fall back to generated data
+          const fallbackData = generateWaveformWithVariance(segments, 0.4);
+          setWaveformData(fallbackData);
+          setIsWaveformGenerated(true);
+        })
+        .finally(() => {
+          setIsAnalyzing(false);
+        });
+    } else {
+      // For non-MP3 or when analysis fails, use generated data
+      const newWaveformData = generateWaveformWithVariance(
+        segments, 
+        isMp3Available ? 0.4 : 0.2 // Higher variance for MP3 waveforms
+      );
+      
+      setWaveformData(newWaveformData);
+      setIsWaveformGenerated(true);
+    }
   }, [audioUrl, totalChunks, isMp3Available]);
   
   useEffect(() => {
@@ -184,6 +208,18 @@ const Waveform = ({
     onSeek(duration * seekPosition);
   };
   
+  // Show analyzing state when processing actual audio file
+  if (isAnalyzing) {
+    return (
+      <div className="w-full h-32 relative flex items-center justify-center bg-wip-darker/50 rounded-md">
+        <div className="flex flex-col items-center gap-2">
+          <Loader className="h-8 w-8 text-wip-pink animate-spin" />
+          <div className="text-sm text-wip-pink">Analyzing audio waveform...</div>
+        </div>
+      </div>
+    );
+  }
+  
   // Show waveform loading state when generating waveform for MP3
   if (isGeneratingWaveform) {
     return (
@@ -213,6 +249,11 @@ const Waveform = ({
       {isMp3Available && (
         <div className="absolute top-4 right-4 text-xs text-green-300 bg-wip-darker/80 px-3 py-1 rounded-full">
           High Quality MP3
+        </div>
+      )}
+      {analysisError && (
+        <div className="absolute bottom-4 left-4 text-xs text-amber-300 bg-wip-darker/80 px-3 py-1 rounded-full">
+          Using fallback visualization
         </div>
       )}
     </div>

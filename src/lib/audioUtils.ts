@@ -52,7 +52,7 @@ export const extractTrackName = (fileName: string): string => {
 
 /**
  * Generate a placeholder for the waveform visualization
- * In a real app, this would be replaced with actual waveform data
+ * Used as a fallback when real audio analysis is not possible
  */
 export const generateWaveformData = (length: number = 100): number[] => {
   const data = [];
@@ -60,6 +60,71 @@ export const generateWaveformData = (length: number = 100): number[] => {
     data.push(Math.random() * 0.5 + 0.25); // Values between 0.25 and 0.75
   }
   return data;
+};
+
+/**
+ * Analyze audio file to extract waveform data
+ * Returns a promise that resolves with an array of amplitude values
+ */
+export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promise<number[]> => {
+  return new Promise((resolve, reject) => {
+    // Create audio context
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) {
+      console.warn("AudioContext not supported - falling back to generated waveform");
+      resolve(generateWaveformData(samplesCount));
+      return;
+    }
+    
+    const audioContext = new AudioContext();
+    const waveformData: number[] = [];
+    
+    // Fetch the audio file
+    fetch(audioUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to fetch audio file');
+        }
+        return response.arrayBuffer();
+      })
+      .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+      .then(audioBuffer => {
+        // Get the audio data from the buffer
+        const channelData = audioBuffer.getChannelData(0); // Use first channel
+        const blockSize = Math.floor(channelData.length / samplesCount);
+        
+        // Process the audio data to create a waveform
+        for (let i = 0; i < samplesCount; i++) {
+          const startSample = blockSize * i;
+          let sum = 0;
+          
+          // Calculate the average amplitude for this block
+          for (let j = 0; j < blockSize; j++) {
+            sum += Math.abs(channelData[startSample + j] || 0);
+          }
+          
+          // Normalize between 0-1 with minimum value to ensure visibility
+          const amplitude = Math.max(0.05, Math.min(1, sum / blockSize * 3));
+          waveformData.push(amplitude);
+        }
+        
+        // Close the audio context when done
+        if (audioContext.state !== 'closed') {
+          audioContext.close();
+        }
+        
+        resolve(waveformData);
+      })
+      .catch(error => {
+        console.error("Error analyzing audio:", error);
+        // Fall back to generated data
+        console.warn("Using generated waveform data as fallback");
+        if (audioContext.state !== 'closed') {
+          audioContext.close();
+        }
+        resolve(generateWaveformData(samplesCount));
+      });
+  });
 };
 
 /**
