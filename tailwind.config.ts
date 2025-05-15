@@ -73,10 +73,18 @@ export default {
           green: "#3ECF8E",
           indigo: "#4851F4",
           yellow: "#FDCD2C",
+          pink: "#E7A2C8", // Adding the new pink color
           gray: "#8E9196", 
           code: "#2A2A2A",
           border: "#222222",
           input: "#1F1F1F",
+        },
+        wip: {
+          dark: "#181818",
+          darker: "#121212",
+          light: "#F8FAFC",
+          pink: "#E7A2C8",
+          gray: "#8E9196",
         },
       },
       borderRadius: {

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AudioUploader from "@/components/AudioUploader";
@@ -58,7 +59,7 @@ const Index = () => {
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <header className="py-6 px-8 flex justify-between items-center border-b border-wip-gray/30">
         <div className="flex items-center">
-          <h1 className="text-3xl font-bold gradient-text">
+          <h1 className="text-3xl font-bold text-wip-pink">
             WIP Manager
           </h1>
         </div>
@@ -80,7 +81,7 @@ const Index = () => {
       
       <main className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-3xl mx-auto text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4 gradient-text">
+          <h2 className="text-4xl font-bold mb-4 text-wip-pink">
             Share Your Works In Progress
           </h2>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto">
@@ -98,7 +99,7 @@ const Index = () => {
           
           <ol className="space-y-6">
             <li className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full gradient-bg flex items-center justify-center font-bold">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-wip-pink flex items-center justify-center font-bold">
                 1
               </div>
               <div>
@@ -110,7 +111,7 @@ const Index = () => {
             </li>
             
             <li className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full gradient-bg flex items-center justify-center font-bold">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-wip-pink flex items-center justify-center font-bold">
                 2
               </div>
               <div>
@@ -122,7 +123,7 @@ const Index = () => {
             </li>
             
             <li className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full gradient-bg flex items-center justify-center font-bold">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-wip-pink flex items-center justify-center font-bold">
                 3
               </div>
               <div>
