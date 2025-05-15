@@ -152,7 +152,7 @@ async function processAudio(supabase: any, trackId: string) {
       mp3Url = await processSingleFile(supabase, track);
     } else {
       // Process multiple chunks
-      console.log(`Track ${trackId} has ${track.chunk_count} chunks that will be merged via Cloudinary`);
+      console.log(`Track ${trackId} has ${track.chunk_count} chunks that will be merged`);
       mp3Url = await processMultipleChunks(supabase, track);
     }
     
@@ -250,12 +250,9 @@ async function processSingleFile(supabase: any, track: any): Promise<string | nu
 
 async function processMultipleChunks(supabase: any, track: any): Promise<string | null> {
   try {
-    // We'll process the first chunk for now as a proof of concept
-    // In a full implementation, we would concatenate all chunks before uploading
-    
-    // Extract the base path from the original URL
+    // Extract the base path from the original URL to determine the chunk path pattern
     const baseUrl = track.compressed_url;
-    let chunkPath = '';
+    let basePath = '';
     
     try {
       // Extract the path portion of the URL (after the bucket name)
@@ -270,46 +267,71 @@ async function processMultipleChunks(supabase: any, track: any): Promise<string 
       }
       
       if (relevantPath) {
-        chunkPath = relevantPath;
+        basePath = relevantPath.split('_chunk_0')[0];
       } else {
         // Fallback if we can't parse the URL properly
-        chunkPath = baseUrl.split('/public/audio/')[1];
+        basePath = baseUrl.split('/public/audio/')[1].split('_chunk_0')[0];
       }
       
-      console.log(`Identified chunk path: ${chunkPath}`);
+      console.log(`Identified base path for chunks: ${basePath}`);
     } catch (error) {
-      console.error("Error parsing URL:", error);
+      console.error("Error parsing URL for chunks:", error);
       return null;
     }
     
-    if (!chunkPath) {
-      console.error("Could not determine chunk path");
+    if (!basePath) {
+      console.error("Could not determine base path for chunks");
       return null;
     }
     
-    const basePath = chunkPath.split('_chunk_0')[0];
+    // Download all chunks and combine them
+    const chunks: Blob[] = [];
+    let totalSize = 0;
     
-    // For this implementation, we'll only process the first chunk
-    // In a real-world scenario, you'd want to merge all chunks first
-    const firstChunkPath = `${basePath}_chunk_0`;
+    console.log(`Downloading ${track.chunk_count} chunks for track ${track.id}...`);
     
-    console.log(`Processing first chunk at path: ${firstChunkPath}`);
-    
-    const { data: chunkData, error: downloadError } = await supabase
-      .storage
-      .from('audio')
-      .download(firstChunkPath);
+    // Download all chunks
+    for (let i = 0; i < track.chunk_count; i++) {
+      const chunkPath = `${basePath}_chunk_${i}`;
+      console.log(`Downloading chunk ${i+1}/${track.chunk_count}: ${chunkPath}`);
       
-    if (downloadError || !chunkData) {
-      console.error(`Error downloading first chunk:`, downloadError);
+      const { data: chunkData, error: downloadError } = await supabase
+        .storage
+        .from('audio')
+        .download(chunkPath);
+      
+      if (downloadError || !chunkData) {
+        console.error(`Error downloading chunk ${i}:`, downloadError);
+        return null;
+      }
+      
+      chunks.push(chunkData);
+      totalSize += chunkData.size;
+      console.log(`Successfully downloaded chunk ${i+1}/${track.chunk_count}, size: ${chunkData.size} bytes`);
+    }
+    
+    if (chunks.length === 0) {
+      console.error("No chunks were downloaded");
       return null;
     }
+    
+    // Create a new Blob by concatenating all chunks
+    console.log(`Concatenating ${chunks.length} chunks with total size: ${totalSize} bytes`);
+    const concatenatedFile = new Blob(chunks, { type: chunks[0].type });
+    
+    console.log(`Combined file created with size: ${concatenatedFile.size} bytes`);
+    
+    // Upload combined file to Cloudinary
+    console.log(`Uploading combined file (${concatenatedFile.size} bytes) to Cloudinary...`);
     
     // Upload to Cloudinary and convert to MP3 - with retries
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const mp3Url = await uploadToCloudinary(chunkData, track);
-        if (mp3Url) return mp3Url;
+        const mp3Url = await uploadToCloudinary(concatenatedFile, track);
+        if (mp3Url) {
+          console.log(`Successfully processed all ${chunks.length} chunks for track ${track.id}`);
+          return mp3Url;
+        }
         
         console.log(`Attempt ${attempt} failed, retrying...`);
       } catch (error) {
