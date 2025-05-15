@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Loader, Play } from "lucide-react";
+import { Loader, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { requestTrackProcessing } from "@/services/trackProcessingService";
 
@@ -11,15 +11,13 @@ interface ProcessingIndicatorProps {
   trackName: string;
   status: string;
   isOwner: boolean;
-  onPlayUnoptimized: () => void;
 }
 
 const ProcessingIndicator = ({ 
   trackId, 
   trackName, 
   status, 
-  isOwner,
-  onPlayUnoptimized 
+  isOwner
 }: ProcessingIndicatorProps) => {
   const [progress, setProgress] = useState(0);
   const [isRequesting, setIsRequesting] = useState(false);
@@ -127,7 +125,7 @@ const ProcessingIndicator = ({
           {status === "failed" && isOwner && (
             <div className="mt-4">
               <p className="text-red-400 mb-2">
-                Processing failed. You can try again or play the unoptimized version.
+                Processing failed. You can request processing again.
               </p>
               <Button
                 onClick={handleRequestProcessing}
@@ -147,17 +145,6 @@ const ProcessingIndicator = ({
               </Button>
             </div>
           )}
-        </div>
-        
-        <div className="flex justify-center pt-4">
-          <Button
-            onClick={onPlayUnoptimized}
-            variant="outline"
-            className="border-wip-pink text-wip-pink hover:bg-wip-pink/10 flex items-center gap-2"
-          >
-            <Play className="h-4 w-4" />
-            Play Unoptimized Version
-          </Button>
         </div>
       </div>
     </div>

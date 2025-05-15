@@ -21,13 +21,13 @@ const TrackView = () => {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [track, setTrack] = useState<TrackData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [showUnoptimizedPlayer, setShowUnoptimizedPlayer] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
   
-  // Check if track is still being processed
-  const isProcessing = track?.processing_status !== 'completed' && 
-                      track?.processing_status !== undefined && 
-                      !showUnoptimizedPlayer;
+  // Check if track is ready for full player (MP3 is processed and URL is available)
+  const isTrackReady = track?.processing_status === 'completed' && track?.mp3_url;
+  
+  // Show processing indicator if track is not ready
+  const isProcessing = !isTrackReady;
   
   useEffect(() => {
     const fetchTrackData = async () => {
@@ -110,10 +110,6 @@ const TrackView = () => {
     setShowFeedbackForm(false);
   };
 
-  const handlePlayUnoptimized = () => {
-    setShowUnoptimizedPlayer(true);
-  };
-
   // Check if track owner matches current user
   const isOwner = user && track?.user_id === user.id;
 
@@ -154,13 +150,12 @@ const TrackView = () => {
                 trackName={track.title}
                 status={processingStatus}
                 isOwner={isOwner}
-                onPlayUnoptimized={handlePlayUnoptimized}
               />
             ) : (
               <TrackPlayer 
                 trackId={trackId || ''}
                 trackName={track.title}
-                audioUrl={track.compressed_url} 
+                audioUrl={track.mp3_url} 
                 isOwner={isOwner}
               />
             )}
