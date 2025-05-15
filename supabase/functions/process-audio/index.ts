@@ -19,9 +19,8 @@ const corsHeaders = {
 
 // Cloudinary configuration
 const CLOUDINARY_CLOUD_NAME = Deno.env.get("CLOUDINARY_CLOUD_NAME") || "";
-const CLOUDINARY_API_KEY = Deno.env.get("CLOUDINARY_API_KEY") || "";
-const CLOUDINARY_API_SECRET = Deno.env.get("CLOUDINARY_API_SECRET") || "";
 const CLOUDINARY_UPLOAD_PRESET = Deno.env.get("CLOUDINARY_UPLOAD_PRESET") || "wip-man";
+const MAX_RETRIES = 3;
 
 serve(async (req: Request) => {
   // Handle CORS preflight requests
@@ -34,7 +33,7 @@ serve(async (req: Request) => {
 
   try {
     // Validate Cloudinary configuration
-    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
       throw new Error("Cloudinary configuration missing");
     }
     
@@ -224,9 +223,25 @@ async function processSingleFile(supabase: any, track: any): Promise<string | nu
       return null;
     }
 
-    // Upload to Cloudinary and convert to MP3
-    return await uploadToCloudinary(fileData, track);
+    // Upload to Cloudinary and convert to MP3 - with retries
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const mp3Url = await uploadToCloudinary(fileData, track);
+        if (mp3Url) return mp3Url;
+        
+        console.log(`Attempt ${attempt} failed, retrying...`);
+      } catch (error) {
+        console.error(`Upload attempt ${attempt} failed:`, error);
+        if (attempt === MAX_RETRIES) {
+          console.error("All retry attempts failed");
+          return null;
+        }
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+      }
+    }
     
+    return null;
   } catch (error) {
     console.error("Error in processSingleFile:", error);
     return null;
@@ -290,9 +305,25 @@ async function processMultipleChunks(supabase: any, track: any): Promise<string 
       return null;
     }
     
-    // Upload to Cloudinary and convert to MP3
-    return await uploadToCloudinary(chunkData, track);
+    // Upload to Cloudinary and convert to MP3 - with retries
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const mp3Url = await uploadToCloudinary(chunkData, track);
+        if (mp3Url) return mp3Url;
+        
+        console.log(`Attempt ${attempt} failed, retrying...`);
+      } catch (error) {
+        console.error(`Upload attempt ${attempt} failed:`, error);
+        if (attempt === MAX_RETRIES) {
+          console.error("All retry attempts failed");
+          return null;
+        }
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+      }
+    }
     
+    return null;
   } catch (error) {
     console.error("Error in processMultipleChunks:", error);
     return null;
@@ -310,23 +341,15 @@ async function uploadToCloudinary(fileData: Blob, track: any): Promise<string | 
     // Add Cloudinary parameters
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
     formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
-    formData.append('api_key', CLOUDINARY_API_KEY);
     
-    // Request MP3 conversion by adding format transformation
+    // Set some metadata to identify the upload
     formData.append('resource_type', 'auto');  // Let Cloudinary determine resource type
-    formData.append('format', 'mp3');  // Convert to MP3
     formData.append('public_id', `audio-${track.id}`); // Set public ID for the file
     
-    // For basic authentication with Cloudinary
-    const auth = btoa(`${CLOUDINARY_API_KEY}:${CLOUDINARY_API_SECRET}`);
-    
-    // Upload to Cloudinary
-    console.log(`Uploading to Cloudinary and requesting MP3 conversion...`);
+    // Upload to Cloudinary using the upload preset
+    console.log(`Uploading to Cloudinary using preset ${CLOUDINARY_UPLOAD_PRESET}...`);
     const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Basic ${auth}`,
-      },
       body: formData
     });
     
@@ -339,13 +362,13 @@ async function uploadToCloudinary(fileData: Blob, track: any): Promise<string | 
     // Parse response
     const data = await response.json();
     
-    // Get the MP3 URL from the response
+    // Get the URL from the response
     if (data.secure_url) {
       console.log(`Successfully uploaded to Cloudinary: ${data.secure_url}`);
       
       // If we need to ensure it's an MP3 URL (if format wasn't handled in the upload)
-      const mp3Url = data.secure_url.endsWith('.mp3') 
-        ? data.secure_url 
+      const mp3Url = data.format === 'mp3'
+        ? data.secure_url
         : `${data.secure_url.split('.').slice(0, -1).join('.')}.mp3`;
         
       return mp3Url;
