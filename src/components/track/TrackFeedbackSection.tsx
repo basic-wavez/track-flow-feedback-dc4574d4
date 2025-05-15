@@ -53,6 +53,7 @@ const TrackFeedbackSection = ({ trackTitle, user }: TrackFeedbackSectionProps) =
   return (
     <>
       <FeedbackForm 
+        trackId={trackId}
         trackName={trackTitle}
         onFeedbackSubmit={handleFeedbackSubmitted}
         onLoginRequest={() => setIsAuthModalOpen(true)}

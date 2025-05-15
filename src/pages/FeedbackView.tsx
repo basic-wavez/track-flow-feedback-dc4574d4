@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import TrackPlayer from "@/components/TrackPlayer";
@@ -151,6 +150,7 @@ const FeedbackView = () => {
 
   const getUserDisplayName = (feedbackItem: Feedback) => {
     if (feedbackItem.anonymous) return "Anonymous";
+    if (feedbackItem.guest_name) return feedbackItem.guest_name;
     if (feedbackItem.user_id && userDetails[feedbackItem.user_id]) {
       return userDetails[feedbackItem.user_id].username;
     }

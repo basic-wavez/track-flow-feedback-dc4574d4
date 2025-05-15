@@ -88,6 +88,7 @@ const TrackFeedbackDisplay = ({ trackId, trackTitle }: TrackFeedbackDisplayProps
   
   const getCommentorName = (feedbackItem: Feedback) => {
     if (feedbackItem.anonymous) return "Anonymous";
+    if (feedbackItem.guest_name) return feedbackItem.guest_name;
     if (feedbackItem.user_id && userDetails[feedbackItem.user_id]) {
       return userDetails[feedbackItem.user_id].username;
     }

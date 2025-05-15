@@ -2,7 +2,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
 
-export type Feedback = Database['public']['Tables']['feedback']['Row'];
+export type Feedback = Database['public']['Tables']['feedback']['Row'] & {
+  guest_name?: string | null;
+};
 
 /**
  * Get all feedback for a specific track
@@ -36,4 +38,20 @@ export const checkTrackHasFeedback = async (trackId: string): Promise<boolean> =
   }
   
   return (count || 0) > 0;
+};
+
+/**
+ * Submit feedback for a track
+ */
+export const submitFeedback = async (feedbackData: Omit<Feedback, 'id' | 'created_at'>): Promise<boolean> => {
+  const { error } = await supabase
+    .from('feedback')
+    .insert([feedbackData]);
+    
+  if (error) {
+    console.error('Error submitting feedback:', error);
+    return false;
+  }
+  
+  return true;
 };

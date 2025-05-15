@@ -4,26 +4,34 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/components/ui/use-toast";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Switch } from "@/components/ui/switch";
 
 interface FeedbackFormProps {
+  trackId?: string;
   trackName: string;
   onFeedbackSubmit: () => void;
   onLoginRequest: () => void;
 }
 
-const FeedbackForm = ({ trackName, onFeedbackSubmit, onLoginRequest }: FeedbackFormProps) => {
+const FeedbackForm = ({ trackId, trackName, onFeedbackSubmit, onLoginRequest }: FeedbackFormProps) => {
+  const { user } = useAuth();
   const [mixingRating, setMixingRating] = useState<number>(5);
   const [harmoniesRating, setHarmoniesRating] = useState<number>(5);
   const [melodiesRating, setMelodiesRating] = useState<number>(5);
   const [soundDesignRating, setSoundDesignRating] = useState<number>(5);
   const [arrangementRating, setArrangementRating] = useState<number>(5);
-  const [wouldPlayDJ, setWouldPlayDJ] = useState<string>("no");
-  const [wouldListen, setWouldListen] = useState<string>("no");
+  const [wouldPlayDJ, setWouldPlayDJ] = useState<boolean>(false);
+  const [wouldListen, setWouldListen] = useState<boolean>(false);
   const [additionalFeedback, setAdditionalFeedback] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [guestName, setGuestName] = useState<string>("");
+  const [isAnonymous, setIsAnonymous] = useState<boolean>(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,9 +39,33 @@ const FeedbackForm = ({ trackName, onFeedbackSubmit, onLoginRequest }: FeedbackF
     setIsSubmitting(true);
 
     try {
-      // In a real app with Supabase integration, we would save the feedback to the database
-      // For this demo, we'll simulate success after a short delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!trackId) {
+        throw new Error("Track ID is missing");
+      }
+      
+      // Submit feedback to Supabase
+      const { data, error } = await supabase
+        .from('feedback')
+        .insert([
+          {
+            track_id: trackId,
+            mixing_score: mixingRating,
+            harmonies_score: harmoniesRating,
+            melodies_score: melodiesRating,
+            sound_design_score: soundDesignRating,
+            arrangement_score: arrangementRating,
+            dj_set_play: wouldPlayDJ,
+            casual_listening: wouldListen,
+            written_feedback: additionalFeedback || null,
+            user_id: user?.id || null,
+            anonymous: isAnonymous || !user?.id,
+            guest_name: !user?.id && !isAnonymous ? guestName : null
+          }
+        ]);
+      
+      if (error) {
+        throw error;
+      }
       
       toast({
         title: "Feedback Submitted",
@@ -41,10 +73,11 @@ const FeedbackForm = ({ trackName, onFeedbackSubmit, onLoginRequest }: FeedbackF
       });
       
       onFeedbackSubmit();
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error submitting feedback:", error);
       toast({
         title: "Submission Failed",
-        description: "There was an error submitting your feedback. Please try again.",
+        description: error.message || "There was an error submitting your feedback. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -74,6 +107,8 @@ const FeedbackForm = ({ trackName, onFeedbackSubmit, onLoginRequest }: FeedbackF
     </div>
   );
 
+  const showGuestFields = !user && !isAnonymous;
+
   return (
     <Card className="w-full max-w-3xl mx-auto bg-wip-darker border-wip-gray">
       <CardHeader>
@@ -84,6 +119,51 @@ const FeedbackForm = ({ trackName, onFeedbackSubmit, onLoginRequest }: FeedbackF
       
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
+          {/* User Status Section */}
+          {!user && (
+            <div className="p-4 border border-wip-gray/30 rounded-md bg-wip-darker">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-medium">Submit as Guest</h3>
+                  <p className="text-sm text-gray-400">You're not signed in</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onLoginRequest}
+                  className="border-wip-pink text-wip-pink hover:bg-wip-pink/10"
+                >
+                  Sign in
+                </Button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="anonymous" 
+                    checked={isAnonymous} 
+                    onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+                  />
+                  <Label htmlFor="anonymous" className="text-sm">Submit anonymously</Label>
+                </div>
+                
+                {showGuestFields && (
+                  <div className="space-y-2">
+                    <Label htmlFor="guest-name" className="text-sm">Your Name</Label>
+                    <Input
+                      id="guest-name"
+                      placeholder="Enter your name"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      required={showGuestFields}
+                      className="bg-wip-gray/10"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
           {/* Rating Fields with Sliders */}
           <div className="space-y-4">
             {renderSlider(mixingRating, (values) => setMixingRating(values[0]), "Mixing")}
@@ -95,40 +175,26 @@ const FeedbackForm = ({ trackName, onFeedbackSubmit, onLoginRequest }: FeedbackF
           
           {/* Yes/No Questions */}
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Would you play it in a DJ set?</Label>
-              <RadioGroup 
-                value={wouldPlayDJ} 
-                onValueChange={setWouldPlayDJ}
-                className="flex space-x-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="yes" id="dj-yes" />
-                  <Label htmlFor="dj-yes">Yes</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="no" id="dj-no" />
-                  <Label htmlFor="dj-no">No</Label>
-                </div>
-              </RadioGroup>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Would you play it in a DJ set?</Label>
+                <p className="text-sm text-gray-400">For club or event play</p>
+              </div>
+              <Switch 
+                checked={wouldPlayDJ}
+                onCheckedChange={setWouldPlayDJ}
+              />
             </div>
             
-            <div className="space-y-2">
-              <Label>Would you listen to it casually?</Label>
-              <RadioGroup 
-                value={wouldListen} 
-                onValueChange={setWouldListen}
-                className="flex space-x-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="yes" id="listen-yes" />
-                  <Label htmlFor="listen-yes">Yes</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="no" id="listen-no" />
-                  <Label htmlFor="listen-no">No</Label>
-                </div>
-              </RadioGroup>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Would you listen casually?</Label>
+                <p className="text-sm text-gray-400">For personal enjoyment</p>
+              </div>
+              <Switch 
+                checked={wouldListen}
+                onCheckedChange={setWouldListen}
+              />
             </div>
           </div>
           
@@ -145,19 +211,10 @@ const FeedbackForm = ({ trackName, onFeedbackSubmit, onLoginRequest }: FeedbackF
           </div>
         </CardContent>
         
-        <CardFooter className="flex justify-between">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onLoginRequest}
-            className="border-wip-pink text-wip-pink hover:bg-wip-pink/10"
-          >
-            Sign in to Track Feedback
-          </Button>
-          
+        <CardFooter className="flex justify-end space-x-2">
           <Button 
             type="submit" 
-            disabled={isSubmitting}
+            disabled={isSubmitting || (showGuestFields && !guestName)}
             className="gradient-bg hover:opacity-90"
           >
             {isSubmitting ? "Submitting..." : "Submit Feedback"}

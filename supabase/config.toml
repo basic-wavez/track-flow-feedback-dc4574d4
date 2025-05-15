@@ -2,3 +2,7 @@
 project_id = "qzykfyavenplpxpdnfxh"
 # Set higher file size limit for storage
 file_size_limit = "200MB"
+
+# Add guest_name column to feedback table
+[db_config]
+guest_feedback_enabled = true
