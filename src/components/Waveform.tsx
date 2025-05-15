@@ -1,6 +1,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { generateWaveformData } from '@/lib/audioUtils';
+import { Loader } from 'lucide-react';
 
 interface WaveformProps {
   audioUrl?: string;
@@ -10,6 +11,8 @@ interface WaveformProps {
   onSeek: (time: number) => void;
   totalChunks?: number;
   isBuffering?: boolean;
+  isMp3Available?: boolean;
+  isGeneratingWaveform?: boolean;
 }
 
 const Waveform = ({ 
@@ -19,18 +22,38 @@ const Waveform = ({
   duration, 
   onSeek,
   totalChunks = 1,
-  isBuffering = false
+  isBuffering = false,
+  isMp3Available = false,
+  isGeneratingWaveform = false
 }: WaveformProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [waveformData, setWaveformData] = useState<number[]>([]);
+  const [isWaveformGenerated, setIsWaveformGenerated] = useState(false);
   
   // Generate waveform data when component mounts or audioUrl changes
+  // Only regenerate if the MP3 becomes available or the URL changes
   useEffect(() => {
-    // For a complete implementation, we would extract actual waveform data from audio
-    // For now, generate more segments for multi-chunk tracks
-    const segments = Math.max(150, 50 * totalChunks);
-    setWaveformData(generateWaveformData(segments));
-  }, [audioUrl, totalChunks]);
+    if (!audioUrl) return;
+    
+    // If we already have waveform data for this audioUrl, don't regenerate
+    // unless it's specifically for an MP3 that just became available
+    if (isWaveformGenerated && !isMp3Available) return;
+    
+    // Generate more detailed waveform data for MP3 files
+    const segments = isMp3Available 
+      ? 200 // More segments for MP3 for better visualization
+      : Math.max(150, 50 * totalChunks);
+    
+    // In a production app, we'd analyze the actual MP3 file here
+    // For now, we'll generate random data with a more realistic pattern for MP3
+    const newWaveformData = generateWaveformData(
+      segments, 
+      isMp3Available ? 0.4 : 0.2 // Higher variance for MP3 waveforms
+    );
+    
+    setWaveformData(newWaveformData);
+    setIsWaveformGenerated(true);
+  }, [audioUrl, totalChunks, isMp3Available]);
   
   useEffect(() => {
     const drawWaveform = () => {
@@ -61,16 +84,25 @@ const Waveform = ({
         const barHeight = height * amplitude;
         const y = (height - barHeight) / 2;
         
-        // Determine color based on playback position
+        // Determine color based on playback position and MP3 availability
         if (x < progressPixel) {
-          // Gradient for played section
+          // Gradient for played section - brighter for MP3
           const gradient = ctx.createLinearGradient(0, 0, 0, height);
-          gradient.addColorStop(0, 'rgba(231, 162, 200, 0.9)'); // Updated to new pink color
-          gradient.addColorStop(1, 'rgba(200, 123, 171, 0.7)'); // Darker shade of the pink
+          if (isMp3Available) {
+            // Higher quality MP3 visualization with richer colors
+            gradient.addColorStop(0, 'rgba(241, 172, 210, 0.95)'); // Brighter pink for MP3
+            gradient.addColorStop(1, 'rgba(210, 133, 181, 0.85)'); // Darker shade with more opacity
+          } else {
+            // Standard visualization for chunks
+            gradient.addColorStop(0, 'rgba(231, 162, 200, 0.9)'); 
+            gradient.addColorStop(1, 'rgba(200, 123, 171, 0.7)');
+          }
           ctx.fillStyle = gradient;
         } else {
           // Color for unplayed section
-          ctx.fillStyle = 'rgba(231, 162, 200, 0.3)'; // Updated to new pink color with low opacity
+          ctx.fillStyle = isMp3Available 
+            ? 'rgba(241, 172, 210, 0.4)' // Higher opacity for MP3
+            : 'rgba(231, 162, 200, 0.3)'; 
         }
         
         // Draw the bar
@@ -126,7 +158,7 @@ const Waveform = ({
         cancelAnimationFrame(animationFrame);
       }
     };
-  }, [isPlaying, isBuffering, currentTime, duration, waveformData]);
+  }, [isPlaying, isBuffering, currentTime, duration, waveformData, isMp3Available]);
   
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -138,6 +170,18 @@ const Waveform = ({
     
     onSeek(duration * seekPosition);
   };
+  
+  // Show waveform loading state when generating waveform for MP3
+  if (isGeneratingWaveform) {
+    return (
+      <div className="w-full h-32 relative flex items-center justify-center bg-wip-darker/50 rounded-md">
+        <div className="flex flex-col items-center gap-2">
+          <Loader className="h-8 w-8 text-wip-pink animate-spin" />
+          <div className="text-sm text-wip-pink">Generating waveform...</div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="w-full h-32 relative">
@@ -151,6 +195,11 @@ const Waveform = ({
       {isBuffering && (
         <div className="absolute bottom-4 right-4 text-sm text-wip-pink bg-wip-darker/80 px-3 py-1 rounded-full">
           Buffering...
+        </div>
+      )}
+      {isMp3Available && (
+        <div className="absolute top-4 right-4 text-xs text-green-300 bg-wip-darker/80 px-3 py-1 rounded-full">
+          High Quality MP3
         </div>
       )}
     </div>

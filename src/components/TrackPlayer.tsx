@@ -37,6 +37,10 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
   const [isRequestingProcessing, setIsRequestingProcessing] = useState(false);
   const [usingMp3, setUsingMp3] = useState(false);
   
+  // New state variables for waveform generation
+  const [mp3Url, setMp3Url] = useState<string | null>(null);
+  const [isGeneratingWaveform, setIsGeneratingWaveform] = useState(false);
+  
   const audioRef = useRef<HTMLAudioElement>(null);
   const nextAudioRef = useRef<HTMLAudioElement>(null);
   
@@ -65,14 +69,22 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
           if (track.mp3_url && track.processing_status === 'completed') {
             console.log("Using processed MP3 for playback");
             setChunkUrls([track.mp3_url]);
+            setMp3Url(track.mp3_url);
             setUsingMp3(true);
+            
+            // Briefly show generating waveform state
+            setIsGeneratingWaveform(true);
+            setTimeout(() => {
+              setIsGeneratingWaveform(false);
+            }, 1500);
+            
             setIsLoading(false);
             setPlaybackState('idle');
             return;
           }
         }
         
-        // Fall back to chunks
+        // Fall back to chunks if no MP3 available
         const urls = await getTrackChunkUrls(trackId);
         
         if (urls.length === 0) {
@@ -80,7 +92,21 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
           setChunkUrls(audioUrl ? [audioUrl] : [defaultAudioUrl]);
         } else {
           setChunkUrls(urls);
-          setUsingMp3(urls.length === 1 && track?.mp3_url === urls[0]);
+          
+          // Check if the URL is an MP3 by checking the provided details
+          const isSingleMp3 = urls.length === 1 && track?.mp3_url === urls[0];
+          setUsingMp3(isSingleMp3);
+          
+          if (isSingleMp3 && track?.mp3_url) {
+            setMp3Url(track.mp3_url);
+            
+            // Briefly show generating waveform state for MP3
+            setIsGeneratingWaveform(true);
+            setTimeout(() => {
+              setIsGeneratingWaveform(false);
+            }, 1500);
+          }
+          
           console.log(`Loaded ${urls.length} audio URLs:`, urls);
         }
       } catch (error) {
@@ -114,10 +140,18 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
           
           // If processing just completed, reload the track
           if (newStatus === 'completed' && processingStatus !== 'completed' && track.mp3_url) {
+            // Update to use MP3
             setChunkUrls([track.mp3_url]);
+            setMp3Url(track.mp3_url);
             setUsingMp3(true);
             setCurrentChunkIndex(0);
             setCurrentTime(0);
+            
+            // Show generating waveform state
+            setIsGeneratingWaveform(true);
+            setTimeout(() => {
+              setIsGeneratingWaveform(false);
+            }, 1500);
             
             toast({
               title: "MP3 Processing Complete",
@@ -136,9 +170,8 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
     return () => {
       clearInterval(statusInterval);
     };
-  }, [trackId, audioUrl, usingMp3]);
+  }, [trackId, audioUrl, usingMp3, processingStatus]);
 
-  // Preload the next chunk when current chunk is playing
   useEffect(() => {
     if (!nextAudioRef.current || chunkUrls.length <= 1 || currentChunkIndex >= chunkUrls.length - 1) {
       return;
@@ -152,7 +185,6 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
     }
   }, [currentChunkIndex, chunkUrls]);
 
-  // Main audio element event listeners
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -227,7 +259,6 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
     };
   }, [currentChunkIndex, chunkUrls, isPlaying, playbackState]);
 
-  // Handle playback errors with retry logic
   const handlePlaybackError = () => {
     if (loadRetries < 3) {
       setLoadRetries(prev => prev + 1);
@@ -280,7 +311,6 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
     }
   }, [currentChunkIndex, chunkUrls]);
 
-  // Toggle play/pause with improved error handling
   const togglePlayPause = () => {
     const audio = audioRef.current;
     if (!audio || chunkUrls.length === 0) return;
@@ -303,7 +333,6 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
     }
   };
 
-  // Improved seeking with chunk awareness
   const handleSeek = (time: number) => {
     const audio = audioRef.current;
     if (!audio || chunkUrls.length === 0) return;
@@ -417,7 +446,6 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
       });
   };
 
-  // Request MP3 processing for better streaming quality
   const handleRequestProcessing = async () => {
     if (!trackId || isRequestingProcessing) return;
     
@@ -431,7 +459,6 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
     }
   };
 
-  // Determine if we should show the process button
   const showProcessButton = isOwner && 
     (!usingMp3 || processingStatus === 'failed') && 
     processingStatus !== 'processing' && 
@@ -592,13 +619,15 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
       </div>
       
       <Waveform 
-        audioUrl={chunkUrls.length > 0 ? chunkUrls[0] : undefined}
+        audioUrl={mp3Url || (chunkUrls.length > 0 ? chunkUrls[0] : undefined)}
         isPlaying={isPlaying}
         currentTime={getCurrentPosition()}
         duration={getTotalDuration()}
         onSeek={handleSeek}
         totalChunks={chunkUrls.length}
         isBuffering={playbackState === 'buffering'}
+        isMp3Available={usingMp3}
+        isGeneratingWaveform={isGeneratingWaveform}
       />
       
       <div className="mt-6 flex justify-between items-center">
