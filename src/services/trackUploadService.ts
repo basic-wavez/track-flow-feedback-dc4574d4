@@ -29,8 +29,25 @@ export const uploadTrack = async (
     const uniqueFileName = `${uuidv4()}.${fileExt}`;
     const uniquePath = `${user.id}/${uniqueFileName}`;
     
-    // Upload the file to storage using chunking
+    // Upload the file to storage using chunking for the compressed version
     const { compressedUrl, totalChunks } = await uploadFileInChunks(file, uniquePath, 'audio', onProgress);
+    
+    // Upload the original file directly to storage for download purposes
+    const originalFilePath = `${user.id}/original_${uniqueFileName}`;
+    const { data: originalFileData, error: originalFileError } = await supabase.storage
+      .from('audio')
+      .upload(originalFilePath, file);
+      
+    if (originalFileError) {
+      console.error("Error uploading original file:", originalFileError);
+      // Continue with process even if original file upload fails
+    }
+    
+    // Get public URL for the original file
+    const { data: originalUrlData } = originalFileError ? { data: null } : 
+      await supabase.storage
+        .from('audio')
+        .getPublicUrl(originalFilePath);
     
     // Create a record in the tracks table
     const trackTitle = title || file.name.split('.')[0]; // Use provided title or extract from filename
@@ -41,6 +58,7 @@ export const uploadTrack = async (
         title: trackTitle,
         compressed_url: compressedUrl,
         original_filename: file.name,
+        original_url: originalUrlData?.publicUrl || null,
         user_id: user.id,
         downloads_enabled: false,
         chunk_count: totalChunks, // Store the number of chunks

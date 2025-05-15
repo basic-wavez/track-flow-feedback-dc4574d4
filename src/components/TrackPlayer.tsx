@@ -11,10 +11,17 @@ interface TrackPlayerProps {
   trackId: string;
   trackName: string;
   audioUrl?: string;
+  originalUrl?: string;
   isOwner?: boolean;
 }
 
-const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPlayerProps) => {
+const TrackPlayer = ({ 
+  trackId, 
+  trackName, 
+  audioUrl, 
+  originalUrl,
+  isOwner = false 
+}: TrackPlayerProps) => {
   // State management
   const [isRequestingProcessing, setIsRequestingProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('completed');
@@ -112,7 +119,10 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
         audioLoaded={audioLoaded}
       />
       
-      <TrackActions isOwner={isOwner} />
+      <TrackActions 
+        isOwner={isOwner}
+        originalUrl={originalUrl}
+      />
     </div>
   );
 };

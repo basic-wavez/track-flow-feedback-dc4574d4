@@ -114,7 +114,8 @@ const TrackView = () => {
               <TrackPlayer 
                 trackId={trackId || ''}
                 trackName={track.title}
-                audioUrl={track.mp3_url} 
+                audioUrl={track.mp3_url}
+                originalUrl={track.original_url}
                 isOwner={isOwner}
               />
             )}
