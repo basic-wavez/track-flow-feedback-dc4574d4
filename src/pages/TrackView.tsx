@@ -7,9 +7,10 @@ import AuthModal from "@/components/auth/AuthModal";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import Profile from "@/components/auth/Profile";
-import { getTrack } from "@/services/trackService";
-import { TrackData } from "@/types/track"; // Updated import
+import { getTrack, getTrackProcessingStatus } from "@/services/trackService";
+import { TrackData } from "@/types/track";
 import { toast } from "@/components/ui/use-toast";
+import ProcessingIndicator from "@/components/ProcessingIndicator";
 
 const TrackView = () => {
   const { trackId } = useParams();
@@ -20,6 +21,13 @@ const TrackView = () => {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [track, setTrack] = useState<TrackData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showUnoptimizedPlayer, setShowUnoptimizedPlayer] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<string>('');
+  
+  // Check if track is still being processed
+  const isProcessing = track?.processing_status !== 'completed' && 
+                      track?.processing_status !== undefined && 
+                      !showUnoptimizedPlayer;
   
   useEffect(() => {
     const fetchTrackData = async () => {
@@ -41,6 +49,7 @@ const TrackView = () => {
         }
         
         setTrack(trackData);
+        setProcessingStatus(trackData.processing_status || 'pending');
       } catch (error) {
         console.error("Error loading track:", error);
       } finally {
@@ -49,7 +58,40 @@ const TrackView = () => {
     };
     
     fetchTrackData();
-  }, [trackId, navigate]);
+    
+    // Setup polling for processing status if track is being processed
+    let intervalId: number | undefined;
+    
+    if (trackId) {
+      intervalId = window.setInterval(async () => {
+        try {
+          const status = await getTrackProcessingStatus(trackId);
+          setProcessingStatus(status);
+          
+          // If processing completed, refresh track data to get MP3 URL
+          if (status === 'completed' && processingStatus !== 'completed') {
+            fetchTrackData();
+            
+            toast({
+              title: "Processing Complete",
+              description: "Your track has been optimized for streaming."
+            });
+            
+            // Clear interval once processing is complete
+            clearInterval(intervalId);
+          }
+        } catch (error) {
+          console.error("Error checking processing status:", error);
+        }
+      }, 5000); // Check every 5 seconds
+    }
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [trackId, navigate, processingStatus]);
 
   const handleAuthSuccess = () => {
     setIsAuthModalOpen(false);
@@ -66,6 +108,10 @@ const TrackView = () => {
   const handleFeedbackSubmitted = () => {
     setFeedbackSubmitted(true);
     setShowFeedbackForm(false);
+  };
+
+  const handlePlayUnoptimized = () => {
+    setShowUnoptimizedPlayer(true);
   };
 
   // Check if track owner matches current user
@@ -102,12 +148,22 @@ const TrackView = () => {
           </div>
         ) : track ? (
           <div className="max-w-5xl mx-auto space-y-12">
-            <TrackPlayer 
-              trackId={trackId || ''}
-              trackName={track.title}
-              audioUrl={track.compressed_url} 
-              isOwner={isOwner}
-            />
+            {isProcessing ? (
+              <ProcessingIndicator
+                trackId={trackId || ''}
+                trackName={track.title}
+                status={processingStatus}
+                isOwner={isOwner}
+                onPlayUnoptimized={handlePlayUnoptimized}
+              />
+            ) : (
+              <TrackPlayer 
+                trackId={trackId || ''}
+                trackName={track.title}
+                audioUrl={track.compressed_url} 
+                isOwner={isOwner}
+              />
+            )}
             
             {!showFeedbackForm && !feedbackSubmitted ? (
               <div className="flex flex-col items-center gap-4">
