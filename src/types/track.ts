@@ -10,6 +10,7 @@ export interface TrackData {
   chunk_count?: number;
   mp3_url?: string;
   processing_status?: string;
+  waveform_data?: number[]; // Add new field for waveform data
 }
 
 export interface TrackUpdateDetails {

@@ -14,6 +14,7 @@ interface TrackPlayerProps {
   originalUrl?: string;
   originalFilename?: string;
   isOwner?: boolean;
+  waveformData?: number[]; // Add prop for waveform data
 }
 
 const TrackPlayer = ({ 
@@ -22,7 +23,8 @@ const TrackPlayer = ({
   audioUrl, 
   originalUrl,
   originalFilename,
-  isOwner = false 
+  isOwner = false,
+  waveformData // New prop for waveform data
 }: TrackPlayerProps) => {
   // State management
   const [isRequestingProcessing, setIsRequestingProcessing] = useState(false);
@@ -122,6 +124,7 @@ const TrackPlayer = ({
         isMp3Available={usingMp3}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
+        waveformData={waveformData} // Pass the waveform data to the component
       />
       
       <TrackActions 

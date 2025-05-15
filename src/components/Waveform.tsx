@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { analyzeAudio } from '@/lib/audioUtils';
 import { generateWaveformWithVariance } from '@/lib/waveformUtils';
@@ -17,6 +18,7 @@ interface WaveformProps {
   isMp3Available?: boolean;
   isGeneratingWaveform?: boolean;
   audioLoaded?: boolean;
+  waveformData?: number[]; // Add prop for database waveform data
 }
 
 const Waveform = ({ 
@@ -30,7 +32,8 @@ const Waveform = ({
   showBufferingUI = false,
   isMp3Available = false,
   isGeneratingWaveform = false,
-  audioLoaded = false
+  audioLoaded = false,
+  waveformData: storedWaveformData // Rename to avoid confusion
 }: WaveformProps) => {
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -45,15 +48,23 @@ const Waveform = ({
     }
   }, []);
   
-  // Generate or analyze waveform data when component mounts or audioUrl changes
+  // Use stored waveform data from database if available, otherwise analyze or generate
   useEffect(() => {
     if (!audioUrl) return;
+    
+    // If we have stored waveform data from the database, use it
+    if (storedWaveformData && storedWaveformData.length > 0) {
+      console.log('Using waveform data from database:', storedWaveformData.length, 'points');
+      setWaveformData(storedWaveformData);
+      setIsWaveformGenerated(true);
+      return;
+    }
     
     // If we already have waveform data for this audioUrl, don't regenerate
     // unless it's specifically for an MP3 that just became available
     if (isWaveformGenerated && !isMp3Available) return;
     
-    // Determine number of samples for the waveform
+    // Determine number of segments for the waveform
     const segments = isMp3Available 
       ? 200 // More segments for MP3 for better visualization
       : Math.max(150, 50 * totalChunks);
@@ -94,7 +105,7 @@ const Waveform = ({
       setWaveformData(newWaveformData);
       setIsWaveformGenerated(true);
     }
-  }, [audioUrl, totalChunks, isMp3Available, isWaveformGenerated, audioLoaded]);
+  }, [audioUrl, totalChunks, isMp3Available, isWaveformGenerated, audioLoaded, storedWaveformData]);
   
   // Show loading states
   if (isAnalyzing) {
