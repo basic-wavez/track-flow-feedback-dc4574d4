@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TrackFeedbackDisplayProps {
   trackId: string;
@@ -15,12 +16,38 @@ interface TrackFeedbackDisplayProps {
 const TrackFeedbackDisplay = ({ trackId, trackTitle }: TrackFeedbackDisplayProps) => {
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [userDetails, setUserDetails] = useState<Record<string, { username: string }>>({});
   const navigate = useNavigate();
   
   useEffect(() => {
     const loadFeedback = async () => {
       setIsLoading(true);
       const feedbackData = await getFeedbackForTrack(trackId);
+      
+      if (feedbackData.length > 0) {
+        // Fetch usernames for non-anonymous feedback
+        const userIds = feedbackData
+          .filter(item => !item.anonymous && item.user_id)
+          .map(item => item.user_id as string);
+          
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, username')
+            .in('id', userIds);
+            
+          if (profiles) {
+            const userMap: Record<string, { username: string }> = {};
+            profiles.forEach(profile => {
+              userMap[profile.id] = { 
+                username: profile.username || 'Anonymous User'
+              };
+            });
+            setUserDetails(userMap);
+          }
+        }
+      }
+      
       setFeedback(feedbackData);
       setIsLoading(false);
     };
@@ -46,6 +73,25 @@ const TrackFeedbackDisplay = ({ trackId, trackTitle }: TrackFeedbackDisplayProps
     if (feedback.length === 0) return 0;
     const casualCount = feedback.filter(item => item.casual_listening).length;
     return Math.round((casualCount / feedback.length) * 100);
+  };
+  
+  const getLatestComment = () => {
+    if (feedback.length === 0) return null;
+    
+    // Sort feedback by date (newest first) and find the first one with a written comment
+    const sortedFeedback = [...feedback].sort((a, b) => {
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+    
+    return sortedFeedback.find(item => item.written_feedback)?.written_feedback || null;
+  };
+  
+  const getCommentorName = (feedbackItem: Feedback) => {
+    if (feedbackItem.anonymous) return "Anonymous";
+    if (feedbackItem.user_id && userDetails[feedbackItem.user_id]) {
+      return userDetails[feedbackItem.user_id].username;
+    }
+    return "User";
   };
   
   if (isLoading) {
@@ -147,10 +193,10 @@ const TrackFeedbackDisplay = ({ trackId, trackTitle }: TrackFeedbackDisplayProps
               <Progress value={getCasualListeningPercentage()} className="h-3 bg-wip-gray/30" />
             </div>
             
-            {feedback.length > 0 && feedback[0].written_feedback && (
+            {getLatestComment() && (
               <div className="mt-4 pt-4 border-t border-wip-gray/20">
                 <h3 className="text-wip-pink mb-2">Latest Comment:</h3>
-                <p className="text-gray-300 italic">{feedback[0].written_feedback}</p>
+                <p className="text-gray-300 italic">{getLatestComment()}</p>
               </div>
             )}
           </CardContent>
