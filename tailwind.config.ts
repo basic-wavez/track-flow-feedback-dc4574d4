@@ -65,6 +65,18 @@ export default {
           light: "#F5F5F5",
           gray: "#333333",
         },
+        supabase: {
+          dark: "#1A1F2C",
+          darker: "#181818",
+          light: "#F8F9FA",
+          green: "#3ECF8E",
+          indigo: "#4851F4",
+          yellow: "#FDCD2C",
+          gray: "#8E9196", 
+          code: "#2A2A2A",
+          border: "#313538",
+          input: "#232323",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
