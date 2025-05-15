@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import TrackPlayer from "@/components/TrackPlayer";
@@ -11,6 +12,9 @@ import Footer from "@/components/layout/Footer";
 import TrackFeedbackSection from "@/components/track/TrackFeedbackSection";
 import TrackNotFound from "@/components/track/TrackNotFound";
 import TrackLoading from "@/components/track/TrackLoading";
+import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu";
+import { ChevronLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const TrackView = () => {
   const { trackId } = useParams();
@@ -96,6 +100,52 @@ const TrackView = () => {
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <Header />
+
+      <div className="py-6 px-8 border-b border-wip-gray/30">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              className="flex items-center gap-2 text-wip-pink hover:bg-wip-pink/10"
+              onClick={() => navigate("/")}
+            >
+              <ChevronLeft size={16} />
+              <span>Back to Home</span>
+            </Button>
+
+            <NavigationMenu>
+              <NavigationMenuList>
+                <NavigationMenuItem>
+                  <NavigationMenuLink 
+                    href="/" 
+                    className={navigationMenuTriggerStyle()}
+                  >
+                    Home
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+                <NavigationMenuItem>
+                  <NavigationMenuLink 
+                    href="/profile" 
+                    className={navigationMenuTriggerStyle()}
+                  >
+                    My Profile
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+                {trackId && (
+                  <NavigationMenuItem>
+                    <NavigationMenuLink 
+                      href={`/feedback/${trackId}`}
+                      className={navigationMenuTriggerStyle()}
+                    >
+                      View Feedback
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                )}
+              </NavigationMenuList>
+            </NavigationMenu>
+          </div>
+        </div>
+      </div>
 
       <div className="flex-1 py-12 px-4">
         {isLoading ? (
