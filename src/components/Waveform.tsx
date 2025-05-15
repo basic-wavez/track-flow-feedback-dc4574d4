@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { analyzeAudio } from '@/lib/audioUtils';
 import { generateWaveformWithVariance } from '@/lib/waveformUtils';
@@ -126,6 +125,7 @@ const Waveform = ({
         isMp3Available={isMp3Available}
         analysisError={analysisError}
         isAudioLoading={!isAudioDurationValid && !analysisError}
+        currentTime={currentTime}
       />
     </div>
   );

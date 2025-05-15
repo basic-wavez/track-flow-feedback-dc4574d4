@@ -29,6 +29,12 @@ export function useAudioControls({
 
     // Record the time when play was clicked to prevent buffering flash
     playClickTimeRef.current = Date.now();
+    console.log(`Play/pause clicked at ${new Date().toISOString()}`);
+
+    // Always reset any buffering state on play click
+    clearBufferingTimeout();
+    bufferingStartTimeRef.current = null;
+    setShowBufferingUI(false); // Explicitly ensure buffering UI is hidden
 
     if (isPlaying) {
       audio.pause();
@@ -58,14 +64,12 @@ export function useAudioControls({
     // Mark that we recently performed a seek operation
     lastSeekTimeRef.current = Date.now();
     recentlySeekRef.current = true;
+    console.log(`Seek performed at ${new Date().toISOString()} to ${time}s`);
     
     // Reset buffering states when seeking
     clearBufferingTimeout();
     bufferingStartTimeRef.current = null;
-    
-    // Don't immediately clear showBufferingUI - this prevents flickering
-    // when seeking while already in a buffering state
-    // We'll let the timeout handle clearing this flag
+    setShowBufferingUI(false); // Explicitly ensure buffering UI is hidden
     
     // Ensure we're seeking to a valid time within the audio duration
     const validTime = Math.max(0, Math.min(time, isFinite(duration) ? duration : 0));
