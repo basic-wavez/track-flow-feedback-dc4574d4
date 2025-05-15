@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { requestTrackProcessing } from "@/services/trackService";
 import Waveform from "./Waveform";
@@ -6,6 +5,7 @@ import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import TrackHeader from "./player/TrackHeader";
 import PlaybackControls from "./player/PlaybackControls";
 import TrackActions from "./player/TrackActions";
+import { Json } from "@/integrations/supabase/types";
 
 interface TrackPlayerProps {
   trackId: string;
@@ -14,7 +14,7 @@ interface TrackPlayerProps {
   originalUrl?: string;
   originalFilename?: string;
   isOwner?: boolean;
-  waveformData?: number[]; // Add prop for waveform data
+  waveformData?: number[] | Json; // Updated type to match TrackData
 }
 
 const TrackPlayer = ({ 
@@ -24,7 +24,7 @@ const TrackPlayer = ({
   originalUrl,
   originalFilename,
   isOwner = false,
-  waveformData // New prop for waveform data
+  waveformData // Updated prop
 }: TrackPlayerProps) => {
   // State management
   const [isRequestingProcessing, setIsRequestingProcessing] = useState(false);

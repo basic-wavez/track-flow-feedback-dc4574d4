@@ -1,4 +1,6 @@
 
+import { Json } from "@/integrations/supabase/types";
+
 export interface TrackData {
   id: string;
   title: string;
@@ -10,7 +12,7 @@ export interface TrackData {
   chunk_count?: number;
   mp3_url?: string;
   processing_status?: string;
-  waveform_data?: number[]; // Add new field for waveform data
+  waveform_data?: number[] | Json; // Updated to accept both number[] and Json types
 }
 
 export interface TrackUpdateDetails {

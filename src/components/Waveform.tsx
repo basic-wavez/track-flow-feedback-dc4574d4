@@ -5,6 +5,7 @@ import { generateWaveformWithVariance } from '@/lib/waveformUtils';
 import WaveformLoader from './waveform/WaveformLoader';
 import WaveformCanvas from './waveform/WaveformCanvas';
 import WaveformStatus from './waveform/WaveformStatus';
+import { Json } from '@/integrations/supabase/types';
 
 interface WaveformProps {
   audioUrl?: string;
@@ -18,8 +19,38 @@ interface WaveformProps {
   isMp3Available?: boolean;
   isGeneratingWaveform?: boolean;
   audioLoaded?: boolean;
-  waveformData?: number[]; // Add prop for database waveform data
+  waveformData?: number[] | Json; // Updated type to match TrackData
 }
+
+// Helper function to normalize waveform data to number[]
+const normalizeWaveformData = (data: number[] | Json | undefined): number[] => {
+  if (!data) return [];
+  
+  // If data is already a number array, return it
+  if (Array.isArray(data) && typeof data[0] === 'number') {
+    return data as number[];
+  }
+  
+  // If data is a JSON string, try to parse it
+  if (typeof data === 'string') {
+    try {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && typeof parsed[0] === 'number') {
+        return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to parse waveform data:', e);
+    }
+  }
+  
+  // If data is a JSON object that is an array, convert to number array
+  if (Array.isArray(data)) {
+    return data.map(item => Number(item));
+  }
+  
+  // Fallback to empty array if conversion fails
+  return [];
+};
 
 const Waveform = ({ 
   audioUrl, 
@@ -52,12 +83,15 @@ const Waveform = ({
   useEffect(() => {
     if (!audioUrl) return;
     
-    // If we have stored waveform data from the database, use it
-    if (storedWaveformData && storedWaveformData.length > 0) {
-      console.log('Using waveform data from database:', storedWaveformData.length, 'points');
-      setWaveformData(storedWaveformData);
-      setIsWaveformGenerated(true);
-      return;
+    // If we have stored waveform data from the database, normalize and use it
+    if (storedWaveformData) {
+      const normalizedData = normalizeWaveformData(storedWaveformData);
+      if (normalizedData.length > 0) {
+        console.log('Using waveform data from database:', normalizedData.length, 'points');
+        setWaveformData(normalizedData);
+        setIsWaveformGenerated(true);
+        return;
+      }
     }
     
     // If we already have waveform data for this audioUrl, don't regenerate
