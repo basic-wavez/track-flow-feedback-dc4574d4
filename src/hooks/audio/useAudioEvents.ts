@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -103,56 +102,20 @@ export function useAudioEvents({
       console.log(`Audio is waiting/buffering`);
       setPlaybackState('buffering');
       
-      // Enhanced logic to prevent buffering UI from showing unnecessarily
+      // Log buffering state for debugging but never show the UI
       const timeSinceLastSeek = Date.now() - lastSeekTimeRef.current;
       const timeSincePlayClick = Date.now() - playClickTimeRef.current;
       
-      const recentSeek = timeSinceLastSeek < 2000; // Increased from 1000ms to 2000ms
-      const recentPlayClick = timeSincePlayClick < 2000; // Increased from 1000ms to 2000ms
+      console.log(`Time since seek: ${timeSinceLastSeek}ms`);
+      console.log(`Time since play click: ${timeSincePlayClick}ms`);
+      console.log(`Current time: ${audio.currentTime}`);
       
-      // Additional check: Don't show buffering UI for the first 2 seconds of playback
-      const justStartedPlayback = audio.currentTime < 2;
+      // Reset buffering state but never show the UI
+      clearBufferingTimeout();
+      bufferingStartTimeRef.current = null;
       
-      // Log all conditions for debugging
-      console.log(`Time since seek: ${timeSinceLastSeek}ms, recent seek: ${recentSeek}`);
-      console.log(`Time since play click: ${timeSincePlayClick}ms, recent play: ${recentPlayClick}`);
-      console.log(`Current time: ${audio.currentTime}, just started: ${justStartedPlayback}`);
-      
-      // Skip setting up buffering UI logic if any of these conditions are true
-      if (recentSeek || recentPlayClick || justStartedPlayback) {
-        console.log("Skipping buffering UI setup - recent user interaction or playback just started");
-        return;
-      }
-      
-      // Start buffering timer only if not already started
-      if (bufferingStartTimeRef.current === null) {
-        bufferingStartTimeRef.current = Date.now();
-        console.log(`Starting buffering timer at ${new Date().toISOString()}`);
-        
-        // Cancel any existing timeout
-        clearBufferingTimeout();
-        
-        // Set a 5-second timeout before showing buffering UI
-        bufferingTimeoutRef.current = window.setTimeout(() => {
-          // Only show buffering UI if we're still buffering after 5 seconds
-          const currentlyBuffering = playbackState === 'buffering';
-          const stillRecentPlayClick = (Date.now() - playClickTimeRef.current) < 2000;
-          const stillRecentSeek = (Date.now() - lastSeekTimeRef.current) < 2000;
-          
-          console.log(`Buffering timeout fired. Still buffering: ${currentlyBuffering}, recent play: ${stillRecentPlayClick}, recent seek: ${stillRecentSeek}`);
-          
-          // The ONLY place where showBufferingUI is set to true
-          if (currentlyBuffering && !stillRecentPlayClick && !stillRecentSeek && bufferingStartTimeRef.current !== null) {
-            const bufferingDuration = Date.now() - bufferingStartTimeRef.current;
-            console.log(`Showing buffering UI after ${bufferingDuration}ms of buffering`);
-            setShowBufferingUI(true);
-          } else {
-            console.log("Skipping showing buffering UI - conditions not met");
-          }
-          
-          bufferingTimeoutRef.current = null;
-        }, 5000);
-      }
+      // IMPORTANT: We're disabling the buffering UI entirely
+      setShowBufferingUI(false);
     };
     
     const handleError = (e: Event) => {

@@ -27,14 +27,14 @@ export function useAudioControls({
     const audio = audioRef.current;
     if (!audio || !audioUrl) return;
 
-    // Record the time when play was clicked to prevent buffering flash
+    // Record the time when play was clicked
     playClickTimeRef.current = Date.now();
     console.log(`Play/pause clicked at ${new Date().toISOString()}`);
 
     // Always reset any buffering state on play click
     clearBufferingTimeout();
     bufferingStartTimeRef.current = null;
-    setShowBufferingUI(false); // Explicitly ensure buffering UI is hidden
+    setShowBufferingUI(false); // Explicitly force buffering UI to be hidden
 
     if (isPlaying) {
       audio.pause();
@@ -42,7 +42,7 @@ export function useAudioControls({
       setIsPlaying(false);
     } else {
       setPlaybackState('buffering');
-      // Don't show buffering UI immediately after play button click
+      // Always ensure buffering UI is disabled
       setShowBufferingUI(false);
       
       audio.play()
@@ -69,7 +69,7 @@ export function useAudioControls({
     // Reset buffering states when seeking
     clearBufferingTimeout();
     bufferingStartTimeRef.current = null;
-    setShowBufferingUI(false); // Explicitly ensure buffering UI is hidden
+    setShowBufferingUI(false); // Always force buffering UI to be hidden
     
     // Ensure we're seeking to a valid time within the audio duration
     const validTime = Math.max(0, Math.min(time, isFinite(duration) ? duration : 0));
