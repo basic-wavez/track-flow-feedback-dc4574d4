@@ -2,6 +2,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader, RefreshCw } from "lucide-react";
+import { useState } from "react";
 
 interface TrackHeaderProps {
   trackName: string;
@@ -24,6 +25,7 @@ const TrackHeader = ({
   isRequestingProcessing,
   onRequestProcessing
 }: TrackHeaderProps) => {
+  const [statusMode, setStatusMode] = useState<"wip" | "demo">("wip");
 
   // Helper function to render playback status indicator
   const renderPlaybackStatus = () => {
@@ -40,9 +42,6 @@ const TrackHeader = ({
       default:
         if (isLoading) {
           return <span className="text-gray-400">Loading audio...</span>;
-        }
-        if (usingMp3) {
-          return <span className="text-green-400">Using high-quality MP3</span>;
         }
         return null;
     }
@@ -89,6 +88,10 @@ const TrackHeader = ({
     }
   };
 
+  const toggleStatus = () => {
+    setStatusMode(statusMode === "wip" ? "demo" : "wip");
+  };
+
   return (
     <div className="mb-4 flex justify-between items-center">
       <div>
@@ -117,8 +120,12 @@ const TrackHeader = ({
             Process MP3
           </Button>
         )}
-        <Badge variant="outline" className="border-wip-pink text-wip-pink">
-          Work In Progress
+        <Badge 
+          variant="outline" 
+          className="border-wip-pink text-wip-pink cursor-pointer hover:bg-wip-pink/10 transition-colors"
+          onClick={toggleStatus}
+        >
+          {statusMode === "wip" ? "Work In Progress" : "Demo"}
         </Badge>
       </div>
     </div>
