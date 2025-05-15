@@ -2,6 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { User } from "lucide-react";
 import Profile from "@/components/auth/Profile";
 
 const Header = () => {
@@ -16,7 +17,19 @@ const Header = () => {
         </h1>
       </div>
       
-      <div>
+      <div className="flex items-center gap-4">
+        {user && (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className="flex items-center gap-2 text-wip-pink hover:bg-wip-pink/10"
+            onClick={() => navigate("/profile")}
+          >
+            <User size={16} />
+            <span>My Profile</span>
+          </Button>
+        )}
+        
         {user ? (
           <Profile />
         ) : (
