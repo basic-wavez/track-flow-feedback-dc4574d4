@@ -16,6 +16,7 @@ export type Database = {
           casual_listening: boolean
           created_at: string | null
           dj_set_play: boolean
+          guest_name: string | null
           harmonies_score: number
           id: string
           melodies_score: number
@@ -31,6 +32,7 @@ export type Database = {
           casual_listening: boolean
           created_at?: string | null
           dj_set_play: boolean
+          guest_name?: string | null
           harmonies_score: number
           id?: string
           melodies_score: number
@@ -46,6 +48,7 @@ export type Database = {
           casual_listening?: boolean
           created_at?: string | null
           dj_set_play?: boolean
+          guest_name?: string | null
           harmonies_score?: number
           id?: string
           melodies_score?: number

@@ -145,14 +145,16 @@ const TrackView = () => {
                     Home
                   </NavigationMenuLink>
                 </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuLink 
-                    href="/profile" 
-                    className={navigationMenuTriggerStyle()}
-                  >
-                    My Profile
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
+                {user && (
+                  <NavigationMenuItem>
+                    <NavigationMenuLink 
+                      href="/profile" 
+                      className={navigationMenuTriggerStyle()}
+                    >
+                      My Profile
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                )}
                 {trackId && (
                   <NavigationMenuItem>
                     <NavigationMenuLink 

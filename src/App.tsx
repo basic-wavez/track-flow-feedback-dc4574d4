@@ -25,14 +25,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
-            <Route 
-              path="/track/:trackId" 
-              element={
-                <ProtectedRoute>
-                  <TrackView />
-                </ProtectedRoute>
-              } 
-            />
+            {/* Made TrackView publicly accessible */}
+            <Route path="/track/:trackId" element={<TrackView />} />
             <Route 
               path="/feedback/:trackId" 
               element={
