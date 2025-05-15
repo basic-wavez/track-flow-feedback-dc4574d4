@@ -1,3 +1,4 @@
+
 import { useRef } from "react";
 import { useAudioState } from "./useAudioState";
 import { useBufferingState } from "./useBufferingState";
@@ -5,7 +6,7 @@ import { useAudioEvents } from "./useAudioEvents";
 import { useAudioControls } from "./useAudioControls";
 import { useAudioEffects } from "./useAudioEffects";
 
-type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'buffering' | 'error';
+type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
 interface UseAudioPlayerProps {
   mp3Url: string | null | undefined;
@@ -118,8 +119,8 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     playbackState,
     isGeneratingWaveform,
     audioLoaded,
-    showBufferingUI,
-    isBuffering: playbackState === 'buffering',
+    showBufferingUI: false, // Always force this to false
+    isBuffering: false, // Always force this to false
     togglePlayPause,
     handleSeek,
     toggleMute,

@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Play, Pause, Loader, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 
 interface PlaybackControlsProps {
   isPlaying: boolean;
@@ -47,8 +47,8 @@ const PlaybackControls = ({
         className="h-12 w-12 rounded-full gradient-bg hover:opacity-90"
         disabled={isLoading || playbackState === 'error' || !isFinite(duration)}
       >
-        {playbackState === 'buffering' ? (
-          <Loader className="h-6 w-6 animate-spin" />
+        {isLoading ? (
+          <Play className="h-6 w-6 ml-1 opacity-50" />
         ) : isPlaying ? (
           <Pause className="h-6 w-6" />
         ) : (

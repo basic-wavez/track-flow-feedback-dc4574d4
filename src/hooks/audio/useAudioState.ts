@@ -10,7 +10,7 @@ export function useAudioState(defaultAudioUrl: string) {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [isMuted, setIsMuted] = useState(false);
-  const [playbackState, setPlaybackState] = useState<'idle' | 'loading' | 'playing' | 'paused' | 'buffering' | 'error'>('idle');
+  const [playbackState, setPlaybackState] = useState<'idle' | 'loading' | 'playing' | 'paused' | 'error'>('idle');
   const [loadRetries, setLoadRetries] = useState(0);
   const [isGeneratingWaveform, setIsGeneratingWaveform] = useState(false);
   const [audioLoaded, setAudioLoaded] = useState(false);
