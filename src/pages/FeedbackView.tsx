@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/navigation-menu";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getTrack } from "@/services/trackService";
+import { TrackData } from "@/types/track";
 
 interface FeedbackItem {
   id: string;
@@ -37,7 +39,9 @@ interface FeedbackItem {
 const FeedbackView = () => {
   const { trackId } = useParams();
   const navigate = useNavigate();
-  const [trackName, setTrackName] = useState("Untitled Track");
+  const [trackData, setTrackData] = useState<TrackData | null>(null);
+  const [trackName, setTrackName] = useState("Loading track...");
+  const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [averageRatings, setAverageRatings] = useState({
     mixing: 0,
@@ -49,11 +53,33 @@ const FeedbackView = () => {
   const [djSetPercentage, setDjSetPercentage] = useState(0);
   const [listeningPercentage, setListeningPercentage] = useState(0);
 
+  // Fetch track data
   useEffect(() => {
-    // In a real app, this would fetch the track and feedback from Supabase
-    // For this demo, we'll use placeholder data
-    setTrackName("Midnight Groove (WIP)");
-    
+    const fetchTrackData = async () => {
+      if (!trackId) return;
+
+      setIsLoading(true);
+      try {
+        const track = await getTrack(trackId);
+        if (track) {
+          setTrackData(track);
+          setTrackName(track.title || "Untitled Track");
+        } else {
+          setTrackName("Track Not Found");
+        }
+      } catch (error) {
+        console.error("Error fetching track:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTrackData();
+  }, [trackId]);
+
+  useEffect(() => {
+    // For demo purposes, we'll use placeholder feedback data
+    // In a real app, this would fetch the feedback from Supabase
     const mockFeedback: FeedbackItem[] = [
       {
         id: "1",
@@ -200,11 +226,20 @@ const FeedbackView = () => {
 
       <div className="flex-1 py-12 px-4">
         <div className="max-w-5xl mx-auto space-y-12">
-          <TrackPlayer 
-            trackId={trackId || ''}
-            trackName={trackName} 
-            isOwner={true}
-          />
+          {trackData ? (
+            <TrackPlayer 
+              trackId={trackId || ''}
+              trackName={trackData.title || 'Untitled Track'} 
+              audioUrl={trackData.mp3_url || trackData.compressed_url}
+              originalUrl={trackData.original_url}
+              originalFilename={trackData.original_filename}
+              isOwner={true}
+            />
+          ) : (
+            <div className="h-60 bg-wip-darker rounded-lg flex items-center justify-center">
+              <p className="text-wip-pink">{isLoading ? 'Loading track...' : 'Track not found'}</p>
+            </div>
+          )}
           
           <Card className="bg-wip-darker border-wip-gray">
             <CardHeader>
@@ -213,8 +248,9 @@ const FeedbackView = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              
               <div className="grid md:grid-cols-2 gap-8">
-                {/* Average Ratings */}
+                
                 <div className="space-y-4">
                   <h3 className="font-semibold mb-2">Average Ratings</h3>
                   
@@ -261,7 +297,7 @@ const FeedbackView = () => {
                   </div>
                 </div>
                 
-                {/* Yes/No Questions */}
+                
                 <div className="space-y-6">
                   <h3 className="font-semibold mb-2">Overall Reception</h3>
                   
@@ -315,6 +351,7 @@ const FeedbackView = () => {
             <h2 className="text-2xl font-bold gradient-text">
               Individual Feedback
             </h2>
+            
             
             {feedback.map((item) => (
               <Card key={item.id} className="bg-wip-darker border-wip-gray">
