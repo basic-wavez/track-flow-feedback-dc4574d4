@@ -1,12 +1,9 @@
-
 import { useEffect, useState } from 'react';
 import { analyzeAudio } from '@/lib/audioUtils';
 import { generateWaveformWithVariance } from '@/lib/waveformUtils';
 import WaveformLoader from './waveform/WaveformLoader';
 import WaveformCanvas from './waveform/WaveformCanvas';
 import WaveformStatus from './waveform/WaveformStatus';
-import { Json } from '@/integrations/supabase/types';
-import { updateWaveformData } from '@/services/trackUpdateService';
 
 interface WaveformProps {
   audioUrl?: string;
@@ -20,40 +17,7 @@ interface WaveformProps {
   isMp3Available?: boolean;
   isGeneratingWaveform?: boolean;
   audioLoaded?: boolean;
-  waveformData?: number[] | Json; // Database waveform data
-  trackId?: string; // Added trackId prop to save waveform data
-  isOwner?: boolean; // Added to check if user can save waveform data
 }
-
-// Helper function to normalize waveform data to number[]
-const normalizeWaveformData = (data: number[] | Json | undefined): number[] => {
-  if (!data) return [];
-  
-  // If data is already a number array, return it
-  if (Array.isArray(data) && typeof data[0] === 'number') {
-    return data as number[];
-  }
-  
-  // If data is a JSON string, try to parse it
-  if (typeof data === 'string') {
-    try {
-      const parsed = JSON.parse(data);
-      if (Array.isArray(parsed) && typeof parsed[0] === 'number') {
-        return parsed;
-      }
-    } catch (e) {
-      console.error('Failed to parse waveform data:', e);
-    }
-  }
-  
-  // If data is a JSON object that is an array, convert to number array
-  if (Array.isArray(data)) {
-    return data.map(item => Number(item));
-  }
-  
-  // Fallback to empty array if conversion fails
-  return [];
-};
 
 const Waveform = ({ 
   audioUrl, 
@@ -66,16 +30,12 @@ const Waveform = ({
   showBufferingUI = false,
   isMp3Available = false,
   isGeneratingWaveform = false,
-  audioLoaded = false,
-  waveformData: storedWaveformData, // Rename to avoid confusion
-  trackId, // Track ID for saving waveform data
-  isOwner = false // Whether current user is the track owner
+  audioLoaded = false
 }: WaveformProps) => {
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isWaveformGenerated, setIsWaveformGenerated] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [savedToDatabase, setSavedToDatabase] = useState(false);
 
   // Generate initial placeholder waveform immediately
   useEffect(() => {
@@ -85,27 +45,18 @@ const Waveform = ({
     }
   }, []);
   
-  // Use stored waveform data from database if available, otherwise analyze or generate
+  // Generate or analyze waveform data when component mounts or audioUrl changes
   useEffect(() => {
     if (!audioUrl) return;
-    
-    // If we have stored waveform data from the database, normalize and use it
-    if (storedWaveformData) {
-      const normalizedData = normalizeWaveformData(storedWaveformData);
-      if (normalizedData.length > 0) {
-        console.log('Using waveform data from database:', normalizedData.length, 'points');
-        setWaveformData(normalizedData);
-        setIsWaveformGenerated(true);
-        return;
-      }
-    }
     
     // If we already have waveform data for this audioUrl, don't regenerate
     // unless it's specifically for an MP3 that just became available
     if (isWaveformGenerated && !isMp3Available) return;
     
-    // Determine number of segments for the waveform
-    const segments = 200; // Consistent number of segments for better visualization
+    // Determine number of samples for the waveform
+    const segments = isMp3Available 
+      ? 200 // More segments for MP3 for better visualization
+      : Math.max(150, 50 * totalChunks);
     
     // For MP3 files, analyze the actual audio data
     if (isMp3Available && audioUrl && audioLoaded) {
@@ -115,24 +66,8 @@ const Waveform = ({
       analyzeAudio(audioUrl, segments)
         .then(analyzedData => {
           if (analyzedData && analyzedData.length > 0) {
-            console.log('Audio analysis complete. Generated waveform with', analyzedData.length, 'points');
             setWaveformData(analyzedData);
             setIsWaveformGenerated(true);
-            
-            // If user is the owner, save the waveform data to the database
-            if (isOwner && trackId && !savedToDatabase) {
-              console.log('Saving waveform data to database for track:', trackId);
-              updateWaveformData(trackId, analyzedData)
-                .then(success => {
-                  if (success) {
-                    console.log('Waveform data saved to database');
-                    setSavedToDatabase(true);
-                  }
-                })
-                .catch(error => {
-                  console.error('Failed to save waveform data:', error);
-                });
-            }
           } else {
             throw new Error("No waveform data generated from analysis");
           }
@@ -159,7 +94,7 @@ const Waveform = ({
       setWaveformData(newWaveformData);
       setIsWaveformGenerated(true);
     }
-  }, [audioUrl, totalChunks, isMp3Available, isWaveformGenerated, audioLoaded, storedWaveformData, trackId, isOwner, savedToDatabase]);
+  }, [audioUrl, totalChunks, isMp3Available, isWaveformGenerated, audioLoaded]);
   
   // Show loading states
   if (isAnalyzing) {

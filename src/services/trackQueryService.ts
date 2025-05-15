@@ -10,7 +10,7 @@ export const getTrack = async (trackId: string): Promise<TrackData | null> => {
   try {
     const { data: track, error } = await supabase
       .from('tracks')
-      .select('*, waveform_data') // Include waveform_data in the selection
+      .select('*')
       .eq('id', trackId)
       .single();
       
@@ -135,7 +135,7 @@ export const getUserTracks = async (): Promise<TrackData[]> => {
     
     const { data, error } = await supabase
       .from('tracks')
-      .select('*, waveform_data') // Include waveform_data in the selection
+      .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
       

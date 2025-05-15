@@ -157,13 +157,12 @@ async function processAudio(supabase: any, trackId: string) {
     }
     
     if (mp3Url) {
-      // Update track with successful processing (don't set waveform_data anymore)
+      // Update track with successful processing
       await supabase
         .from("tracks")
         .update({
           mp3_url: mp3Url,
           processing_status: "completed"
-          // Waveform data will be generated and saved client-side
         })
         .eq("id", trackId);
       
@@ -227,10 +226,8 @@ async function processSingleFile(supabase: any, track: any): Promise<string | nu
     // Upload to Cloudinary and convert to MP3 - with retries
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const result = await uploadToCloudinary(fileData, track);
-        if (result.mp3Url) {
-          return result.mp3Url;
-        }
+        const mp3Url = await uploadToCloudinary(fileData, track);
+        if (mp3Url) return mp3Url;
         
         console.log(`Attempt ${attempt} failed, retrying...`);
       } catch (error) {
@@ -330,10 +327,10 @@ async function processMultipleChunks(supabase: any, track: any): Promise<string 
     // Upload to Cloudinary and convert to MP3 - with retries
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const result = await uploadToCloudinary(concatenatedFile, track);
-        if (result.mp3Url) {
+        const mp3Url = await uploadToCloudinary(concatenatedFile, track);
+        if (mp3Url) {
           console.log(`Successfully processed all ${chunks.length} chunks for track ${track.id}`);
-          return result.mp3Url;
+          return mp3Url;
         }
         
         console.log(`Attempt ${attempt} failed, retrying...`);
@@ -355,7 +352,7 @@ async function processMultipleChunks(supabase: any, track: any): Promise<string 
   }
 }
 
-async function uploadToCloudinary(fileData: Blob, track: any): Promise<{mp3Url: string | null}> {
+async function uploadToCloudinary(fileData: Blob, track: any): Promise<string | null> {
   try {
     // Create a FormData object for the Cloudinary upload
     const formData = new FormData();
@@ -381,7 +378,7 @@ async function uploadToCloudinary(fileData: Blob, track: any): Promise<{mp3Url: 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Cloudinary upload failed with status ${response.status}:`, errorText);
-      return { mp3Url: null };
+      return null;
     }
     
     // Parse response
@@ -396,15 +393,15 @@ async function uploadToCloudinary(fileData: Blob, track: any): Promise<{mp3Url: 
         ? data.secure_url
         : `${data.secure_url.split('.').slice(0, -1).join('.')}.mp3`;
         
-      return { mp3Url };
+      return mp3Url;
     } else {
       console.error("Cloudinary response missing secure_url:", data);
-      return { mp3Url: null };
+      return null;
     }
     
   } catch (error) {
     console.error("Error uploading to Cloudinary:", error);
-    return { mp3Url: null };
+    return null;
   }
 }
 

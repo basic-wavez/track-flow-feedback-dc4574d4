@@ -43,12 +43,12 @@ const WaveformCanvas = ({
       
       // Draw the waveform bars
       const barWidth = width / waveformData.length;
-      const barMargin = barWidth * 0.15; // Slight reduction in margin for a denser look
+      const barMargin = barWidth * 0.2;
       const effectiveBarWidth = barWidth - barMargin;
       
       for (let i = 0; i < waveformData.length; i++) {
         const x = i * barWidth;
-        const amplitude = waveformData[i] * 0.8; // Use 80% of canvas height for better visibility
+        const amplitude = waveformData[i] * 0.7; // Reduce max height to 70% of canvas
         const barHeight = height * amplitude;
         const y = (height - barHeight) / 2;
         
@@ -73,27 +73,8 @@ const WaveformCanvas = ({
             : 'rgba(231, 162, 200, 0.3)'; 
         }
         
-        // Draw the bar with rounded corners for a smoother look
-        ctx.beginPath();
-        const cornerRadius = Math.min(2, effectiveBarWidth / 2);
-        const barX = x + barMargin/2;
-        
-        // Draw rounded rectangle for the bar
-        if (cornerRadius > 0 && effectiveBarWidth > 4) {
-          ctx.moveTo(barX + cornerRadius, y);
-          ctx.lineTo(barX + effectiveBarWidth - cornerRadius, y);
-          ctx.quadraticCurveTo(barX + effectiveBarWidth, y, barX + effectiveBarWidth, y + cornerRadius);
-          ctx.lineTo(barX + effectiveBarWidth, y + barHeight - cornerRadius);
-          ctx.quadraticCurveTo(barX + effectiveBarWidth, y + barHeight, barX + effectiveBarWidth - cornerRadius, y + barHeight);
-          ctx.lineTo(barX + cornerRadius, y + barHeight);
-          ctx.quadraticCurveTo(barX, y + barHeight, barX, y + barHeight - cornerRadius);
-          ctx.lineTo(barX, y + cornerRadius);
-          ctx.quadraticCurveTo(barX, y, barX + cornerRadius, y);
-          ctx.fill();
-        } else {
-          // Simple rectangle for small bars
-          ctx.fillRect(barX, y, effectiveBarWidth, barHeight);
-        }
+        // Draw the bar
+        ctx.fillRect(x + barMargin/2, y, effectiveBarWidth, barHeight);
         
         // Add a subtle pulsing effect to bars near the current position when playing
         if ((isPlaying || isBuffering) && x >= progressPixel - barWidth * 5 && x <= progressPixel + barWidth * 5) {
@@ -105,23 +86,7 @@ const WaveformCanvas = ({
             const pulseFactor = isBuffering ? 1 + (0.3 * (1 - distance)) : 1 + (0.2 * (1 - distance));
             const pulseHeight = barHeight * pulseFactor;
             const pulseY = (height - pulseHeight) / 2;
-            
-            // Draw pulse with rounded corners if possible
-            if (cornerRadius > 0 && effectiveBarWidth > 4) {
-              ctx.beginPath();
-              ctx.moveTo(barX + cornerRadius, pulseY);
-              ctx.lineTo(barX + effectiveBarWidth - cornerRadius, pulseY);
-              ctx.quadraticCurveTo(barX + effectiveBarWidth, pulseY, barX + effectiveBarWidth, pulseY + cornerRadius);
-              ctx.lineTo(barX + effectiveBarWidth, pulseY + pulseHeight - cornerRadius);
-              ctx.quadraticCurveTo(barX + effectiveBarWidth, pulseY + pulseHeight, barX + effectiveBarWidth - cornerRadius, pulseY + pulseHeight);
-              ctx.lineTo(barX + cornerRadius, pulseY + pulseHeight);
-              ctx.quadraticCurveTo(barX, pulseY + pulseHeight, barX, pulseY + pulseHeight - cornerRadius);
-              ctx.lineTo(barX, pulseY + cornerRadius);
-              ctx.quadraticCurveTo(barX, pulseY, barX + cornerRadius, pulseY);
-              ctx.fill();
-            } else {
-              ctx.fillRect(barX, pulseY, effectiveBarWidth, pulseHeight);
-            }
+            ctx.fillRect(x + barMargin/2, pulseY, effectiveBarWidth, pulseHeight);
           }
         }
       }

@@ -101,7 +101,6 @@ export type Database = {
           title: string
           updated_at: string | null
           user_id: string
-          waveform_data: Json | null
         }
         Insert: {
           chunk_count?: number | null
@@ -117,7 +116,6 @@ export type Database = {
           title: string
           updated_at?: string | null
           user_id: string
-          waveform_data?: Json | null
         }
         Update: {
           chunk_count?: number | null
@@ -133,7 +131,6 @@ export type Database = {
           title?: string
           updated_at?: string | null
           user_id?: string
-          waveform_data?: Json | null
         }
         Relationships: []
       }

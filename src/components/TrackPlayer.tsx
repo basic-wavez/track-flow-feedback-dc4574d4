@@ -6,7 +6,6 @@ import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import TrackHeader from "./player/TrackHeader";
 import PlaybackControls from "./player/PlaybackControls";
 import TrackActions from "./player/TrackActions";
-import { Json } from "@/integrations/supabase/types";
 
 interface TrackPlayerProps {
   trackId: string;
@@ -15,7 +14,6 @@ interface TrackPlayerProps {
   originalUrl?: string;
   originalFilename?: string;
   isOwner?: boolean;
-  waveformData?: number[] | Json; // Waveform data from database
 }
 
 const TrackPlayer = ({ 
@@ -24,8 +22,7 @@ const TrackPlayer = ({
   audioUrl, 
   originalUrl,
   originalFilename,
-  isOwner = false,
-  waveformData // Waveform data from database
+  isOwner = false 
 }: TrackPlayerProps) => {
   // State management
   const [isRequestingProcessing, setIsRequestingProcessing] = useState(false);
@@ -114,20 +111,17 @@ const TrackPlayer = ({
       />
       
       <Waveform 
-        trackId={trackId} // Pass the track ID to save waveform data
         audioUrl={audioUrl}
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}
         onSeek={handleSeek}
-        totalChunks={1} // Always 1 chunk for MP3
+        totalChunks={1} // We're only using MP3 now
         isBuffering={isBuffering}
         showBufferingUI={showBufferingUI}
         isMp3Available={usingMp3}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
-        waveformData={waveformData} // Pass the waveform data from the database
-        isOwner={isOwner} // Pass ownership status to control saving
       />
       
       <TrackActions 
