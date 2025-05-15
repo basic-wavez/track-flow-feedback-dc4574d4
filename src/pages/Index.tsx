@@ -11,7 +11,6 @@ import {
   NavigationMenu,
   NavigationMenuContent,
   NavigationMenuItem,
-  NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
@@ -76,22 +75,24 @@ const Index = () => {
           <NavigationMenu className="py-2">
             <NavigationMenuList>
               <NavigationMenuItem>
-                <NavigationMenuLink 
+                <Button 
                   className={cn(navigationMenuTriggerStyle(), "bg-transparent hover:bg-wip-gray/10 text-wip-pink")} 
-                  href="/"
+                  variant="ghost"
+                  onClick={() => navigate("/")}
                 >
                   Home
-                </NavigationMenuLink>
+                </Button>
               </NavigationMenuItem>
               
               {user && (
                 <NavigationMenuItem>
-                  <NavigationMenuLink 
+                  <Button 
                     className={cn(navigationMenuTriggerStyle(), "bg-transparent hover:bg-wip-gray/10 text-wip-pink")} 
-                    href="/profile"
+                    variant="ghost"
+                    onClick={() => navigate("/profile")}
                   >
                     My Profile
-                  </NavigationMenuLink>
+                  </Button>
                 </NavigationMenuItem>
               )}
             </NavigationMenuList>

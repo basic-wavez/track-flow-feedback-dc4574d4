@@ -1,10 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   NavigationMenu, 
   NavigationMenuList, 
   NavigationMenuItem,
-  navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { Button } from "@/components/ui/button";
 import TrackPlayer from "@/components/TrackPlayer";
@@ -79,7 +79,7 @@ const TrackView = () => {
                 <NavigationMenuItem>
                   <Button 
                     variant="ghost"
-                    className={navigationMenuTriggerStyle()}
+                    className="bg-transparent hover:bg-wip-gray/10 text-wip-pink"
                     onClick={() => navigate("/")}
                   >
                     Home
@@ -89,7 +89,7 @@ const TrackView = () => {
                   <NavigationMenuItem>
                     <Button 
                       variant="ghost"
-                      className={navigationMenuTriggerStyle()}
+                      className="bg-transparent hover:bg-wip-gray/10 text-wip-pink"
                       onClick={() => navigate("/profile")}
                     >
                       My Profile
@@ -100,7 +100,7 @@ const TrackView = () => {
                   <NavigationMenuItem>
                     <Button 
                       variant="ghost"
-                      className={navigationMenuTriggerStyle()}
+                      className="bg-transparent hover:bg-wip-gray/10 text-wip-pink"
                       onClick={() => navigate(`/feedback/${trackId}`)}
                     >
                       View Feedback

@@ -12,7 +12,10 @@ const Header = () => {
   return (
     <header className="py-6 px-8 flex justify-between items-center border-b border-wip-gray/30">
       <div className="flex items-center">
-        <h1 className="text-3xl font-bold text-wip-pink cursor-pointer" onClick={() => navigate("/")}>
+        <h1 
+          className="text-3xl font-bold text-wip-pink cursor-pointer" 
+          onClick={() => navigate("/")}
+        >
           WIP Manager
         </h1>
       </div>
