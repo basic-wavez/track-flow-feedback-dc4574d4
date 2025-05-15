@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { requestTrackProcessing } from "@/services/trackService";
 import Waveform from "./Waveform";
@@ -11,7 +12,7 @@ interface TrackPlayerProps {
   trackName: string;
   audioUrl?: string;
   originalUrl?: string;
-  originalFilename?: string; // Add this prop
+  originalFilename?: string;
   isOwner?: boolean;
 }
 
@@ -38,6 +39,8 @@ const TrackPlayer = ({
     playbackState,
     isGeneratingWaveform,
     audioLoaded,
+    showBufferingUI,
+    isBuffering,
     togglePlayPause,
     handleSeek,
     toggleMute,
@@ -114,7 +117,8 @@ const TrackPlayer = ({
         duration={duration}
         onSeek={handleSeek}
         totalChunks={1} // We're only using MP3 now
-        isBuffering={playbackState === 'buffering'}
+        isBuffering={isBuffering}
+        showBufferingUI={showBufferingUI}
         isMp3Available={usingMp3}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}

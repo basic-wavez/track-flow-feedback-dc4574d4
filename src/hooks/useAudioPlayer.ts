@@ -20,10 +20,23 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
   const [isGeneratingWaveform, setIsGeneratingWaveform] = useState(false);
   const [audioLoaded, setAudioLoaded] = useState(false);
   
+  // New states for managing buffering UI
+  const [showBufferingUI, setShowBufferingUI] = useState(false);
+  const bufferingTimeoutRef = useRef<number | null>(null);
+  const bufferingStartTimeRef = useRef<number | null>(null);
+  
   const audioRef = useRef<HTMLAudioElement>(null);
   
   // Determine the audio URL to use
   const audioUrl = mp3Url || defaultAudioUrl;
+  
+  // Clear any buffering timeouts
+  const clearBufferingTimeout = () => {
+    if (bufferingTimeoutRef.current !== null) {
+      window.clearTimeout(bufferingTimeoutRef.current);
+      bufferingTimeoutRef.current = null;
+    }
+  };
   
   useEffect(() => {
     const audio = audioRef.current;
@@ -37,6 +50,8 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
       setIsPlaying(false);
       setPlaybackState('idle');
       setCurrentTime(0);
+      clearBufferingTimeout();
+      setShowBufferingUI(false);
     };
     
     const handleLoadedMetadata = () => {
@@ -75,6 +90,10 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
         setDuration(audio.duration);
       }
       
+      // Clear buffering timeout and reset UI
+      clearBufferingTimeout();
+      setShowBufferingUI(false);
+      
       if (playbackState === 'buffering' && isPlaying) {
         audio.play()
           .then(() => {
@@ -93,6 +112,20 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     const handleWaiting = () => {
       console.log(`Audio is waiting/buffering`);
       setPlaybackState('buffering');
+      
+      // Start buffering timer only if not already started
+      if (bufferingStartTimeRef.current === null) {
+        bufferingStartTimeRef.current = Date.now();
+        
+        // Set a 5-second timeout before showing buffering UI
+        bufferingTimeoutRef.current = window.setTimeout(() => {
+          // Only show buffering UI if we're still buffering after 5 seconds
+          if (playbackState === 'buffering') {
+            setShowBufferingUI(true);
+          }
+          bufferingTimeoutRef.current = null;
+        }, 5000);
+      }
     };
     
     const handleError = (e: Event) => {
@@ -113,6 +146,7 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     audio.muted = isMuted;
 
     return () => {
+      clearBufferingTimeout();
       audio.removeEventListener("timeupdate", updateTime);
       audio.removeEventListener("ended", handleEnd);
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
@@ -131,6 +165,10 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     setAudioLoaded(false);
     setPlaybackState('loading');
     setDuration(0);
+    clearBufferingTimeout();
+    setShowBufferingUI(false);
+    bufferingStartTimeRef.current = null;
+    
     console.log(`Loading audio: ${audioUrl}`);
     
     // Show generating waveform state briefly when loading new audio
@@ -143,6 +181,22 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     audio.load();
     
   }, [audioUrl]);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      clearBufferingTimeout();
+    };
+  }, []);
+  
+  // Reset buffering timer when leaving buffering state
+  useEffect(() => {
+    if (playbackState !== 'buffering') {
+      clearBufferingTimeout();
+      bufferingStartTimeRef.current = null;
+      setShowBufferingUI(false);
+    }
+  }, [playbackState]);
 
   const handlePlaybackError = () => {
     if (loadRetries < 3) {
@@ -193,6 +247,11 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     const audio = audioRef.current;
     if (!audio || !audioUrl || !isFinite(time) || isNaN(time)) return;
     
+    // Reset buffering states when seeking
+    clearBufferingTimeout();
+    bufferingStartTimeRef.current = null;
+    setShowBufferingUI(false);
+    
     // Ensure we're seeking to a valid time within the audio duration
     const validTime = Math.max(0, Math.min(time, isFinite(duration) ? duration : 0));
     audio.currentTime = validTime;
@@ -233,6 +292,8 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     playbackState,
     isGeneratingWaveform,
     audioLoaded,
+    showBufferingUI,
+    isBuffering: playbackState === 'buffering',
     togglePlayPause,
     handleSeek,
     toggleMute,

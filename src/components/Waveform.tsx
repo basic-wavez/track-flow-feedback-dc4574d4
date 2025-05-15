@@ -14,6 +14,7 @@ interface WaveformProps {
   onSeek: (time: number) => void;
   totalChunks?: number;
   isBuffering?: boolean;
+  showBufferingUI?: boolean;
   isMp3Available?: boolean;
   isGeneratingWaveform?: boolean;
   audioLoaded?: boolean;
@@ -27,6 +28,7 @@ const Waveform = ({
   onSeek,
   totalChunks = 1,
   isBuffering = false,
+  showBufferingUI = false,
   isMp3Available = false,
   isGeneratingWaveform = false,
   audioLoaded = false
@@ -120,6 +122,7 @@ const Waveform = ({
       
       <WaveformStatus 
         isBuffering={isBuffering}
+        showBufferingUI={showBufferingUI}
         isMp3Available={isMp3Available}
         analysisError={analysisError}
         isAudioLoading={!isAudioDurationValid && !analysisError}
