@@ -2,11 +2,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/components/ui/use-toast";
+import { Slider } from "@/components/ui/slider";
 
 interface FeedbackFormProps {
   trackName: string;
@@ -52,26 +52,25 @@ const FeedbackForm = ({ trackName, onFeedbackSubmit, onLoginRequest }: FeedbackF
     }
   };
 
-  const renderRatingOptions = (
+  const renderSlider = (
     value: number,
-    onChange: (value: number) => void,
-    name: string
+    onChange: (value: number[]) => void,
+    label: string
   ) => (
-    <div className="flex items-center justify-between space-x-2">
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
-        <button
-          key={rating}
-          type="button"
-          onClick={() => onChange(rating)}
-          className={`w-7 h-7 rounded-full text-xs flex items-center justify-center transition-all ${
-            value === rating
-              ? "bg-wip-pink text-white"
-              : "bg-wip-gray/30 text-gray-400 hover:bg-wip-pink/30"
-          }`}
-        >
-          {rating}
-        </button>
-      ))}
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm">{label}</Label>
+        <span className="text-sm font-medium">{value}/10</span>
+      </div>
+      <Slider
+        defaultValue={[value]}
+        max={10}
+        min={1}
+        step={1}
+        onValueChange={(values) => onChange([...values])}
+        className="w-full h-1.5"
+        aria-label={`${label} rating`}
+      />
     </div>
   );
 
@@ -85,32 +84,13 @@ const FeedbackForm = ({ trackName, onFeedbackSubmit, onLoginRequest }: FeedbackF
       
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
-          {/* Rating Fields */}
+          {/* Rating Fields with Sliders */}
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Mixing {mixingRating}/10</Label>
-              {renderRatingOptions(mixingRating, setMixingRating, "mixing")}
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Harmonies {harmoniesRating}/10</Label>
-              {renderRatingOptions(harmoniesRating, setHarmoniesRating, "harmonies")}
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Melodies {melodiesRating}/10</Label>
-              {renderRatingOptions(melodiesRating, setMelodiesRating, "melodies")}
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Sound Design {soundDesignRating}/10</Label>
-              {renderRatingOptions(soundDesignRating, setSoundDesignRating, "soundDesign")}
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Arrangement {arrangementRating}/10</Label>
-              {renderRatingOptions(arrangementRating, setArrangementRating, "arrangement")}
-            </div>
+            {renderSlider(mixingRating, (values) => setMixingRating(values[0]), "Mixing")}
+            {renderSlider(harmoniesRating, (values) => setHarmoniesRating(values[0]), "Harmonies")}
+            {renderSlider(melodiesRating, (values) => setMelodiesRating(values[0]), "Melodies")}
+            {renderSlider(soundDesignRating, (values) => setSoundDesignRating(values[0]), "Sound Design")}
+            {renderSlider(arrangementRating, (values) => setArrangementRating(values[0]), "Arrangement")}
           </div>
           
           {/* Yes/No Questions */}
