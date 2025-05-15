@@ -165,8 +165,9 @@ const TrackView = () => {
                 trackName={track.title}
                 audioUrl={track.mp3_url}
                 originalUrl={track.original_url}
-                originalFilename={track.original_filename} // Pass the original filename
+                originalFilename={track.original_filename}
                 isOwner={isOwner}
+                waveformData={track.waveform_data}
               />
             )}
             
