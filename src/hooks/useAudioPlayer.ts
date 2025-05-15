@@ -26,6 +26,7 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
   const bufferingStartTimeRef = useRef<number | null>(null);
   const lastSeekTimeRef = useRef<number>(0);
   const recentlySeekRef = useRef<boolean>(false);
+  const playClickTimeRef = useRef<number>(0); // Track when play button was clicked
   
   const audioRef = useRef<HTMLAudioElement>(null);
   
@@ -121,10 +122,12 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
       
       // Don't show buffering UI immediately after seeking
       const timeSinceLastSeek = Date.now() - lastSeekTimeRef.current;
+      const timeSincePlayClick = Date.now() - playClickTimeRef.current;
       const recentSeek = timeSinceLastSeek < 1000; // Within 1 second of a seek
+      const recentPlayClick = timeSincePlayClick < 1000; // Within 1 second of clicking play
       
-      if (recentSeek) {
-        console.log("Ignoring brief buffering after seek");
+      if (recentSeek || recentPlayClick) {
+        console.log(recentPlayClick ? "Ignoring brief buffering after play click" : "Ignoring brief buffering after seek");
         return;
       }
       
@@ -135,8 +138,9 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
         // Set a 5-second timeout before showing buffering UI
         bufferingTimeoutRef.current = window.setTimeout(() => {
           // Only show buffering UI if we're still buffering after 5 seconds
-          // AND we haven't recently performed a seek
-          if (playbackState === 'buffering' && !recentlySeekRef.current) {
+          // AND we haven't recently performed a seek or clicked play
+          const stillRecentPlayClick = (Date.now() - playClickTimeRef.current) < 1000;
+          if (playbackState === 'buffering' && !recentlySeekRef.current && !stillRecentPlayClick) {
             setShowBufferingUI(true);
           }
           bufferingTimeoutRef.current = null;
@@ -256,12 +260,18 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     const audio = audioRef.current;
     if (!audio || !audioUrl) return;
 
+    // Record the time when play was clicked to prevent buffering flash
+    playClickTimeRef.current = Date.now();
+
     if (isPlaying) {
       audio.pause();
       setPlaybackState('paused');
       setIsPlaying(false);
     } else {
       setPlaybackState('buffering');
+      // Don't show buffering UI immediately after play button click
+      setShowBufferingUI(false);
+      
       audio.play()
         .then(() => {
           setPlaybackState('playing');

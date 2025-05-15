@@ -16,6 +16,7 @@ const WaveformStatus = ({
 }: WaveformStatusProps) => {
   return (
     <>
+      {/* Only show when specifically told to */}
       {showBufferingUI && (
         <div className="absolute bottom-4 right-4 text-sm text-wip-pink bg-wip-darker/80 px-3 py-1 rounded-full">
           Buffering...
