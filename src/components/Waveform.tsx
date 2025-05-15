@@ -30,6 +30,19 @@ const Waveform = ({
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isWaveformGenerated, setIsWaveformGenerated] = useState(false);
   
+  // Helper function to generate waveform with variance
+  const generateWaveformWithVariance = (segments: number, variance: number) => {
+    // Generate base waveform data
+    const baseData = generateWaveformData(segments);
+    
+    // Apply variance to make more realistic waveforms
+    return baseData.map(value => {
+      // Add some variance based on the parameter
+      const varianceFactor = 1 + (Math.random() * variance - variance / 2);
+      return Math.min(1, Math.max(0.05, value * varianceFactor));
+    });
+  };
+  
   // Generate waveform data when component mounts or audioUrl changes
   // Only regenerate if the MP3 becomes available or the URL changes
   useEffect(() => {
@@ -46,7 +59,7 @@ const Waveform = ({
     
     // In a production app, we'd analyze the actual MP3 file here
     // For now, we'll generate random data with a more realistic pattern for MP3
-    const newWaveformData = generateWaveformData(
+    const newWaveformData = generateWaveformWithVariance(
       segments, 
       isMp3Available ? 0.4 : 0.2 // Higher variance for MP3 waveforms
     );
