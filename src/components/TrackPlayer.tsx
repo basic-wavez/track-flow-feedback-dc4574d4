@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { requestTrackProcessing } from "@/services/trackService";
 import Waveform from "./Waveform";
@@ -122,6 +121,7 @@ const TrackPlayer = ({
       <TrackActions 
         isOwner={isOwner}
         originalUrl={originalUrl}
+        trackId={trackId}
       />
     </div>
   );

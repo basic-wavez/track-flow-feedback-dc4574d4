@@ -1,10 +1,11 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Download, Share, Loader } from "lucide-react";
+import { Download, Share, Loader, Upload } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { updateTrackDetails } from "@/services/trackService";
+import { retryOriginalFileUpload } from "@/services/trackRecoveryService";
 
 interface TrackActionsProps {
   isOwner: boolean;
@@ -16,6 +17,8 @@ const TrackActions = ({ isOwner, originalUrl, trackId }: TrackActionsProps) => {
   const [downloadEnabled, setDownloadEnabled] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDownloadToggle = async (enabled: boolean) => {
     if (!trackId || !isOwner) return;
@@ -100,6 +103,59 @@ const TrackActions = ({ isOwner, originalUrl, trackId }: TrackActionsProps) => {
       });
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !trackId) {
+      return;
+    }
+
+    const file = e.target.files[0];
+    setIsUploading(true);
+
+    try {
+      // Check if it's a valid audio file
+      const validTypes = ['audio/wav', 'audio/flac', 'audio/aiff', 'audio/mpeg', 'audio/mp4'];
+      if (!validTypes.includes(file.type)) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please upload an MP3, WAV, FLAC, AIFF, or AAC file.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const success = await retryOriginalFileUpload(trackId, file);
+      
+      if (success) {
+        toast({
+          title: "Upload Successful",
+          description: "Original file has been uploaded successfully. Refresh the page to see the changes.",
+        });
+        
+        // Refresh the page to show the updated track
+        window.location.reload();
+      }
+    } catch (error: any) {
+      console.error("Error uploading file:", error);
+      toast({
+        title: "Upload Failed",
+        description: error.message || "There was an error uploading your file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleReuploadClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   // Check if the track has an original file available for download
   const hasOriginalFile = Boolean(originalUrl);
 
@@ -115,7 +171,30 @@ const TrackActions = ({ isOwner, originalUrl, trackId }: TrackActionsProps) => {
           />
           {isUpdating && <Loader className="h-4 w-4 animate-spin ml-2" />}
           {!hasOriginalFile && isOwner && (
-            <span className="text-xs text-gray-500 ml-2">(Original file not available)</span>
+            <div className="flex items-center">
+              <span className="text-xs text-gray-500 ml-2">(Original file not available)</span>
+              <Button 
+                onClick={handleReuploadClick} 
+                variant="ghost" 
+                size="sm"
+                className="flex gap-1 text-xs text-wip-pink hover:bg-wip-pink/10 ml-2"
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <Loader className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Upload className="h-3 w-3" />
+                )}
+                Reupload
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </div>
           )}
         </div>
       )}
