@@ -63,7 +63,7 @@ const TrackActions = ({ isOwner, originalUrl, trackId }: TrackActionsProps) => {
       const link = document.createElement('a');
       link.href = originalUrl;
       link.setAttribute('download', ''); // This will use the server's suggested filename
-      link.setAttribute('target', '_blank');
+      // Removed target="_blank" to ensure file downloads instead of opening in new tab
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
