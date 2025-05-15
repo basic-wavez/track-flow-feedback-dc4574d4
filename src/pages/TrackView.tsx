@@ -115,6 +115,9 @@ const TrackView = () => {
 
   // Check if track owner matches current user
   const isOwner = user && track?.user_id === user.id;
+  
+  // Only show feedback form to non-owners
+  const shouldShowFeedbackSection = !isOwner && !hasFeedback && !isProcessing;
 
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
@@ -195,12 +198,12 @@ const TrackView = () => {
                   trackId={trackId || ''}
                   trackTitle={track.title}
                 />
-              ) : (
+              ) : shouldShowFeedbackSection ? (
                 <TrackFeedbackSection 
                   trackTitle={track.title}
                   user={user}
                 />
-              )
+              ) : null
             )}
           </div>
         ) : (
