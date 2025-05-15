@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 interface AuthContextType {
   user: User | null;
@@ -19,31 +19,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     console.log("AuthProvider - Initializing auth state listener");
     
-    // Set up the auth state listener
+    // Set up the auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log("AuthProvider - Auth state changed:", { event, user: session?.user?.email });
+        console.log("AuthProvider - Auth state changed:", { 
+          event, 
+          user: session?.user?.email,
+          path: window.location.pathname
+        });
+        
+        // Update auth state synchronously
         setSession(session);
         setUser(session?.user ?? null);
       }
     );
 
-    // Check for existing session
+    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log("AuthProvider - Initial session check:", { 
         hasSession: !!session,
-        user: session?.user?.email
+        user: session?.user?.email,
+        path: window.location.pathname
       });
+      
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log("AuthProvider - Unsubscribing from auth state changes");
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, username: string) => {
@@ -104,7 +116,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       console.log("AuthProvider - Attempting signout");
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Clear local state
+      setUser(null);
+      setSession(null);
+      
       toast({
         title: "Signed out successfully",
       });
@@ -115,6 +136,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: error.message,
         variant: "destructive",
       });
+      throw error;
     }
   };
 
