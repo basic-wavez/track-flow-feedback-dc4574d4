@@ -11,6 +11,7 @@ interface TrackPlayerProps {
   trackName: string;
   audioUrl?: string;
   originalUrl?: string;
+  originalFilename?: string; // Add this prop
   isOwner?: boolean;
 }
 
@@ -19,6 +20,7 @@ const TrackPlayer = ({
   trackName, 
   audioUrl, 
   originalUrl,
+  originalFilename,
   isOwner = false 
 }: TrackPlayerProps) => {
   // State management
@@ -121,6 +123,7 @@ const TrackPlayer = ({
       <TrackActions 
         isOwner={isOwner}
         originalUrl={originalUrl}
+        originalFilename={originalFilename}
         trackId={trackId}
       />
     </div>

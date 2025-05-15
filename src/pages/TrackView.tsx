@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import TrackPlayer from "@/components/TrackPlayer";
@@ -116,6 +115,7 @@ const TrackView = () => {
                 trackName={track.title}
                 audioUrl={track.mp3_url}
                 originalUrl={track.original_url}
+                originalFilename={track.original_filename} // Pass the original filename
                 isOwner={isOwner}
               />
             )}

@@ -11,9 +11,15 @@ interface TrackActionsProps {
   isOwner: boolean;
   originalUrl?: string;
   trackId?: string;
+  originalFilename?: string; // Add this prop
 }
 
-const TrackActions = ({ isOwner, originalUrl, trackId }: TrackActionsProps) => {
+const TrackActions = ({ 
+  isOwner, 
+  originalUrl, 
+  trackId,
+  originalFilename = 'audio-file' // Default filename if none provided
+}: TrackActionsProps) => {
   const [downloadEnabled, setDownloadEnabled] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -59,11 +65,15 @@ const TrackActions = ({ isOwner, originalUrl, trackId }: TrackActionsProps) => {
     setIsDownloading(true);
     
     try {
-      // Start the download by creating a temporary anchor and triggering a click
+      // Create a temporary anchor and trigger a click with filename specified
       const link = document.createElement('a');
       link.href = originalUrl;
-      link.setAttribute('download', ''); // This will use the server's suggested filename
-      // Removed target="_blank" to ensure file downloads instead of opening in new tab
+      
+      // Force download by specifying the filename
+      const filename = originalFilename || 'audio-file';
+      link.setAttribute('download', filename);
+      // Removed target="_blank" as it conflicts with download behavior
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
