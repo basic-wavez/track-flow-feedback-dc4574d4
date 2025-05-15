@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import FeedbackForm from "@/components/FeedbackForm";
 import AuthModal from "@/components/auth/AuthModal";
 import { User } from "@supabase/supabase-js";
@@ -13,6 +13,7 @@ interface TrackFeedbackSectionProps {
 
 const TrackFeedbackSection = ({ trackTitle, user }: TrackFeedbackSectionProps) => {
   const navigate = useNavigate();
+  const { trackId } = useParams();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
@@ -32,6 +33,11 @@ const TrackFeedbackSection = ({ trackTitle, user }: TrackFeedbackSectionProps) =
   const handleFeedbackSubmitted = () => {
     setFeedbackSubmitted(true);
     setShowFeedbackForm(false);
+    
+    // Refresh the page to show the new feedback display
+    if (trackId) {
+      window.location.reload();
+    }
   };
 
   if (showFeedbackForm) {

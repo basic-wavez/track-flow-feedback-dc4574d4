@@ -10,11 +10,13 @@ import ProcessingIndicator from "@/components/ProcessingIndicator";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import TrackFeedbackSection from "@/components/track/TrackFeedbackSection";
+import TrackFeedbackDisplay from "@/components/track/TrackFeedbackDisplay";
 import TrackNotFound from "@/components/track/TrackNotFound";
 import TrackLoading from "@/components/track/TrackLoading";
 import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { checkTrackHasFeedback } from "@/services/feedbackService";
 
 const TrackView = () => {
   const { trackId } = useParams();
@@ -23,12 +25,29 @@ const TrackView = () => {
   const [track, setTrack] = useState<TrackData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [processingStatus, setProcessingStatus] = useState<string>('');
+  const [hasFeedback, setHasFeedback] = useState<boolean>(false);
   
   // Check if track is ready for full player (MP3 is processed and URL is available)
   const isTrackReady = track?.processing_status === 'completed' && track?.mp3_url;
   
   // Show processing indicator if track is not ready
   const isProcessing = !isTrackReady;
+  
+  // Check if the track has any feedback
+  useEffect(() => {
+    const checkFeedback = async () => {
+      if (!trackId) return;
+      
+      try {
+        const hasExistingFeedback = await checkTrackHasFeedback(trackId);
+        setHasFeedback(hasExistingFeedback);
+      } catch (error) {
+        console.error("Error checking feedback status:", error);
+      }
+    };
+    
+    checkFeedback();
+  }, [trackId]);
   
   useEffect(() => {
     const fetchTrackData = async () => {
@@ -165,15 +184,24 @@ const TrackView = () => {
                 trackName={track.title}
                 audioUrl={track.mp3_url}
                 originalUrl={track.original_url}
-                originalFilename={track.original_filename} // Pass the original filename
+                originalFilename={track.original_filename}
                 isOwner={isOwner}
               />
             )}
             
-            <TrackFeedbackSection 
-              trackTitle={track.title}
-              user={user}
-            />
+            {!isProcessing && (
+              hasFeedback ? (
+                <TrackFeedbackDisplay 
+                  trackId={trackId || ''}
+                  trackTitle={track.title}
+                />
+              ) : (
+                <TrackFeedbackSection 
+                  trackTitle={track.title}
+                  user={user}
+                />
+              )
+            )}
           </div>
         ) : (
           <TrackNotFound />
