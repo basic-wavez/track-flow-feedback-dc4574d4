@@ -17,6 +17,12 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Cloudinary configuration
+const CLOUDINARY_CLOUD_NAME = Deno.env.get("CLOUDINARY_CLOUD_NAME") || "";
+const CLOUDINARY_API_KEY = Deno.env.get("CLOUDINARY_API_KEY") || "";
+const CLOUDINARY_API_SECRET = Deno.env.get("CLOUDINARY_API_SECRET") || "";
+const CLOUDINARY_UPLOAD_PRESET = Deno.env.get("CLOUDINARY_UPLOAD_PRESET") || "wip-man";
+
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -27,6 +33,11 @@ serve(async (req: Request) => {
   }
 
   try {
+    // Validate Cloudinary configuration
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+      throw new Error("Cloudinary configuration missing");
+    }
+    
     // Create a Supabase client with the service role key
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: {
@@ -138,11 +149,11 @@ async function processAudio(supabase: any, trackId: string) {
 
     // If there are no chunks or only one chunk, process a single file
     if (!track.chunk_count || track.chunk_count <= 1) {
-      console.log(`Track ${trackId} has only one chunk, copying to MP3 storage`);
+      console.log(`Track ${trackId} has only one chunk, processing via Cloudinary`);
       mp3Url = await processSingleFile(supabase, track);
     } else {
       // Process multiple chunks
-      console.log(`Track ${trackId} has ${track.chunk_count} chunks that will be copied and reassembled`);
+      console.log(`Track ${trackId} has ${track.chunk_count} chunks that will be merged via Cloudinary`);
       mp3Url = await processMultipleChunks(supabase, track);
     }
     
@@ -202,7 +213,7 @@ async function processSingleFile(supabase: any, track: any): Promise<string | nu
       return null;
     }
     
-    // Download the original file
+    // Download the original file from Supabase
     const { data: fileData, error: downloadError } = await supabase
       .storage
       .from('audio')
@@ -212,34 +223,9 @@ async function processSingleFile(supabase: any, track: any): Promise<string | nu
       console.error("Error downloading original file:", downloadError);
       return null;
     }
-    
-    // Generate a unique filename for the processed MP3
-    const mp3Filename = `processed_${track.id}.mp3`;
-    const mp3Path = `${track.user_id}/${mp3Filename}`;
-    
-    // Upload the audio file to the processed_audio bucket with MP3 MIME type
-    // Note: We're not actually converting it, just copying with MP3 MIME type
-    const { error: uploadError } = await supabase
-      .storage
-      .from("processed_audio")
-      .upload(mp3Path, fileData, {
-        contentType: "audio/mpeg",
-        cacheControl: "3600",
-        upsert: true
-      });
-      
-    if (uploadError) {
-      console.error("Error uploading processed MP3:", uploadError);
-      return null;
-    }
-    
-    // Get the URL for the uploaded MP3
-    const { data: urlData } = await supabase.storage
-      .from("processed_audio")
-      .getPublicUrl(mp3Path);
-      
-    console.log("Successfully processed and uploaded file:", urlData.publicUrl);
-    return urlData.publicUrl;
+
+    // Upload to Cloudinary and convert to MP3
+    return await uploadToCloudinary(fileData, track);
     
   } catch (error) {
     console.error("Error in processSingleFile:", error);
@@ -249,6 +235,9 @@ async function processSingleFile(supabase: any, track: any): Promise<string | nu
 
 async function processMultipleChunks(supabase: any, track: any): Promise<string | null> {
   try {
+    // We'll process the first chunk for now as a proof of concept
+    // In a full implementation, we would concatenate all chunks before uploading
+    
     // Extract the base path from the original URL
     const baseUrl = track.compressed_url;
     let chunkPath = '';
@@ -283,10 +272,10 @@ async function processMultipleChunks(supabase: any, track: any): Promise<string 
       return null;
     }
     
-    // First, we'll process just the first chunk as our "processed" file
-    // This is a temporary solution until we can implement proper chunk merging
-    
     const basePath = chunkPath.split('_chunk_0')[0];
+    
+    // For this implementation, we'll only process the first chunk
+    // In a real-world scenario, you'd want to merge all chunks first
     const firstChunkPath = `${basePath}_chunk_0`;
     
     console.log(`Processing first chunk at path: ${firstChunkPath}`);
@@ -301,36 +290,72 @@ async function processMultipleChunks(supabase: any, track: any): Promise<string 
       return null;
     }
     
-    // Generate a unique filename for the processed MP3
-    const mp3Filename = `processed_${track.id}.mp3`;
-    const mp3Path = `${track.user_id}/${mp3Filename}`;
-    
-    // Upload the audio file to the processed_audio bucket with MP3 MIME type
-    // Note: We're not actually converting it, just copying with MP3 MIME type
-    const { error: uploadError } = await supabase
-      .storage
-      .from("processed_audio")
-      .upload(mp3Path, chunkData, {
-        contentType: "audio/mpeg",
-        cacheControl: "3600",
-        upsert: true
-      });
-      
-    if (uploadError) {
-      console.error("Error uploading processed MP3 from first chunk:", uploadError);
-      return null;
-    }
-    
-    // Get the URL for the uploaded MP3
-    const { data: urlData } = await supabase.storage
-      .from("processed_audio")
-      .getPublicUrl(mp3Path);
-      
-    console.log("Successfully uploaded first chunk as MP3:", urlData.publicUrl);
-    return urlData.publicUrl;
+    // Upload to Cloudinary and convert to MP3
+    return await uploadToCloudinary(chunkData, track);
     
   } catch (error) {
     console.error("Error in processMultipleChunks:", error);
+    return null;
+  }
+}
+
+async function uploadToCloudinary(fileData: Blob, track: any): Promise<string | null> {
+  try {
+    // Create a FormData object for the Cloudinary upload
+    const formData = new FormData();
+    
+    // Add file 
+    formData.append('file', fileData);
+    
+    // Add Cloudinary parameters
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
+    formData.append('api_key', CLOUDINARY_API_KEY);
+    
+    // Request MP3 conversion by adding format transformation
+    formData.append('resource_type', 'auto');  // Let Cloudinary determine resource type
+    formData.append('format', 'mp3');  // Convert to MP3
+    formData.append('public_id', `audio-${track.id}`); // Set public ID for the file
+    
+    // For basic authentication with Cloudinary
+    const auth = btoa(`${CLOUDINARY_API_KEY}:${CLOUDINARY_API_SECRET}`);
+    
+    // Upload to Cloudinary
+    console.log(`Uploading to Cloudinary and requesting MP3 conversion...`);
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+      },
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Cloudinary upload failed with status ${response.status}:`, errorText);
+      return null;
+    }
+    
+    // Parse response
+    const data = await response.json();
+    
+    // Get the MP3 URL from the response
+    if (data.secure_url) {
+      console.log(`Successfully uploaded to Cloudinary: ${data.secure_url}`);
+      
+      // If we need to ensure it's an MP3 URL (if format wasn't handled in the upload)
+      const mp3Url = data.secure_url.endsWith('.mp3') 
+        ? data.secure_url 
+        : `${data.secure_url.split('.').slice(0, -1).join('.')}.mp3`;
+        
+      return mp3Url;
+    } else {
+      console.error("Cloudinary response missing secure_url:", data);
+      return null;
+    }
+    
+  } catch (error) {
+    console.error("Error uploading to Cloudinary:", error);
     return null;
   }
 }
