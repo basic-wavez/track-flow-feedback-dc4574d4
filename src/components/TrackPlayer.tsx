@@ -5,7 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Play, Pause, Share, Download, Volume2, VolumeX, Loader, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import Waveform from "./Waveform";
-import { getTrackChunkUrls, getTrack, requestTrackProcessing } from "@/services/trackService";
+import { 
+  getTrackChunkUrls,
+  getTrack,
+  requestTrackProcessing 
+} from "@/services/trackService";
 
 interface TrackPlayerProps {
   trackId: string;
