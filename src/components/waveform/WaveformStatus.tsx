@@ -16,12 +16,9 @@ const WaveformStatus = ({
   isAudioLoading,
   currentTime = 0
 }: WaveformStatusProps) => {
-  // We're disabling the buffering UI entirely
-  const shouldShowBuffering = false; // Force to false regardless of input
-
+  // Completely disable buffering UI - never show it
   return (
     <>
-      {/* Buffering UI is now completely disabled */}
       {isAudioLoading && (
         <div className="absolute bottom-4 left-4 text-xs text-amber-300 bg-wip-darker/80 px-3 py-1 rounded-full">
           Loading audio...

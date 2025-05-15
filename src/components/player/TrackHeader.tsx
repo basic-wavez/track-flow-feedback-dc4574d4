@@ -1,4 +1,3 @@
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader, RefreshCw } from "lucide-react";
@@ -27,16 +26,9 @@ const TrackHeader = ({
 }: TrackHeaderProps) => {
   const [statusMode, setStatusMode] = useState<"wip" | "demo">("wip");
 
-  // Helper function to render playback status indicator
+  // Helper function to render playback status indicator - never show buffering
   const renderPlaybackStatus = () => {
     switch (playbackState) {
-      case 'buffering':
-        return (
-          <div className="flex items-center gap-2 text-wip-pink animate-pulse">
-            <Loader className="h-4 w-4 animate-spin" />
-            <span>Buffering...</span>
-          </div>
-        );
       case 'error':
         return <span className="text-red-500">Error loading audio</span>;
       default:

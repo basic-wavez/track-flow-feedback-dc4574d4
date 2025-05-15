@@ -41,7 +41,10 @@ export function useAudioControls({
       setPlaybackState('paused');
       setIsPlaying(false);
     } else {
-      setPlaybackState('buffering');
+      // Don't show buffering state in the UI
+      // setPlaybackState('buffering');
+      setPlaybackState('loading');
+      
       // Always ensure buffering UI is disabled
       setShowBufferingUI(false);
       

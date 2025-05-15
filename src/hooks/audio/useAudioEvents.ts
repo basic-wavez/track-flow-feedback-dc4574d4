@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -40,6 +41,7 @@ export function useAudioEvents({
       setPlaybackState('idle');
       setCurrentTime(0);
       clearBufferingTimeout();
+      // Always ensure buffering UI is disabled
       setShowBufferingUI(false);
     };
     
@@ -100,9 +102,9 @@ export function useAudioEvents({
     
     const handleWaiting = () => {
       console.log(`Audio is waiting/buffering`);
-      setPlaybackState('buffering');
       
-      // Log buffering state for debugging but never show the UI
+      // Still track the buffering state internally for debugging
+      // but don't show the UI or change playback state
       const timeSinceLastSeek = Date.now() - lastSeekTimeRef.current;
       const timeSincePlayClick = Date.now() - playClickTimeRef.current;
       
@@ -110,12 +112,15 @@ export function useAudioEvents({
       console.log(`Time since play click: ${timeSincePlayClick}ms`);
       console.log(`Current time: ${audio.currentTime}`);
       
-      // Reset buffering state but never show the UI
+      // Reset buffering state and never show the UI
       clearBufferingTimeout();
       bufferingStartTimeRef.current = null;
       
-      // IMPORTANT: We're disabling the buffering UI entirely
+      // CRITICAL: Always force buffering UI to be hidden
       setShowBufferingUI(false);
+      
+      // Don't change to buffering state to avoid UI updates
+      // setPlaybackState('buffering');
     };
     
     const handleError = (e: Event) => {
