@@ -41,33 +41,57 @@ const WaveformCanvas = ({
       const progress = isValidDuration ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
       const progressPixel = width * progress;
       
-      // Draw the waveform bars - using vertical bars style from screenshot
+      // Draw the waveform bars
       const barWidth = width / waveformData.length;
-      const barMargin = Math.max(1, barWidth * 0.2); // Ensure at least 1px margin
-      const effectiveBarWidth = Math.max(1, barWidth - barMargin); // Ensure at least 1px width
+      const barMargin = barWidth * 0.2;
+      const effectiveBarWidth = barWidth - barMargin;
       
       for (let i = 0; i < waveformData.length; i++) {
         const x = i * barWidth;
-        const amplitude = waveformData[i];
-        const barHeight = Math.max(2, height * amplitude * 0.8); // Ensure minimum height and scale to 80% of canvas
+        const amplitude = waveformData[i] * 0.7; // Reduce max height to 70% of canvas
+        const barHeight = height * amplitude;
+        const y = (height - barHeight) / 2;
         
-        // Position bars from bottom, matching screenshot design
-        const y = height - barHeight;
-        
-        // Determine color based on playback position
+        // Determine color based on playback position and MP3 availability
         if (x < progressPixel) {
-          // Played section - brighter pink
-          ctx.fillStyle = 'rgba(241, 172, 210, 0.95)';
+          // Gradient for played section - brighter for MP3
+          const gradient = ctx.createLinearGradient(0, 0, 0, height);
+          if (isMp3Available) {
+            // Higher quality MP3 visualization with richer colors
+            gradient.addColorStop(0, 'rgba(241, 172, 210, 0.95)'); // Brighter pink for MP3
+            gradient.addColorStop(1, 'rgba(210, 133, 181, 0.85)'); // Darker shade with more opacity
+          } else {
+            // Standard visualization for chunks
+            gradient.addColorStop(0, 'rgba(231, 162, 200, 0.9)'); 
+            gradient.addColorStop(1, 'rgba(200, 123, 171, 0.7)');
+          }
+          ctx.fillStyle = gradient;
         } else {
-          // Unplayed section - darker pink with more transparency
-          ctx.fillStyle = 'rgba(241, 172, 210, 0.4)'; 
+          // Color for unplayed section
+          ctx.fillStyle = isMp3Available 
+            ? 'rgba(241, 172, 210, 0.4)' // Higher opacity for MP3
+            : 'rgba(231, 162, 200, 0.3)'; 
         }
         
-        // Draw the bar as a vertical rectangle
+        // Draw the bar
         ctx.fillRect(x + barMargin/2, y, effectiveBarWidth, barHeight);
+        
+        // Add a subtle pulsing effect to bars near the current position when playing
+        if ((isPlaying || isBuffering) && x >= progressPixel - barWidth * 5 && x <= progressPixel + barWidth * 5) {
+          const distance = Math.abs(x - progressPixel) / (barWidth * 5);
+          const pulseOpacity = isBuffering ? 0.7 - (distance * 0.7) : 0.5 - (distance * 0.5);
+          
+          if (pulseOpacity > 0) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${pulseOpacity})`;
+            const pulseFactor = isBuffering ? 1 + (0.3 * (1 - distance)) : 1 + (0.2 * (1 - distance));
+            const pulseHeight = barHeight * pulseFactor;
+            const pulseY = (height - pulseHeight) / 2;
+            ctx.fillRect(x + barMargin/2, pulseY, effectiveBarWidth, pulseHeight);
+          }
+        }
       }
       
-      // Add progress line
+      // Only draw progress line if duration is valid
       if (isValidDuration && progressPixel > 0) {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(progressPixel - 1, 0, 2, height);
@@ -134,7 +158,7 @@ const WaveformCanvas = ({
       ref={canvasRef}
       width={1000}
       height={150}
-      className="w-full h-full rounded-md waveform-bg cursor-pointer"
+      className={`w-full h-full rounded-md waveform-bg ${isFinite(duration) && duration > 0 ? 'cursor-pointer' : 'cursor-not-allowed opacity-80'}`}
       onClick={handleClick}
     />
   );

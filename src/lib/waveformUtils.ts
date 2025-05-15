@@ -20,19 +20,8 @@ export const generateWaveformWithVariance = (segments: number, variance: number)
  */
 export const generateWaveformData = (length: number = 100): number[] => {
   const data = [];
-  
-  // Create a more drum-beat like pattern with alternating high and low amplitudes
-  // to match the visual style in the screenshot
   for (let i = 0; i < length; i++) {
-    // Create drum-like pattern with higher values every 16 steps
-    const isBeat = i % 16 < 4; 
-    
-    // Higher amplitude for beats (0.6-0.9), lower for off-beats (0.1-0.4)
-    const baseValue = isBeat ? (0.6 + Math.random() * 0.3) : (0.1 + Math.random() * 0.3);
-    
-    // Add some randomness to make it look natural
-    data.push(baseValue);
+    data.push(Math.random() * 0.5 + 0.25); // Values between 0.25 and 0.75
   }
-  
   return data;
 };
