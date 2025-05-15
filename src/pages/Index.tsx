@@ -3,9 +3,20 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AudioUploader from "@/components/AudioUploader";
 import AuthModal from "@/components/auth/AuthModal";
-import Profile from "@/components/auth/Profile";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
+import { cn } from "@/lib/utils";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -57,27 +68,35 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
-      <header className="py-6 px-8 flex justify-between items-center border-b border-wip-gray/30">
-        <div className="flex items-center">
-          <h1 className="text-3xl font-bold text-wip-pink">
-            WIP Manager
-          </h1>
+      <Header />
+      
+      <nav className="border-b border-wip-gray/30 bg-wip-darker">
+        <div className="max-w-7xl mx-auto px-4">
+          <NavigationMenu className="py-2">
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <NavigationMenuLink 
+                  className={cn(navigationMenuTriggerStyle(), "bg-transparent hover:bg-wip-gray/10 text-wip-pink")} 
+                  href="/"
+                >
+                  Home
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+              
+              {user && (
+                <NavigationMenuItem>
+                  <NavigationMenuLink 
+                    className={cn(navigationMenuTriggerStyle(), "bg-transparent hover:bg-wip-gray/10 text-wip-pink")} 
+                    href="/profile"
+                  >
+                    My Profile
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+              )}
+            </NavigationMenuList>
+          </NavigationMenu>
         </div>
-        
-        <div>
-          {user ? (
-            <Profile />
-          ) : (
-            <Button 
-              onClick={() => navigate("/auth")}
-              variant="outline"
-              className="border-wip-pink text-wip-pink hover:bg-wip-pink/10"
-            >
-              Login / Sign Up
-            </Button>
-          )}
-        </div>
-      </header>
+      </nav>
       
       <main className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-3xl mx-auto text-center mb-12">
@@ -137,9 +156,7 @@ const Index = () => {
         </div>
       </main>
       
-      <footer className="py-6 px-8 border-t border-wip-gray/30 text-center text-gray-500">
-        <p>© {new Date().getFullYear()} WIP Manager - For music producers, by music producers</p>
-      </footer>
+      <Footer />
       
       <AuthModal 
         isOpen={isAuthModalOpen}
