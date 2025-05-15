@@ -189,20 +189,22 @@ const FeedbackView = () => {
             <NavigationMenu>
               <NavigationMenuList>
                 <NavigationMenuItem>
-                  <NavigationMenuLink 
-                    href="/" 
+                  <Button 
+                    variant="ghost"
                     className={navigationMenuTriggerStyle()}
+                    onClick={() => navigate("/")}
                   >
                     Home
-                  </NavigationMenuLink>
+                  </Button>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                  <NavigationMenuLink 
-                    href="/profile" 
+                  <Button 
+                    variant="ghost"
                     className={navigationMenuTriggerStyle()}
+                    onClick={() => navigate("/profile")}
                   >
                     My Profile
-                  </NavigationMenuLink>
+                  </Button>
                 </NavigationMenuItem>
               </NavigationMenuList>
             </NavigationMenu>

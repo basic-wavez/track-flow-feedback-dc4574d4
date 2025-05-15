@@ -1,168 +1,110 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { 
+  NavigationMenu, 
+  NavigationMenuList, 
+  NavigationMenuItem,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
+import { Button } from "@/components/ui/button";
 import TrackPlayer from "@/components/TrackPlayer";
-import { useAuth } from "@/context/AuthContext";
-import { getTrack, getTrackProcessingStatus } from "@/services/trackService";
-import { TrackData } from "@/types/track";
-import { toast } from "@/components/ui/use-toast";
-import ProcessingIndicator from "@/components/ProcessingIndicator";
+import TrackFeedbackSection from "@/components/track/TrackFeedbackSection";
+import TrackLoading from "@/components/track/TrackLoading";
+import TrackNotFound from "@/components/track/TrackNotFound";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import TrackFeedbackSection from "@/components/track/TrackFeedbackSection";
+import { getTrack } from "@/services/trackService";
+import { useAuth } from "@/context/AuthContext";
+import { TrackData } from "@/types/track";
 import TrackFeedbackDisplay from "@/components/track/TrackFeedbackDisplay";
-import TrackNotFound from "@/components/track/TrackNotFound";
-import TrackLoading from "@/components/track/TrackLoading";
-import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu";
-import { ChevronLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { checkTrackHasFeedback } from "@/services/feedbackService";
 
 const TrackView = () => {
-  const { trackId } = useParams();
+  const { trackId } = useParams<{ trackId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [track, setTrack] = useState<TrackData | null>(null);
+  const [trackData, setTrackData] = useState<TrackData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [processingStatus, setProcessingStatus] = useState<string>('');
-  const [hasFeedback, setHasFeedback] = useState<boolean>(false);
-  
-  // Check if track is ready for full player (MP3 is processed and URL is available)
-  const isTrackReady = track?.processing_status === 'completed' && track?.mp3_url;
-  
-  // Show processing indicator if track is not ready
-  const isProcessing = !isTrackReady;
-  
-  // Check if the track has any feedback
+  const [isOwner, setIsOwner] = useState(false);
+
   useEffect(() => {
-    const checkFeedback = async () => {
-      if (!trackId) return;
-      
-      try {
-        const hasExistingFeedback = await checkTrackHasFeedback(trackId);
-        setHasFeedback(hasExistingFeedback);
-      } catch (error) {
-        console.error("Error checking feedback status:", error);
+    const loadTrack = async () => {
+      if (!trackId) {
+        setIsLoading(false);
+        return;
       }
-    };
-    
-    checkFeedback();
-  }, [trackId]);
-  
-  useEffect(() => {
-    const fetchTrackData = async () => {
-      if (!trackId) return;
-      
+
       setIsLoading(true);
-      
       try {
-        const trackData = await getTrack(trackId);
-        
-        if (!trackData) {
-          toast({
-            title: "Track Not Found",
-            description: "The track you're looking for doesn't exist or has been removed.",
-            variant: "destructive",
-          });
-          navigate("/");
-          return;
+        const track = await getTrack(trackId);
+        setTrackData(track);
+        if (track && user) {
+          setIsOwner(track.user_id === user.id);
         }
-        
-        setTrack(trackData);
-        setProcessingStatus(trackData.processing_status || 'pending');
       } catch (error) {
         console.error("Error loading track:", error);
+        setTrackData(null);
       } finally {
         setIsLoading(false);
       }
     };
-    
-    fetchTrackData();
-    
-    // Setup polling for processing status if track is being processed
-    let intervalId: number | undefined;
-    
-    if (trackId) {
-      intervalId = window.setInterval(async () => {
-        try {
-          const status = await getTrackProcessingStatus(trackId);
-          setProcessingStatus(status);
-          
-          // If processing completed, refresh track data to get MP3 URL
-          if (status === 'completed' && processingStatus !== 'completed') {
-            fetchTrackData();
-            
-            toast({
-              title: "Processing Complete",
-              description: "Your track has been optimized for streaming."
-            });
-            
-            // Clear interval once processing is complete
-            clearInterval(intervalId);
-          }
-        } catch (error) {
-          console.error("Error checking processing status:", error);
-        }
-      }, 5000); // Check every 5 seconds
-    }
-    
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [trackId, navigate, processingStatus]);
 
-  // Check if track owner matches current user
-  const isOwner = user && track?.user_id === user.id;
-  
-  // Only show feedback form to non-owners
-  const shouldShowFeedbackSection = !isOwner && !hasFeedback && !isProcessing;
+    loadTrack();
+  }, [trackId, user]);
+
+  if (isLoading) {
+    return <TrackLoading />;
+  }
+
+  if (!trackData) {
+    return <TrackNotFound />;
+  }
 
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <Header />
-
+      
       <div className="py-6 px-8 border-b border-wip-gray/30">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
+            <Button 
+              onClick={() => navigate(-1)} 
+              variant="ghost" 
               className="flex items-center gap-2 text-wip-pink hover:bg-wip-pink/10"
-              onClick={() => navigate("/")}
             >
-              <ChevronLeft size={16} />
-              <span>Back to Home</span>
+              ← Back
             </Button>
-
+            
             <NavigationMenu>
               <NavigationMenuList>
                 <NavigationMenuItem>
-                  <NavigationMenuLink 
-                    href="/" 
+                  <Button 
+                    variant="ghost"
                     className={navigationMenuTriggerStyle()}
+                    onClick={() => navigate("/")}
                   >
                     Home
-                  </NavigationMenuLink>
+                  </Button>
                 </NavigationMenuItem>
                 {user && (
                   <NavigationMenuItem>
-                    <NavigationMenuLink 
-                      href="/profile" 
+                    <Button 
+                      variant="ghost"
                       className={navigationMenuTriggerStyle()}
+                      onClick={() => navigate("/profile")}
                     >
                       My Profile
-                    </NavigationMenuLink>
+                    </Button>
                   </NavigationMenuItem>
                 )}
                 {trackId && (
                   <NavigationMenuItem>
-                    <NavigationMenuLink 
-                      href={`/feedback/${trackId}`}
+                    <Button 
+                      variant="ghost"
                       className={navigationMenuTriggerStyle()}
+                      onClick={() => navigate(`/feedback/${trackId}`)}
                     >
                       View Feedback
-                    </NavigationMenuLink>
+                    </Button>
                   </NavigationMenuItem>
                 )}
               </NavigationMenuList>
@@ -171,47 +113,26 @@ const TrackView = () => {
         </div>
       </div>
 
-      <div className="flex-1 py-12 px-4">
-        {isLoading ? (
-          <TrackLoading />
-        ) : track ? (
-          <div className="max-w-5xl mx-auto space-y-12">
-            {isProcessing ? (
-              <ProcessingIndicator
-                trackId={trackId || ''}
-                trackName={track.title}
-                status={processingStatus}
-                isOwner={isOwner}
-              />
-            ) : (
-              <TrackPlayer 
-                trackId={trackId || ''}
-                trackName={track.title}
-                audioUrl={track.mp3_url}
-                originalUrl={track.original_url}
-                originalFilename={track.original_filename}
-                isOwner={isOwner}
-              />
-            )}
-            
-            {!isProcessing && (
-              hasFeedback ? (
-                <TrackFeedbackDisplay 
-                  trackId={trackId || ''}
-                  trackTitle={track.title}
-                />
-              ) : shouldShowFeedbackSection ? (
-                <TrackFeedbackSection 
-                  trackTitle={track.title}
-                  user={user}
-                />
-              ) : null
-            )}
-          </div>
-        ) : (
-          <TrackNotFound />
-        )}
-      </div>
+      <main className="flex-1 py-12 px-4">
+        <div className="max-w-5xl mx-auto space-y-8">
+          <TrackPlayer 
+            trackId={trackId}
+            trackName={trackData.title} 
+            audioUrl={trackData.mp3_url || trackData.compressed_url}
+            originalUrl={trackData.original_url}
+            originalFilename={trackData.original_filename}
+            isOwner={isOwner}
+          />
+          
+          {isOwner ? (
+            <>
+              <TrackFeedbackDisplay trackId={trackId} trackTitle={trackData.title} />
+            </>
+          ) : (
+            <TrackFeedbackSection trackTitle={trackData.title} user={user} />
+          )}
+        </div>
+      </main>
       
       <Footer />
     </div>

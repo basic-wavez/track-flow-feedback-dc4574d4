@@ -1,6 +1,6 @@
 
-import { ReactNode } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { ReactNode, useEffect } from "react";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
 interface ProtectedRouteProps {
@@ -10,6 +10,22 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Debug logging to help troubleshoot auth state issues
+    console.log("ProtectedRoute - Auth state:", { 
+      user: user ? `User: ${user.email}` : "No user", 
+      loading, 
+      path: location.pathname 
+    });
+    
+    // If user becomes null after loading is complete, redirect to auth page
+    if (!loading && !user) {
+      console.log("ProtectedRoute - Redirecting to auth page");
+      navigate("/auth", { state: { from: location }, replace: true });
+    }
+  }, [user, loading, location, navigate]);
   
   if (loading) {
     return (
