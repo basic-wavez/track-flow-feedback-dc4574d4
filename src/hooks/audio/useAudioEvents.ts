@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -24,7 +23,8 @@ export function useAudioEvents({
   recentlySeekRef,
   playClickTimeRef,
   clearBufferingTimeout,
-  loadRetries
+  loadRetries,
+  lastSeekTimeRef
 }: any) {
 
   useEffect(() => {

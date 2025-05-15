@@ -1,4 +1,3 @@
-
 import { useRef } from "react";
 import { useAudioState } from "./useAudioState";
 import { useBufferingState } from "./useBufferingState";
@@ -64,7 +63,8 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     recentlySeekRef,
     playClickTimeRef,
     clearBufferingTimeout,
-    loadRetries
+    loadRetries,
+    lastSeekTimeRef
   });
   
   // Audio controls
