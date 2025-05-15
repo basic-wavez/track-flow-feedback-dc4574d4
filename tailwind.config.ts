@@ -20,8 +20,17 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Montserrat", "sans-serif"],
-        heading: ["Dela Gothic One", "cursive"],
+        sans: [
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "'Segoe UI'",
+          "Roboto",
+          "'Helvetica Neue'",
+          "Arial",
+          "sans-serif",
+        ],
+        mono: ["'SF Mono'", "SFMono-Regular", "Consolas", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -57,25 +66,17 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))"
         },
-        wip: {
-          pink: "#E7A2C8",
-          darkPink: "#C87BAB",
-          dark: "#151317",
-          darker: "#0E0C0F",
-          light: "#F5F5F5",
-          gray: "#333333",
-        },
         supabase: {
-          dark: "#1A1F2C",
-          darker: "#181818",
-          light: "#F8F9FA",
+          dark: "#181818",
+          darker: "#121212",
+          light: "#F8FAFC",
           green: "#3ECF8E",
           indigo: "#4851F4",
           yellow: "#FDCD2C",
           gray: "#8E9196", 
           code: "#2A2A2A",
-          border: "#313538",
-          input: "#232323",
+          border: "#222222",
+          input: "#1F1F1F",
         },
       },
       borderRadius: {
