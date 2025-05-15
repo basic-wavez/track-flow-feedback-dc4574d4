@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useParams } from "react-router-dom";
 import FeedbackForm from "@/components/FeedbackForm";
@@ -15,40 +15,20 @@ const TrackFeedbackSection = ({ trackTitle, user }: TrackFeedbackSectionProps) =
   const navigate = useNavigate();
   const { trackId } = useParams();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
   const handleAuthSuccess = () => {
     setIsAuthModalOpen(false);
   };
 
-  const handleRequestFeedback = () => {
-    if (!user) {
-      setIsAuthModalOpen(true);
-    } else {
-      setShowFeedbackForm(true);
-    }
-  };
-
   const handleFeedbackSubmitted = () => {
     setFeedbackSubmitted(true);
-    setShowFeedbackForm(false);
     
     // Refresh the page to show the new feedback display
     if (trackId) {
       window.location.reload();
     }
   };
-
-  if (showFeedbackForm) {
-    return (
-      <FeedbackForm 
-        trackName={trackTitle}
-        onFeedbackSubmit={handleFeedbackSubmitted}
-        onLoginRequest={() => setIsAuthModalOpen(true)}
-      />
-    );
-  }
 
   if (feedbackSubmitted) {
     return (
@@ -72,21 +52,11 @@ const TrackFeedbackSection = ({ trackTitle, user }: TrackFeedbackSectionProps) =
 
   return (
     <>
-      <div className="flex flex-col items-center gap-4">
-        <h2 className="text-2xl font-bold gradient-text mb-2">
-          How does this track sound?
-        </h2>
-        <p className="text-gray-400 text-center max-w-lg mb-4">
-          Your feedback helps producers improve their music. Provide ratings and comments to help them perfect their track.
-        </p>
-        <Button 
-          onClick={handleRequestFeedback}
-          className="gradient-bg hover:opacity-90 text-lg px-8 py-6"
-          size="lg"
-        >
-          Give Feedback
-        </Button>
-      </div>
+      <FeedbackForm 
+        trackName={trackTitle}
+        onFeedbackSubmit={handleFeedbackSubmitted}
+        onLoginRequest={() => setIsAuthModalOpen(true)}
+      />
       
       <AuthModal 
         isOpen={isAuthModalOpen}
