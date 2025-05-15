@@ -58,9 +58,10 @@ const Index = () => {
   };
   
   const handleAuthSuccess = () => {
+    // Close the auth modal
     setIsAuthModalOpen(false);
     
-    // Once authentication is successful, set flag to navigate if we have a track
+    // Only navigate if we have a track ID
     if (uploadedTrackId) {
       setShouldNavigate(true);
     }

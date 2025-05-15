@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +22,24 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
   const { toast } = useToast();
   const { signUp, signIn } = useAuth();
 
+  // Clear form fields when modal is opened/closed or tab is switched
+  const resetForm = () => {
+    setEmail("");
+    setPassword("");
+    setUsername("");
+    setLoading(false);
+  };
+
+  const handleTabChange = (value: string) => {
+    setTab(value as "login" | "signup");
+    resetForm();
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -30,19 +47,25 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
     try {
       if (tab === "signup") {
         await signUp(email, password, username);
+        toast({
+          title: "Account created successfully",
+          description: "Please check your email for verification.",
+        });
+        // Don't automatically close for signup - user needs to verify email
       } else {
         await signIn(email, password);
+        // Only trigger success callback after login is confirmed
+        onSuccess();
       }
-      onSuccess();
-    } catch (error) {
-      // Error is handled in the auth context
-    } finally {
+    } catch (error: any) {
+      console.error("Auth error:", error);
+      // Keep the modal open on error
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center gradient-text text-2xl font-bold">
@@ -50,7 +73,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
           </DialogTitle>
         </DialogHeader>
         
-        <Tabs defaultValue="login" value={tab} onValueChange={(val) => setTab(val as "login" | "signup")} className="w-full">
+        <Tabs defaultValue="login" value={tab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="login">Login</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -67,6 +90,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={loading}
                 />
               </div>
               
@@ -79,6 +103,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  disabled={loading}
                 />
               </div>
               
@@ -102,6 +127,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
+                  disabled={loading}
                 />
               </div>
               
@@ -114,6 +140,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={loading}
                 />
               </div>
               
@@ -126,6 +153,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  disabled={loading}
                 />
               </div>
               
