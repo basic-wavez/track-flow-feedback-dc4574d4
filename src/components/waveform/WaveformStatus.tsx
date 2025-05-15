@@ -3,9 +3,10 @@ interface WaveformStatusProps {
   isBuffering?: boolean;
   isMp3Available?: boolean;
   analysisError?: string | null;
+  isAudioLoading?: boolean;
 }
 
-const WaveformStatus = ({ isBuffering, isMp3Available, analysisError }: WaveformStatusProps) => {
+const WaveformStatus = ({ isBuffering, isMp3Available, analysisError, isAudioLoading }: WaveformStatusProps) => {
   return (
     <>
       {isBuffering && (
@@ -16,6 +17,11 @@ const WaveformStatus = ({ isBuffering, isMp3Available, analysisError }: Waveform
       {isMp3Available && (
         <div className="absolute top-4 right-4 text-xs text-green-300 bg-wip-darker/80 px-3 py-1 rounded-full">
           High Quality MP3
+        </div>
+      )}
+      {isAudioLoading && (
+        <div className="absolute bottom-4 left-4 text-xs text-amber-300 bg-wip-darker/80 px-3 py-1 rounded-full">
+          Loading audio...
         </div>
       )}
       {analysisError && (

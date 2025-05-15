@@ -16,6 +16,7 @@ interface WaveformProps {
   isBuffering?: boolean;
   isMp3Available?: boolean;
   isGeneratingWaveform?: boolean;
+  audioLoaded?: boolean;
 }
 
 const Waveform = ({ 
@@ -27,12 +28,21 @@ const Waveform = ({
   totalChunks = 1,
   isBuffering = false,
   isMp3Available = false,
-  isGeneratingWaveform = false
+  isGeneratingWaveform = false,
+  audioLoaded = false
 }: WaveformProps) => {
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isWaveformGenerated, setIsWaveformGenerated] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  // Generate initial placeholder waveform immediately
+  useEffect(() => {
+    if (waveformData.length === 0) {
+      const initialWaveformData = generateWaveformWithVariance(150, 0.3);
+      setWaveformData(initialWaveformData);
+    }
+  }, []);
   
   // Generate or analyze waveform data when component mounts or audioUrl changes
   useEffect(() => {
@@ -48,14 +58,18 @@ const Waveform = ({
       : Math.max(150, 50 * totalChunks);
     
     // For MP3 files, analyze the actual audio data
-    if (isMp3Available && audioUrl) {
+    if (isMp3Available && audioUrl && audioLoaded) {
       setIsAnalyzing(true);
       setAnalysisError(null);
       
       analyzeAudio(audioUrl, segments)
         .then(analyzedData => {
-          setWaveformData(analyzedData);
-          setIsWaveformGenerated(true);
+          if (analyzedData && analyzedData.length > 0) {
+            setWaveformData(analyzedData);
+            setIsWaveformGenerated(true);
+          } else {
+            throw new Error("No waveform data generated from analysis");
+          }
         })
         .catch(error => {
           console.error("Error analyzing audio:", error);
@@ -79,7 +93,7 @@ const Waveform = ({
       setWaveformData(newWaveformData);
       setIsWaveformGenerated(true);
     }
-  }, [audioUrl, totalChunks, isMp3Available, isWaveformGenerated]);
+  }, [audioUrl, totalChunks, isMp3Available, isWaveformGenerated, audioLoaded]);
   
   // Show loading states
   if (isAnalyzing) {
@@ -89,6 +103,8 @@ const Waveform = ({
   if (isGeneratingWaveform) {
     return <WaveformLoader isGeneratingWaveform={true} />;
   }
+  
+  const isAudioDurationValid = isFinite(duration) && duration > 0;
   
   return (
     <div className="w-full h-32 relative">
@@ -106,6 +122,7 @@ const Waveform = ({
         isBuffering={isBuffering}
         isMp3Available={isMp3Available}
         analysisError={analysisError}
+        isAudioLoading={!isAudioDurationValid && !analysisError}
       />
     </div>
   );

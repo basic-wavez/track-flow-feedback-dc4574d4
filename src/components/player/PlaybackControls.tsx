@@ -29,6 +29,11 @@ const PlaybackControls = ({
 }: PlaybackControlsProps) => {
   
   const formatTime = (time: number) => {
+    // Handle invalid time values
+    if (!isFinite(time) || isNaN(time)) {
+      return "--:--";
+    }
+    
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -40,7 +45,7 @@ const PlaybackControls = ({
         onClick={onPlayPause} 
         size="icon" 
         className="h-12 w-12 rounded-full gradient-bg hover:opacity-90"
-        disabled={isLoading || playbackState === 'error'}
+        disabled={isLoading || playbackState === 'error' || !isFinite(duration)}
       >
         {playbackState === 'buffering' ? (
           <Loader className="h-6 w-6 animate-spin" />

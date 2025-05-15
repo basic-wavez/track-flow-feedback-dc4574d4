@@ -37,7 +37,8 @@ const WaveformCanvas = ({
       ctx.clearRect(0, 0, width, height);
       
       // Calculate the progress position
-      const progress = duration > 0 ? currentTime / duration : 0;
+      const isValidDuration = isFinite(duration) && duration > 0;
+      const progress = isValidDuration ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
       const progressPixel = width * progress;
       
       // Draw the waveform bars
@@ -90,9 +91,11 @@ const WaveformCanvas = ({
         }
       }
       
-      // Draw progress line
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(progressPixel - 1, 0, 2, height);
+      // Only draw progress line if duration is valid
+      if (isValidDuration && progressPixel > 0) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(progressPixel - 1, 0, 2, height);
+      }
       
       // Add buffering indicator
       if (isBuffering) {
@@ -128,6 +131,12 @@ const WaveformCanvas = ({
   }, [isPlaying, isBuffering, currentTime, duration, waveformData, isMp3Available]);
   
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Don't allow seeking if duration is invalid
+    if (!isFinite(duration) || isNaN(duration) || duration <= 0) {
+      console.log("Cannot seek: Invalid duration");
+      return;
+    }
+    
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -135,7 +144,10 @@ const WaveformCanvas = ({
     const x = e.clientX - rect.left;
     const seekPosition = x / canvas.width;
     
-    onSeek(duration * seekPosition);
+    // Ensure seekPosition is valid
+    if (isFinite(seekPosition) && !isNaN(seekPosition)) {
+      onSeek(duration * seekPosition);
+    }
   };
   
   return (
@@ -143,7 +155,7 @@ const WaveformCanvas = ({
       ref={canvasRef}
       width={1000}
       height={150}
-      className="w-full h-full cursor-pointer rounded-md waveform-bg"
+      className={`w-full h-full rounded-md waveform-bg ${isFinite(duration) && duration > 0 ? 'cursor-pointer' : 'cursor-not-allowed opacity-80'}`}
       onClick={handleClick}
     />
   );

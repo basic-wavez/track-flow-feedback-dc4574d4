@@ -29,6 +29,7 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
     isMuted,
     playbackState,
     isGeneratingWaveform,
+    audioLoaded,
     togglePlayPause,
     handleSeek,
     toggleMute,
@@ -108,6 +109,7 @@ const TrackPlayer = ({ trackId, trackName, audioUrl, isOwner = false }: TrackPla
         isBuffering={playbackState === 'buffering'}
         isMp3Available={usingMp3}
         isGeneratingWaveform={isGeneratingWaveform}
+        audioLoaded={audioLoaded}
       />
       
       <TrackActions isOwner={isOwner} />

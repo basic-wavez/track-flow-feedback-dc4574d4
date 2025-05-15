@@ -18,6 +18,7 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
   const [playbackState, setPlaybackState] = useState<PlaybackState>('idle');
   const [loadRetries, setLoadRetries] = useState(0);
   const [isGeneratingWaveform, setIsGeneratingWaveform] = useState(false);
+  const [audioLoaded, setAudioLoaded] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   
@@ -28,7 +29,9 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     const audio = audioRef.current;
     if (!audio) return;
 
-    const updateTime = () => setCurrentTime(audio.currentTime);
+    const updateTime = () => {
+      setCurrentTime(audio.currentTime || 0);
+    };
     
     const handleEnd = () => {
       setIsPlaying(false);
@@ -37,12 +40,41 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     };
     
     const handleLoadedMetadata = () => {
-      setDuration(audio.duration);
-      console.log(`Metadata loaded. Duration: ${audio.duration}`);
+      // Ensure we don't set Infinity or NaN as the duration
+      if (isFinite(audio.duration) && !isNaN(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+        setAudioLoaded(true);
+        console.log(`Metadata loaded. Duration: ${audio.duration}`);
+      } else {
+        // Fallback for when duration is not available
+        console.log("Invalid duration detected, using fallback");
+        estimateAudioDuration(audio);
+      }
+    };
+
+    // Estimate duration if metadata doesn't provide it
+    const estimateAudioDuration = (audioElement: HTMLAudioElement) => {
+      // Start with a reasonable default
+      setDuration(180); // 3 minutes as fallback
+      
+      // Try to load duration again after a delay
+      setTimeout(() => {
+        if (isFinite(audioElement.duration) && !isNaN(audioElement.duration) && audioElement.duration > 0) {
+          setDuration(audioElement.duration);
+          setAudioLoaded(true);
+        }
+      }, 1000);
     };
     
     const handleCanPlay = () => {
       console.log(`Audio can play now`);
+      setAudioLoaded(true);
+      
+      // Double-check duration once we can play
+      if (isFinite(audio.duration) && !isNaN(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
+      
       if (playbackState === 'buffering' && isPlaying) {
         audio.play()
           .then(() => {
@@ -63,8 +95,9 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
       setPlaybackState('buffering');
     };
     
-    const handleError = () => {
-      console.error(`Error with audio playback`);
+    const handleError = (e: Event) => {
+      const error = (e.target as HTMLAudioElement).error;
+      console.error(`Error with audio playback: ${error?.code} - ${error?.message}`);
       handlePlaybackError();
     };
 
@@ -94,7 +127,10 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     const audio = audioRef.current;
     if (!audio || !audioUrl) return;
     
+    // Reset states on new audio load
+    setAudioLoaded(false);
     setPlaybackState('loading');
+    setDuration(0);
     console.log(`Loading audio: ${audioUrl}`);
     
     // Show generating waveform state briefly when loading new audio
@@ -155,10 +191,12 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
 
   const handleSeek = (time: number) => {
     const audio = audioRef.current;
-    if (!audio || !audioUrl) return;
+    if (!audio || !audioUrl || !isFinite(time) || isNaN(time)) return;
     
-    audio.currentTime = time;
-    setCurrentTime(time);
+    // Ensure we're seeking to a valid time within the audio duration
+    const validTime = Math.max(0, Math.min(time, isFinite(duration) ? duration : 0));
+    audio.currentTime = validTime;
+    setCurrentTime(validTime);
   };
 
   const toggleMute = () => {
@@ -194,6 +232,7 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     isMuted,
     playbackState,
     isGeneratingWaveform,
+    audioLoaded,
     togglePlayPause,
     handleSeek,
     toggleMute,
