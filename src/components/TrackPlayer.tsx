@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { requestTrackProcessing } from "@/services/trackService";
 import Waveform from "./Waveform";
@@ -14,7 +15,7 @@ interface TrackPlayerProps {
   originalUrl?: string;
   originalFilename?: string;
   isOwner?: boolean;
-  waveformData?: number[] | Json; // Updated type to match TrackData
+  waveformData?: number[] | Json; // Waveform data from database
 }
 
 const TrackPlayer = ({ 
@@ -24,7 +25,7 @@ const TrackPlayer = ({
   originalUrl,
   originalFilename,
   isOwner = false,
-  waveformData // Updated prop
+  waveformData // Waveform data from database
 }: TrackPlayerProps) => {
   // State management
   const [isRequestingProcessing, setIsRequestingProcessing] = useState(false);
@@ -113,18 +114,20 @@ const TrackPlayer = ({
       />
       
       <Waveform 
+        trackId={trackId} // Pass the track ID to save waveform data
         audioUrl={audioUrl}
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}
         onSeek={handleSeek}
-        totalChunks={1} // We're only using MP3 now
+        totalChunks={1} // Always 1 chunk for MP3
         isBuffering={isBuffering}
         showBufferingUI={showBufferingUI}
         isMp3Available={usingMp3}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
-        waveformData={waveformData} // Pass the waveform data to the component
+        waveformData={waveformData} // Pass the waveform data from the database
+        isOwner={isOwner} // Pass ownership status to control saving
       />
       
       <TrackActions 

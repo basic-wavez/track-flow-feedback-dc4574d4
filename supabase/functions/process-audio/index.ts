@@ -1,3 +1,4 @@
+
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
@@ -144,30 +145,25 @@ async function processAudio(supabase: any, trackId: string) {
     }
 
     let mp3Url = '';
-    let waveformData: number[] | null = null;
 
     // If there are no chunks or only one chunk, process a single file
     if (!track.chunk_count || track.chunk_count <= 1) {
       console.log(`Track ${trackId} has only one chunk, processing via Cloudinary`);
-      const result = await processSingleFile(supabase, track);
-      mp3Url = result.mp3Url;
-      waveformData = result.waveformData;
+      mp3Url = await processSingleFile(supabase, track);
     } else {
       // Process multiple chunks
       console.log(`Track ${trackId} has ${track.chunk_count} chunks that will be merged`);
-      const result = await processMultipleChunks(supabase, track);
-      mp3Url = result.mp3Url;
-      waveformData = result.waveformData;
+      mp3Url = await processMultipleChunks(supabase, track);
     }
     
     if (mp3Url) {
-      // Update track with successful processing and waveform data
+      // Update track with successful processing (don't set waveform_data anymore)
       await supabase
         .from("tracks")
         .update({
           mp3_url: mp3Url,
-          processing_status: "completed",
-          waveform_data: waveformData // Store the generated waveform data
+          processing_status: "completed"
+          // Waveform data will be generated and saved client-side
         })
         .eq("id", trackId);
       
@@ -181,7 +177,7 @@ async function processAudio(supabase: any, trackId: string) {
   }
 }
 
-async function processSingleFile(supabase: any, track: any): Promise<{mp3Url: string | null, waveformData: number[] | null}> {
+async function processSingleFile(supabase: any, track: any): Promise<string | null> {
   try {
     // Extract the file path from the original URL
     const compressedUrl = track.compressed_url;
@@ -209,12 +205,12 @@ async function processSingleFile(supabase: any, track: any): Promise<{mp3Url: st
       console.log(`Extracted file path: ${filePath} from URL: ${compressedUrl}`);
     } catch (error) {
       console.error("Error parsing URL:", error);
-      return { mp3Url: null, waveformData: null };
+      return null;
     }
     
     if (!filePath) {
       console.error("Could not determine file path");
-      return { mp3Url: null, waveformData: null };
+      return null;
     }
     
     // Download the original file from Supabase
@@ -225,7 +221,7 @@ async function processSingleFile(supabase: any, track: any): Promise<{mp3Url: st
       
     if (downloadError || !fileData) {
       console.error("Error downloading original file:", downloadError);
-      return { mp3Url: null, waveformData: null };
+      return null;
     }
 
     // Upload to Cloudinary and convert to MP3 - with retries
@@ -233,12 +229,7 @@ async function processSingleFile(supabase: any, track: any): Promise<{mp3Url: st
       try {
         const result = await uploadToCloudinary(fileData, track);
         if (result.mp3Url) {
-          // Generate waveform data from the MP3 (could happen here or after upload)
-          const waveformData = await generateWaveformData(result.mp3Url);
-          return { 
-            mp3Url: result.mp3Url, 
-            waveformData: waveformData 
-          };
+          return result.mp3Url;
         }
         
         console.log(`Attempt ${attempt} failed, retrying...`);
@@ -246,21 +237,21 @@ async function processSingleFile(supabase: any, track: any): Promise<{mp3Url: st
         console.error(`Upload attempt ${attempt} failed:`, error);
         if (attempt === MAX_RETRIES) {
           console.error("All retry attempts failed");
-          return { mp3Url: null, waveformData: null };
+          return null;
         }
         // Wait before retrying (exponential backoff)
         await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
       }
     }
     
-    return { mp3Url: null, waveformData: null };
+    return null;
   } catch (error) {
     console.error("Error in processSingleFile:", error);
-    return { mp3Url: null, waveformData: null };
+    return null;
   }
 }
 
-async function processMultipleChunks(supabase: any, track: any): Promise<{mp3Url: string | null, waveformData: number[] | null}> {
+async function processMultipleChunks(supabase: any, track: any): Promise<string | null> {
   try {
     // Extract the base path from the original URL to determine the chunk path pattern
     const baseUrl = track.compressed_url;
@@ -288,12 +279,12 @@ async function processMultipleChunks(supabase: any, track: any): Promise<{mp3Url
       console.log(`Identified base path for chunks: ${basePath}`);
     } catch (error) {
       console.error("Error parsing URL for chunks:", error);
-      return { mp3Url: null, waveformData: null };
+      return null;
     }
     
     if (!basePath) {
       console.error("Could not determine base path for chunks");
-      return { mp3Url: null, waveformData: null };
+      return null;
     }
     
     // Download all chunks and combine them
@@ -314,7 +305,7 @@ async function processMultipleChunks(supabase: any, track: any): Promise<{mp3Url
       
       if (downloadError || !chunkData) {
         console.error(`Error downloading chunk ${i}:`, downloadError);
-        return { mp3Url: null, waveformData: null };
+        return null;
       }
       
       chunks.push(chunkData);
@@ -324,7 +315,7 @@ async function processMultipleChunks(supabase: any, track: any): Promise<{mp3Url
     
     if (chunks.length === 0) {
       console.error("No chunks were downloaded");
-      return { mp3Url: null, waveformData: null };
+      return null;
     }
     
     // Create a new Blob by concatenating all chunks
@@ -342,14 +333,7 @@ async function processMultipleChunks(supabase: any, track: any): Promise<{mp3Url
         const result = await uploadToCloudinary(concatenatedFile, track);
         if (result.mp3Url) {
           console.log(`Successfully processed all ${chunks.length} chunks for track ${track.id}`);
-          
-          // Generate waveform data from the MP3
-          const waveformData = await generateWaveformData(result.mp3Url);
-          
-          return { 
-            mp3Url: result.mp3Url, 
-            waveformData: waveformData 
-          };
+          return result.mp3Url;
         }
         
         console.log(`Attempt ${attempt} failed, retrying...`);
@@ -357,17 +341,17 @@ async function processMultipleChunks(supabase: any, track: any): Promise<{mp3Url
         console.error(`Upload attempt ${attempt} failed:`, error);
         if (attempt === MAX_RETRIES) {
           console.error("All retry attempts failed");
-          return { mp3Url: null, waveformData: null };
+          return null;
         }
         // Wait before retrying (exponential backoff)
         await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
       }
     }
     
-    return { mp3Url: null, waveformData: null };
+    return null;
   } catch (error) {
     console.error("Error in processMultipleChunks:", error);
-    return { mp3Url: null, waveformData: null };
+    return null;
   }
 }
 
@@ -421,45 +405,6 @@ async function uploadToCloudinary(fileData: Blob, track: any): Promise<{mp3Url: 
   } catch (error) {
     console.error("Error uploading to Cloudinary:", error);
     return { mp3Url: null };
-  }
-}
-
-// New function to generate waveform data from an MP3 URL
-async function generateWaveformData(mp3Url: string): Promise<number[] | null> {
-  try {
-    console.log(`Generating waveform data for MP3: ${mp3Url}`);
-    
-    // Generate simulated waveform data with 200 data points
-    // In a production environment, you would use a proper audio analysis library
-    // or service to generate accurate waveform data
-    const numPoints = 200;
-    const waveformData: number[] = [];
-    
-    // Generate semi-random waveform data that looks natural
-    // This is a simplified approach - in production you'd want to analyze the actual audio
-    let prevValue = 0.5;
-    for (let i = 0; i < numPoints; i++) {
-      // Generate a value that's somewhat close to the previous value
-      // to create a more natural-looking waveform
-      const change = (Math.random() - 0.5) * 0.3;
-      let newValue = prevValue + change;
-      
-      // Keep the values between 0.1 and 0.9
-      newValue = Math.max(0.1, Math.min(0.9, newValue));
-      
-      // Add some variation based on position
-      const positionFactor = Math.sin(i / numPoints * Math.PI * 8) * 0.2;
-      newValue = Math.max(0.1, Math.min(0.9, newValue + positionFactor));
-      
-      waveformData.push(newValue);
-      prevValue = newValue;
-    }
-    
-    console.log(`Generated waveform data with ${waveformData.length} points`);
-    return waveformData;
-  } catch (error) {
-    console.error("Error generating waveform data:", error);
-    return null;
   }
 }
 

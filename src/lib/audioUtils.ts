@@ -93,27 +93,38 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
         const channelData = audioBuffer.getChannelData(0); // Use first channel
         const blockSize = Math.floor(channelData.length / samplesCount);
         
-        // Process the audio data to create a waveform
+        // Process the audio data to create a waveform with peak detection
         for (let i = 0; i < samplesCount; i++) {
           const startSample = blockSize * i;
           let sum = 0;
+          let peak = 0;
           
-          // Calculate the average amplitude for this block
+          // Calculate both average and peak amplitude for this block
           for (let j = 0; j < blockSize; j++) {
-            sum += Math.abs(channelData[startSample + j] || 0);
+            const sampleValue = Math.abs(channelData[startSample + j] || 0);
+            sum += sampleValue;
+            peak = Math.max(peak, sampleValue);
           }
           
-          // Normalize between 0-1 with minimum value to ensure visibility
-          const amplitude = Math.max(0.05, Math.min(1, sum / blockSize * 3));
+          // Use a weighted combination of average and peak for a more dynamic waveform
+          const avgAmplitude = sum / blockSize;
+          const weightedAmplitude = (avgAmplitude * 0.7) + (peak * 0.3);
+          
+          // Scale the amplitude and ensure minimum height for visibility
+          // This creates more natural-looking peaks and valleys
+          const amplitude = Math.max(0.05, Math.min(1, weightedAmplitude * 2.5));
           waveformData.push(amplitude);
         }
+        
+        // Apply smoothing to prevent jagged transitions between adjacent samples
+        const smoothedData = smoothWaveform(waveformData, 2);
         
         // Close the audio context when done
         if (audioContext.state !== 'closed') {
           audioContext.close();
         }
         
-        resolve(waveformData);
+        resolve(smoothedData);
       })
       .catch(error => {
         console.error("Error analyzing audio:", error);
@@ -125,6 +136,29 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
         resolve(generateWaveformData(samplesCount));
       });
   });
+};
+
+/**
+ * Apply smoothing to the waveform data to prevent jagged transitions
+ */
+const smoothWaveform = (data: number[], radius: number): number[] => {
+  if (radius <= 0 || data.length <= 1) return data;
+  
+  const result = [...data];
+  
+  for (let i = 0; i < data.length; i++) {
+    let sum = 0;
+    let count = 0;
+    
+    for (let j = Math.max(0, i - radius); j <= Math.min(data.length - 1, i + radius); j++) {
+      sum += data[j];
+      count++;
+    }
+    
+    result[i] = sum / count;
+  }
+  
+  return result;
 };
 
 /**
