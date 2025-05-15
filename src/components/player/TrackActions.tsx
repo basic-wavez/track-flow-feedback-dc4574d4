@@ -11,7 +11,7 @@ interface TrackActionsProps {
   isOwner: boolean;
   originalUrl?: string;
   trackId?: string;
-  originalFilename?: string; // Add this prop
+  originalFilename?: string; 
 }
 
 const TrackActions = ({ 
@@ -65,22 +65,41 @@ const TrackActions = ({
     setIsDownloading(true);
     
     try {
-      // Create a temporary anchor and trigger a click with filename specified
+      // Use fetch to get the file data first
+      const response = await fetch(originalUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.status}`);
+      }
+      
+      // Convert the response to a blob
+      const blob = await response.blob();
+      
+      // Create a temporary URL for the blob
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Determine the filename, use provided one or extract from URL
+      const filename = originalFilename || originalUrl.split('/').pop() || 'audio-file';
+      
+      // Create and trigger the download link
       const link = document.createElement('a');
-      link.href = originalUrl;
-      
-      // Force download by specifying the filename
-      const filename = originalFilename || 'audio-file';
+      link.href = blobUrl;
       link.setAttribute('download', filename);
-      // Removed target="_blank" as it conflicts with download behavior
-      
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
+      
+      // Clean up
       document.body.removeChild(link);
+      
+      // Revoke the blob URL to free memory
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
       
       toast({
         title: "Download Started",
-        description: "Your download should begin shortly",
+        description: "Your file is being downloaded",
       });
     } catch (error) {
       console.error("Download error:", error);
