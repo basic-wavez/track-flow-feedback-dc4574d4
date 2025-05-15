@@ -16,14 +16,9 @@ const WaveformStatus = ({
   isAudioLoading,
   currentTime = 0
 }: WaveformStatusProps) => {
-  // Completely disable buffering UI - never show it
+  // Show no loading text, only analysis error if present
   return (
     <>
-      {isAudioLoading && (
-        <div className="absolute bottom-4 left-4 text-xs text-amber-300 bg-wip-darker/80 px-3 py-1 rounded-full">
-          Loading audio...
-        </div>
-      )}
       {analysisError && (
         <div className="absolute bottom-4 left-4 text-xs text-amber-300 bg-wip-darker/80 px-3 py-1 rounded-full">
           Using fallback visualization

@@ -26,17 +26,12 @@ const TrackHeader = ({
 }: TrackHeaderProps) => {
   const [statusMode, setStatusMode] = useState<"wip" | "demo">("wip");
 
-  // Helper function to render playback status indicator - never show buffering
+  // Helper function to render playback status indicator - never show loading
   const renderPlaybackStatus = () => {
-    switch (playbackState) {
-      case 'error':
-        return <span className="text-red-500">Error loading audio</span>;
-      default:
-        if (isLoading) {
-          return <span className="text-gray-400">Loading audio...</span>;
-        }
-        return null;
+    if (playbackState === 'error') {
+      return <span className="text-red-500">Error loading audio</span>;
     }
+    return null;
   };
 
   // Helper function to render processing status
