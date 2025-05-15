@@ -20,10 +20,12 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
   const [isGeneratingWaveform, setIsGeneratingWaveform] = useState(false);
   const [audioLoaded, setAudioLoaded] = useState(false);
   
-  // New states for managing buffering UI
+  // Better buffering and seeking states
   const [showBufferingUI, setShowBufferingUI] = useState(false);
   const bufferingTimeoutRef = useRef<number | null>(null);
   const bufferingStartTimeRef = useRef<number | null>(null);
+  const lastSeekTimeRef = useRef<number>(0);
+  const recentlySeekRef = useRef<boolean>(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   
@@ -92,7 +94,11 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
       
       // Clear buffering timeout and reset UI
       clearBufferingTimeout();
-      setShowBufferingUI(false);
+      
+      // Only reset showBufferingUI if we haven't recently seeked
+      if (!recentlySeekRef.current) {
+        setShowBufferingUI(false);
+      }
       
       if (playbackState === 'buffering' && isPlaying) {
         audio.play()
@@ -113,6 +119,15 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
       console.log(`Audio is waiting/buffering`);
       setPlaybackState('buffering');
       
+      // Don't show buffering UI immediately after seeking
+      const timeSinceLastSeek = Date.now() - lastSeekTimeRef.current;
+      const recentSeek = timeSinceLastSeek < 1000; // Within 1 second of a seek
+      
+      if (recentSeek) {
+        console.log("Ignoring brief buffering after seek");
+        return;
+      }
+      
       // Start buffering timer only if not already started
       if (bufferingStartTimeRef.current === null) {
         bufferingStartTimeRef.current = Date.now();
@@ -120,7 +135,8 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
         // Set a 5-second timeout before showing buffering UI
         bufferingTimeoutRef.current = window.setTimeout(() => {
           // Only show buffering UI if we're still buffering after 5 seconds
-          if (playbackState === 'buffering') {
+          // AND we haven't recently performed a seek
+          if (playbackState === 'buffering' && !recentlySeekRef.current) {
             setShowBufferingUI(true);
           }
           bufferingTimeoutRef.current = null;
@@ -194,9 +210,24 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     if (playbackState !== 'buffering') {
       clearBufferingTimeout();
       bufferingStartTimeRef.current = null;
-      setShowBufferingUI(false);
+      
+      // Only reset showBufferingUI if we haven't recently seeked
+      if (!recentlySeekRef.current) {
+        setShowBufferingUI(false);
+      }
     }
   }, [playbackState]);
+
+  // Reset the recentlySeek flag after a delay
+  useEffect(() => {
+    if (recentlySeekRef.current) {
+      const timer = setTimeout(() => {
+        recentlySeekRef.current = false;
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentTime]); // Depend on currentTime to detect changes after seek
 
   const handlePlaybackError = () => {
     if (loadRetries < 3) {
@@ -247,10 +278,17 @@ export function useAudioPlayer({ mp3Url, defaultAudioUrl = "https://assets.mixki
     const audio = audioRef.current;
     if (!audio || !audioUrl || !isFinite(time) || isNaN(time)) return;
     
+    // Mark that we recently performed a seek operation
+    lastSeekTimeRef.current = Date.now();
+    recentlySeekRef.current = true;
+    
     // Reset buffering states when seeking
     clearBufferingTimeout();
     bufferingStartTimeRef.current = null;
-    setShowBufferingUI(false);
+    
+    // Don't immediately clear showBufferingUI - this prevents flickering
+    // when seeking while already in a buffering state
+    // We'll let the timeout handle clearing this flag
     
     // Ensure we're seeking to a valid time within the audio duration
     const validTime = Math.max(0, Math.min(time, isFinite(duration) ? duration : 0));
