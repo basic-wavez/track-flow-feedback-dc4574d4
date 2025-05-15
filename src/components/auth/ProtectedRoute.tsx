@@ -1,6 +1,6 @@
 
-import { ReactNode, useEffect } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { ReactNode, useEffect, useState } from "react";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
 interface ProtectedRouteProps {
@@ -10,22 +10,22 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
+  const [authChecked, setAuthChecked] = useState(false);
   
   useEffect(() => {
     // Debug logging to help troubleshoot auth state issues
     console.log("ProtectedRoute - Auth state:", { 
       user: user ? `User: ${user.email}` : "No user", 
       loading, 
-      path: location.pathname 
+      path: location.pathname,
+      authChecked
     });
     
-    // If user becomes null after loading is complete, redirect to auth page
-    if (!loading && !user) {
-      console.log("ProtectedRoute - Redirecting to auth page");
-      navigate("/auth", { state: { from: location }, replace: true });
+    // Only set authChecked after loading is complete
+    if (!loading) {
+      setAuthChecked(true);
     }
-  }, [user, loading, location, navigate]);
+  }, [user, loading, location, authChecked]);
   
   if (loading) {
     return (
@@ -38,11 +38,14 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
   
-  if (!user) {
+  // Only redirect after loading is complete and auth has been checked
+  if (authChecked && !user) {
+    console.log("ProtectedRoute - Redirecting to auth page from:", location.pathname);
     // Redirect to auth page with the return URL
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
   
+  // Only render children when we have a user or we're still checking auth
   return <>{children}</>;
 };
 
