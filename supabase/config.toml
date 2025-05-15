@@ -1,1 +1,4 @@
+
 project_id = "qzykfyavenplpxpdnfxh"
+# Set higher file size limit for storage
+file_size_limit = "200MB"

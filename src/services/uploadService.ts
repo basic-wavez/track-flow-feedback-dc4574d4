@@ -3,9 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "@/components/ui/use-toast";
 
-// Constants for chunked uploads
-export const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
-export const MAX_FILE_SIZE = 80 * 1024 * 1024; // 80MB maximum file size
+// Increased constants for chunked uploads
+export const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks (unchanged)
+export const MAX_FILE_SIZE = 200 * 1024 * 1024; // Increased from 80MB to 200MB maximum file size
 
 interface UploadProgress {
   totalChunks: number;

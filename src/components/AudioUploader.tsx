@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -25,8 +24,8 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // Maximum file size: 80MB
-  const MAX_FILE_SIZE = 80 * 1024 * 1024;
+  // Maximum file size: 200MB (updated from 80MB)
+  const MAX_FILE_SIZE = 200 * 1024 * 1024;
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -54,7 +53,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
       // Check file size before attempting upload
       if (file.size > MAX_FILE_SIZE) {
         const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
-        setUploadError(`File size exceeds the 80MB limit (your file: ${fileSizeMB}MB)`);
+        setUploadError(`File size exceeds the 200MB limit (your file: ${fileSizeMB}MB)`);
         return;
       }
 
@@ -182,7 +181,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
               Supported formats: MP3, WAV, FLAC, AIFF, AAC
             </p>
             <p className="text-xs text-gray-500 mb-6">
-              Maximum file size: 80MB
+              Maximum file size: 200MB
             </p>
             <input
               ref={fileInputRef}
@@ -208,7 +207,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
             <AlertDescription>{uploadError}</AlertDescription>
           </Alert>
           <p className="mb-6 text-sm text-gray-400">
-            Please ensure your audio file is under 80MB and in a supported format (WAV, FLAC, AIFF, MP3, AAC).
+            Please ensure your audio file is under 200MB and in a supported format (WAV, FLAC, AIFF, MP3, AAC).
           </p>
           <Button 
             className="gradient-bg hover:opacity-90"
