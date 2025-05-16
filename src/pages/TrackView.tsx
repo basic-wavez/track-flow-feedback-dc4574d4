@@ -75,8 +75,8 @@ const TrackView = () => {
           actualTrackId = await getTrackIdByShareKey(shareKey);
           console.log("Resolved trackId from shareKey:", actualTrackId);
           
-          // NOTE: We no longer increment the play count here
-          // It will be handled by the audio player when the user actually plays the track
+          // Set the currentShareKey for use in the player
+          setCurrentShareKey(shareKey);
           
           if (!actualTrackId) {
             console.error("No track ID found for share key:", shareKey);
@@ -164,8 +164,10 @@ const TrackView = () => {
               waveformAnalysisUrl={trackData.original_url || trackData.mp3_url || trackData.compressed_url}
               originalFilename={trackData.original_filename}
               isOwner={isOwner}
+              mp3Url={trackData.mp3_url}
               shareKey={currentShareKey}
               inCooldownPeriod={inCooldownPeriod}
+              processingStatus={trackData.processing_status}
             />
           )}
           

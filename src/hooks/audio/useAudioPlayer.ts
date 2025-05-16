@@ -7,9 +7,9 @@ import { useAudioControls } from "./useAudioControls";
 import { useAudioEffects } from "./useAudioEffects";
 import { startPlayTracking, endPlayTracking, cancelPlayTracking } from "@/services/playCountService";
 
-type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
+export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
-interface UseAudioPlayerProps {
+export interface UseAudioPlayerProps {
   mp3Url: string | null | undefined;
   defaultAudioUrl?: string;
   trackId?: string;
