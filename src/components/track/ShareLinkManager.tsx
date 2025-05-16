@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Share2, Copy, Trash2, Plus, ExternalLink, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -7,6 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +35,7 @@ interface ShareLink {
   share_key: string;
   created_at: string;
   play_count: number;
-  download_count?: number; // Make this optional to match our updated service
+  download_count?: number;
   last_played_at: string | null;
 }
 
@@ -54,6 +55,7 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   // Auto-refresh interval (every 30 seconds)
   const AUTO_REFRESH_INTERVAL = 30000;
@@ -197,16 +199,87 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
     window.open(shareUrl, "_blank");
   };
 
+  // Mobile card view for share links
+  const renderMobileCards = () => {
+    return (
+      <div className="space-y-4">
+        {shareLinks.map(link => (
+          <Card key={link.id} className="bg-muted/30 border border-muted">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex justify-between items-center">
+                <span>{link.name}</span>
+                <div className="flex gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => copyShareLink(link.share_key)}
+                    title="Copy link"
+                    className="h-7 w-7 p-0"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => openLink(link.share_key)}
+                    title="Open link"
+                    className="h-7 w-7 p-0"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="py-2 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Plays:</span>
+                <Badge variant={link.play_count > 0 ? "warning" : "outline"} className="text-xs">
+                  {link.play_count}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Downloads:</span>
+                <Badge variant={(link.download_count || 0) > 0 ? "secondary" : "outline"} className="text-xs">
+                  {link.download_count || 0}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Last played:</span>
+                <span className="text-xs">
+                  {link.last_played_at ? (
+                    formatDistanceToNow(new Date(link.last_played_at), { addSuffix: true })
+                  ) : (
+                    <span className="text-muted-foreground">Never</span>
+                  )}
+                </span>
+              </div>
+            </CardContent>
+            <CardFooter className="pt-2 flex justify-end">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setLinkToDelete(link)}
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
+      <div className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-2 items-stretch' : ''}`}>
         <h2 className="text-lg font-semibold">Share Links for "{trackTitle}"</h2>
-        <div className="flex gap-2">
+        <div className={`flex gap-2 ${isMobile ? 'w-full' : ''}`}>
           <Button 
             onClick={handleRefresh} 
             variant="outline"
             disabled={isRefreshing}
-            className="flex items-center gap-2"
+            className={`flex items-center gap-2 ${isMobile ? 'flex-1' : ''}`}
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
@@ -214,19 +287,21 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
           <Button 
             onClick={() => setIsCreateDialogOpen(true)} 
             disabled={shareLinks.length >= MAX_LINKS}
-            className="flex items-center gap-2"
+            className={`flex items-center gap-2 ${isMobile ? 'flex-1' : ''}`}
           >
             <Plus className="h-4 w-4" />
-            Create Share Link
+            {isMobile ? 'Create Link' : 'Create Share Link'}
           </Button>
         </div>
       </div>
       
-      <div className="mb-4 p-4 bg-muted/30 rounded-lg border border-muted">
-        <p className="text-sm text-muted-foreground">
-          Sharing this track with multiple different labels or people? Here you can create up to 10 unique links and track how many times they get played or downloaded.
-        </p>
-      </div>
+      {!isMobile && (
+        <div className="mb-4 p-4 bg-muted/30 rounded-lg border border-muted">
+          <p className="text-sm text-muted-foreground">
+            Sharing this track with multiple different labels or people? Here you can create up to 10 unique links and track how many times they get played or downloaded.
+          </p>
+        </div>
+      )}
       
       <div className="mb-2">
         <Badge variant="outline" className="text-sm">
@@ -240,74 +315,78 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
           <p className="text-muted-foreground">Loading share links...</p>
         </div>
       ) : shareLinks.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Link Name</TableHead>
-              <TableHead>Play Count</TableHead>
-              <TableHead>Download Count</TableHead>
-              <TableHead>Last Played</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {shareLinks.map(link => (
-              <TableRow key={link.id}>
-                <TableCell className="font-medium">{link.name}</TableCell>
-                <TableCell>
-                  <Badge variant={link.play_count > 0 ? "warning" : "outline"}>
-                    {link.play_count} {link.play_count === 1 ? 'play' : 'plays'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={(link.download_count || 0) > 0 ? "secondary" : "outline"}>
-                    {link.download_count || 0} {(link.download_count || 0) === 1 ? 'download' : 'downloads'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {link.last_played_at ? (
-                    formatDistanceToNow(new Date(link.last_played_at), { addSuffix: true })
-                  ) : (
-                    <span className="text-muted-foreground text-sm">Never</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {formatDistanceToNow(new Date(link.created_at), { addSuffix: true })}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => copyShareLink(link.share_key)}
-                      title="Copy link"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => openLink(link.share_key)}
-                      title="Open link"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => setLinkToDelete(link)}
-                      title="Delete link"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+        isMobile ? 
+          renderMobileCards() 
+        : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Link Name</TableHead>
+                <TableHead>Play Count</TableHead>
+                <TableHead>Download Count</TableHead>
+                <TableHead>Last Played</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {shareLinks.map(link => (
+                <TableRow key={link.id}>
+                  <TableCell className="font-medium">{link.name}</TableCell>
+                  <TableCell>
+                    <Badge variant={link.play_count > 0 ? "warning" : "outline"}>
+                      {link.play_count} {link.play_count === 1 ? 'play' : 'plays'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={(link.download_count || 0) > 0 ? "secondary" : "outline"}>
+                      {link.download_count || 0} {(link.download_count || 0) === 1 ? 'download' : 'downloads'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {link.last_played_at ? (
+                      formatDistanceToNow(new Date(link.last_played_at), { addSuffix: true })
+                    ) : (
+                      <span className="text-muted-foreground text-sm">Never</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {formatDistanceToNow(new Date(link.created_at), { addSuffix: true })}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => copyShareLink(link.share_key)}
+                        title="Copy link"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => openLink(link.share_key)}
+                        title="Open link"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setLinkToDelete(link)}
+                        title="Delete link"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )
       ) : (
         <div className="text-center py-8 border border-dashed rounded-md">
           <Share2 className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
@@ -320,7 +399,7 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
 
       {/* Create Link Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
+        <DialogContent className={isMobile ? "max-w-[90%] p-4" : ""}>
           <DialogHeader>
             <DialogTitle>Create Share Link</DialogTitle>
             <DialogDescription>
@@ -342,11 +421,18 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
               </p>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+          <DialogFooter className={isMobile ? "flex-col gap-2" : ""}>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsCreateDialogOpen(false)}
+              className={isMobile ? "w-full" : ""}
+            >
               Cancel
             </Button>
-            <Button onClick={handleCreateLink}>
+            <Button 
+              onClick={handleCreateLink}
+              className={isMobile ? "w-full" : ""}
+            >
               Create Share Link
             </Button>
           </DialogFooter>
@@ -355,22 +441,27 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!linkToDelete} onOpenChange={(open) => !open && setLinkToDelete(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className={isMobile ? "max-w-[90%] p-4" : ""}>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Share Link</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete the share link "{linkToDelete?.name}"? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className={isMobile ? "flex-col gap-2" : ""}>
+            <AlertDialogCancel 
+              disabled={isDeleting}
+              className={isMobile ? "w-full" : ""}
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault(); // Prevent dialog from closing automatically
                 handleDeleteLink();
               }}
               disabled={isDeleting}
-              className="bg-red-500 text-white hover:bg-red-600"
+              className={`bg-red-500 text-white hover:bg-red-600 ${isMobile ? "w-full" : ""}`}
             >
               {isDeleting ? (
                 <>
