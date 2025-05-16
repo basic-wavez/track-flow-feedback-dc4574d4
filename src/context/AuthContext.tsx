@@ -4,6 +4,13 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
+interface Profile {
+  id: string;
+  username: string | null;
+  avatar_url: string | null;
+  updated_at: string | null;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -17,6 +24,8 @@ interface AuthContextType {
   checkAdminRole: () => Promise<boolean>;
   updateUsername: (username: string) => Promise<void>;
   updatePassword: (newPassword: string, currentPassword: string) => Promise<void>;
+  profile: Profile | null;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,7 +36,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const { toast } = useToast();
+
+  // Fetch user profile function
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching profile:", error);
+        return null;
+      }
+
+      console.log("Profile fetched:", data);
+      return data as Profile;
+    } catch (error) {
+      console.error("Failed to fetch profile:", error);
+      return null;
+    }
+  };
+
+  // Function to refresh profile data
+  const refreshProfile = async () => {
+    if (!user) return;
+    
+    try {
+      const profileData = await fetchUserProfile(user.id);
+      setProfile(profileData);
+    } catch (error) {
+      console.error("Failed to refresh profile:", error);
+    }
+  };
 
   useEffect(() => {
     console.log("AuthProvider - Initializing auth state listener");
@@ -52,9 +96,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             checkAdminRole().then(isAdmin => {
               setIsAdmin(isAdmin);
             });
+            
+            // Fetch profile data
+            fetchUserProfile(session.user.id).then(profileData => {
+              setProfile(profileData);
+            });
           }, 0);
         } else {
           setIsAdmin(false);
+          setProfile(null);
         }
       }
     );
@@ -71,10 +121,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session?.user); // Update explicit auth state
       
-      // Check if the user is an admin
+      // Check if the user is an admin and fetch profile
       if (session?.user) {
-        checkAdminRole().then(isAdmin => {
-          setIsAdmin(isAdmin);
+        Promise.all([
+          checkAdminRole().then(isAdmin => setIsAdmin(isAdmin)),
+          fetchUserProfile(session.user.id).then(profileData => setProfile(profileData))
+        ]).then(() => {
           setLoading(false);
         });
       } else {
@@ -127,6 +179,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (session?.user) {
         const adminStatus = await checkAdminRole();
         setIsAdmin(adminStatus);
+        
+        // Refresh profile
+        const profileData = await fetchUserProfile(session.user.id);
+        setProfile(profileData);
       }
       
       return Promise.resolve();
@@ -150,6 +206,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .eq('id', user.id);
       
       if (error) throw error;
+      
+      // Refresh profile data
+      await refreshProfile();
       
       // Only show toast if no error occurred
       toast({
@@ -270,6 +329,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setSession(null);
       setIsAuthenticated(false); // Update explicit auth state
+      setProfile(null);
       
       toast({
         title: "Signed out successfully",
@@ -298,6 +358,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     checkAdminRole,
     updateUsername,
     updatePassword,
+    profile,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

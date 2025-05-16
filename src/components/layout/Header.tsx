@@ -14,12 +14,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const Header = () => {
-  const { user, loading, signOut, isAdmin } = useAuth();
+  const { user, loading, signOut, isAdmin, profile } = useAuth();
 
-  // Extract email for avatar fallback
-  const getEmail = () => {
-    if (!user || !user.email) return "User";
-    return user.email;
+  // Get display name for avatar fallback
+  const getDisplayName = () => {
+    // First priority: username from profile if available
+    if (profile && profile.username) {
+      return profile.username;
+    }
+    
+    // Second priority: email if no username
+    if (user && user.email) {
+      return user.email;
+    }
+    
+    // Fallback
+    return "User";
   };
 
   return (
@@ -66,7 +76,7 @@ const Header = () => {
                   <Avatar className="h-9 w-9 border border-wip-gray/30">
                     <AvatarImage src="..." />
                     <AvatarFallback className="bg-wip-dark text-white text-xs p-1 overflow-hidden">
-                      {getEmail()}
+                      {getDisplayName()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -77,6 +87,7 @@ const Header = () => {
               >
                 <DropdownMenuLabel className="text-white">
                   {user?.email}
+                  {profile?.username && <div className="text-xs text-gray-400">@{profile.username}</div>}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-wip-gray/30" />
                 <DropdownMenuItem 
