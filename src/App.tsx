@@ -7,7 +7,6 @@ import { Toaster } from './components/ui/toaster';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ProfilePage from './pages/ProfilePage';
 import TrackView from './pages/TrackView';
-import FeedbackView from './pages/FeedbackView';
 import { AuthProvider } from './context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import NewVersionPage from './pages/NewVersionPage';
@@ -26,7 +25,6 @@ function App() {
             {/* Important: The more specific route (with shareKey) must come BEFORE the more general route */}
             <Route path="/track/share/:shareKey" element={<TrackView />} />
             <Route path="/track/:trackId" element={<TrackView />} />
-            <Route path="/feedback/:feedbackId" element={<FeedbackView />} />
             
             {/* Protected routes */}
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
