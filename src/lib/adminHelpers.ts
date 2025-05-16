@@ -40,7 +40,10 @@ export async function getUserDetails(userId: string) {
       throw error;
     }
     
-    return data as UserDetailsResult;
+    // The data returned is a JSON object that needs to be cast properly
+    // The as unknown first ensures we're doing an intentional type conversion
+    // Then we cast to our expected interface
+    return data as unknown as UserDetailsResult;
   } catch (error) {
     console.error("Failed to fetch user details:", error);
     throw error; // Re-throw to allow handling at component level
