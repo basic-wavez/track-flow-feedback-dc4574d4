@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Download, Share2, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -49,23 +50,42 @@ const TrackActions = ({
         throw new Error("No download URL available");
       }
       
+      // Fetch the file as a blob
+      const response = await fetch(originalUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.statusText}`);
+      }
+      
+      // Convert the response to a blob
+      const fileBlob = await response.blob();
+      
+      // Create a local URL for the blob
+      const blobUrl = URL.createObjectURL(fileBlob);
+      
       // Create a temporary anchor element to trigger the download
       const link = document.createElement("a");
-      link.href = originalUrl;
+      link.href = blobUrl;
       link.download = originalFilename || "track.wav";
       document.body.appendChild(link);
       link.click();
+      
+      // Clean up
       document.body.removeChild(link);
+      
+      // Important: Revoke the blob URL to free up memory
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
       
       toast({
         title: "Download Started",
-        description: "Your download should begin shortly.",
+        description: "Your file is being downloaded.",
       });
     } catch (error) {
       console.error("Download error:", error);
       toast({
         title: "Download Failed",
-        description: "Could not download the file. Please try again.",
+        description: error instanceof Error ? error.message : "Could not download the file. Please try again.",
         variant: "destructive"
       });
     } finally {
