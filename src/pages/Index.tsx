@@ -4,7 +4,6 @@ import AudioUploader from "@/components/AudioUploader";
 import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/context/AuthContext";
 import Header from "@/components/layout/Header";
-import Navigation from "@/components/layout/Navigation";
 import Hero from "@/components/home/Hero";
 import HowItWorks from "@/components/home/HowItWorks";
 import Footer from "@/components/layout/Footer";
@@ -114,7 +113,6 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <Header />
-      <Navigation />
       
       <main className="flex-1 flex flex-col items-center justify-center p-6">
         <Hero />
