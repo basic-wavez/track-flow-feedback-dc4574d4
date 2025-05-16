@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,12 +10,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { getUserTracks, deleteTrack } from "@/services/trackService";
 import { formatDistanceToNow } from "date-fns";
-import { Clock, ExternalLink, Share2, Music, MessageSquare, Settings, Trash2 } from "lucide-react";
+import { Clock, ExternalLink, Share2, Music, MessageSquare, Settings, Trash2, ChevronRight, ChevronDown, History } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { TrackData } from "@/types/track";
+import { TrackData, TrackWithVersions } from "@/types/track";
 import { supabase } from "@/integrations/supabase/client";
 import AccountSettings from "@/components/auth/AccountSettings";
+import TrackVersionsDrawer from "@/components/track/TrackVersionsDrawer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,11 +41,10 @@ const ProfilePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [tracks, setTracks] = useState<TrackData[]>([]);
+  const [tracks, setTracks] = useState<TrackWithVersions[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<FeedbackSummary[]>([]);
   const [activeTab, setActiveTab] = useState("tracks");
-  const [feedbackCounts, setFeedbackCounts] = useState<Record<string, number>>({});
   
   // New state for track deletion
   const [trackToDelete, setTrackToDelete] = useState<TrackData | null>(null);
@@ -53,7 +54,7 @@ const ProfilePage = () => {
     const fetchUserData = async () => {
       setIsLoading(true);
       try {
-        // Fetch user tracks
+        // Fetch user tracks with version grouping
         const userTracks = await getUserTracks();
         setTracks(userTracks);
         
@@ -79,16 +80,6 @@ const ProfilePage = () => {
           if (error) {
             throw error;
           }
-          
-          // Count feedback per track
-          const counts: Record<string, number> = {};
-          feedbackData.forEach(item => {
-            if (!counts[item.track_id]) {
-              counts[item.track_id] = 0;
-            }
-            counts[item.track_id]++;
-          });
-          setFeedbackCounts(counts);
           
           // Process feedback data to create summaries
           const feedbackByTrack = feedbackData.reduce((acc, item) => {
@@ -207,6 +198,15 @@ const ProfilePage = () => {
       setTrackToDelete(null); // Close dialog
     }
   };
+
+  // Toggle showing versions for a track
+  const toggleTrackVersions = (trackId: string) => {
+    setTracks(tracks.map(track => 
+      track.id === trackId 
+        ? { ...track, showVersions: !track.showVersions } 
+        : track
+    ));
+  };
   
   if (!user) {
     return (
@@ -296,56 +296,88 @@ const ProfilePage = () => {
                           <TableHead>Title</TableHead>
                           <TableHead>Uploaded</TableHead>
                           <TableHead>Feedback</TableHead>
+                          <TableHead>Versions</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {tracks.map((track) => (
-                          <TableRow key={track.id}>
-                            <TableCell className="font-medium">{track.title}</TableCell>
-                            <TableCell className="text-gray-400">
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {formatDistanceToNow(new Date(track.created_at || ""), { addSuffix: true })}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {feedbackCounts[track.id] || 0} {feedbackCounts[track.id] === 1 ? 'review' : 'reviews'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button 
-                                  size="sm"
-                                  variant="outline"
-                                  className="flex gap-2 items-center"
-                                  onClick={() => handleOpenTrack(track.id)}
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                  Open
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="flex gap-2 items-center"
-                                  onClick={() => handleShareTrack(track.id)}
-                                >
-                                  <Share2 className="h-4 w-4" />
-                                  Share
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="flex gap-2 items-center text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                  onClick={() => setTrackToDelete(track)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  Delete
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
+                          <>
+                            <TableRow key={track.id} className={track.versions.length > 1 ? "border-b-0" : ""}>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center">
+                                  {track.title}
+                                  {track.versions.length > 1 && (
+                                    <Badge variant="outline" className="ml-2">
+                                      {track.versions.length} versions
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-gray-400">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatDistanceToNow(new Date(track.created_at || ""), { addSuffix: true })}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">
+                                  {track.feedbackCount} {track.feedbackCount === 1 ? 'review' : 'reviews'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {track.versions.length > 1 ? (
+                                  <TrackVersionsDrawer 
+                                    trackId={track.id}
+                                    trackTitle={track.title}
+                                    versions={track.versions}
+                                  >
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      className="flex items-center gap-1"
+                                    >
+                                      <History className="h-3.5 w-3.5" />
+                                      View All
+                                    </Button>
+                                  </TrackVersionsDrawer>
+                                ) : (
+                                  <Badge variant="outline">v{track.versions[0]?.version_number || 1}</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex gap-2 items-center"
+                                    onClick={() => handleOpenTrack(track.versions.find(v => v.is_latest_version)?.id || track.id)}
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                    Open
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="flex gap-2 items-center"
+                                    onClick={() => handleShareTrack(track.versions.find(v => v.is_latest_version)?.id || track.id)}
+                                  >
+                                    <Share2 className="h-4 w-4" />
+                                    Share
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="flex gap-2 items-center text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                    onClick={() => setTrackToDelete({...track, id: track.id} as TrackData)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          </>
                         ))}
                       </TableBody>
                     </Table>

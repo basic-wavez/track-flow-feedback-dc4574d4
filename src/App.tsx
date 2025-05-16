@@ -1,55 +1,42 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/context/AuthContext";
-import Index from "./pages/Index";
-import TrackView from "./pages/TrackView";
-import FeedbackView from "./pages/FeedbackView";
-import ProfilePage from "./pages/ProfilePage";
-import AuthPage from "./pages/AuthPage";
-import NotFound from "./pages/NotFound";
-import ProtectedRoute from "./components/auth/ProtectedRoute";
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import Index from './pages/Index';
+import AuthPage from './pages/AuthPage';
+import NotFound from './pages/NotFound';
+import { Toaster } from './components/ui/toaster';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import ProfilePage from './pages/ProfilePage';
+import TrackView from './pages/TrackView';
+import FeedbackView from './pages/FeedbackView';
+import { AuthProvider } from './context/AuthContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import NewVersionPage from './pages/NewVersionPage';
 
+// Create a client
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <BrowserRouter>
-        <AuthProvider>
-          <Toaster />
-          <Sonner />
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Router>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
-            {/* Move the share route before the regular track route to ensure it matches first */}
-            <Route path="/track/share/:shareKey" element={<TrackView />} />
             <Route path="/track/:trackId" element={<TrackView />} />
-            <Route 
-              path="/feedback/:trackId" 
-              element={
-                <ProtectedRoute>
-                  <FeedbackView />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/profile" 
-              element={
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              } 
-            />
+            <Route path="/feedback/:feedbackId" element={<FeedbackView />} />
+            
+            {/* Protected routes */}
+            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/track/:trackId/version" element={<ProtectedRoute><NewVersionPage /></ProtectedRoute>} />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+          <Toaster />
+        </Router>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;
