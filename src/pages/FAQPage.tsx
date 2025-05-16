@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -70,7 +71,7 @@ const FAQPage = () => {
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <Header />
       
-      <main className="flex-1 p-6 md:p-8 max-w-4xl mx-auto w-full">
+      <main className="flex-1 p-6 md:p-8 max-w-4xl mx-auto w-full mb-24">
         <h1 className="text-3xl font-bold mb-4 text-white">Frequently Asked Questions</h1>
         <p className="text-gray-400 mb-8">
           Find answers to common questions about Demo Manager. If you can't find what you're looking for, 
