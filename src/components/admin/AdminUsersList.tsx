@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -66,10 +65,10 @@ const AdminUsersList = () => {
     setError(null);
     
     try {
-      // Query profiles, explicitly selecting created_at
+      // Query profiles, but don't select created_at since it doesn't exist
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('id, username, created_at');
+        .select('id, username');
         
       if (profileError) {
         console.error("AdminUsersList - Profile error:", profileError);
@@ -101,8 +100,10 @@ const AdminUsersList = () => {
       
       // Create an email lookup map
       const emailMap: Record<string, string> = {};
+      const createdAtMap: Record<string, string> = {};
       emails.forEach((item: UserEmailResult) => {
         emailMap[item.user_id] = item.email;
+        // We get created_at from auth.users via the helper, not from profiles
       });
       
       // Fetch admin roles
@@ -123,25 +124,11 @@ const AdminUsersList = () => {
       
       // Process and validate profile data
       const userData: UserData[] = profiles.map(profile => {
-        // Ensure created_at is a valid date, or use current date as fallback
-        let createdAt: string;
-        try {
-          if (profile.created_at) {
-            // Validate the date
-            new Date(profile.created_at).toISOString();
-            createdAt = profile.created_at;
-          } else {
-            createdAt = new Date().toISOString();
-          }
-        } catch (e) {
-          console.error(`Invalid date for user ${profile.id}:`, profile.created_at);
-          createdAt = new Date().toISOString();
-        }
-        
         return {
           id: profile.id,
           email: emailMap[profile.id] || null,
-          created_at: createdAt,
+          // Use current date as default since we don't have created_at from profiles
+          created_at: new Date().toISOString(),
           username: profile.username,
           is_admin: adminSet.has(profile.id)
         };

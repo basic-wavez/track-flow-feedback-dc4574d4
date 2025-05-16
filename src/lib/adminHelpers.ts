@@ -54,6 +54,20 @@ export async function getUserDetails(userId: string) {
       throw new Error("No user details found");
     }
     
+    // Validate the created_at date
+    if (data.created_at) {
+      try {
+        // Check if it's a valid date
+        new Date(data.created_at).toISOString();
+      } catch (e) {
+        // If not valid, assign current date
+        console.error("Invalid created_at date, using current date instead");
+        data.created_at = new Date().toISOString();
+      }
+    } else {
+      data.created_at = new Date().toISOString();
+    }
+    
     console.log("adminHelpers - Successfully fetched user details");
     return data as unknown as UserDetailsResult;
   } catch (error: any) {
