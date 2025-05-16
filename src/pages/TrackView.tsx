@@ -15,7 +15,7 @@ import TrackFeedbackDisplay from "@/components/track/TrackFeedbackDisplay";
 import ShareLinkManager from "@/components/track/ShareLinkManager";
 
 const TrackView = () => {
-  const { trackId, shareKey } = useParams<{ trackId?: string; shareKey?: string }>();
+  const params = useParams<{ trackId?: string; shareKey?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -25,17 +25,32 @@ const TrackView = () => {
   const [activeTab, setActiveTab] = useState<string>("feedback");
   const [error, setError] = useState<string | null>(null);
 
+  // Determine if we're on a share link route or direct track route
+  const isShareRoute = location.pathname.includes("/track/share/");
+  
+  // Extract the appropriate parameter based on the route
+  const trackId = params.trackId;
+  const shareKey = isShareRoute ? params.shareKey : undefined;
+
+  console.log("TrackView Route Info:", { 
+    pathname: location.pathname,
+    isShareRoute,
+    params,
+    extractedTrackId: trackId,
+    extractedShareKey: shareKey
+  });
+
   useEffect(() => {
     const loadTrack = async () => {
       setIsLoading(true);
       setError(null);
       
       try {
-        console.log("TrackView loading with params:", { trackId, shareKey });
+        console.log("TrackView loading with parsed params:", { trackId, shareKey, isShareRoute });
         let actualTrackId = trackId;
         
-        // If we have a share key, get the track ID from it
-        if (shareKey) {
+        // If we're on a share route, get the track ID from the share key
+        if (isShareRoute && shareKey) {
           console.log("Loading track by share key:", shareKey);
           actualTrackId = await getTrackIdByShareKey(shareKey);
           console.log("Resolved trackId from shareKey:", actualTrackId);
@@ -47,11 +62,15 @@ const TrackView = () => {
           } else {
             console.error("No track ID found for share key:", shareKey);
             setError("Invalid share link");
+            setTrackData(null);
+            setIsLoading(false);
+            return;
           }
         }
 
         if (!actualTrackId) {
           console.error("No track ID available after processing parameters");
+          setError("Invalid track ID");
           setTrackData(null);
           setIsLoading(false);
           return;
@@ -84,7 +103,7 @@ const TrackView = () => {
     };
 
     loadTrack();
-  }, [trackId, shareKey, user]);
+  }, [trackId, shareKey, user, isShareRoute]);
 
   if (isLoading) {
     return <TrackLoading />;
@@ -114,15 +133,17 @@ const TrackView = () => {
             </Button>
           </div>
           
-          <TrackPlayer 
-            trackId={trackData.id}
-            trackName={displayName} 
-            audioUrl={trackData.mp3_url || trackData.compressed_url}
-            originalUrl={trackData.original_url}
-            waveformAnalysisUrl={trackData.original_url || trackData.mp3_url || trackData.compressed_url}
-            originalFilename={trackData.original_filename}
-            isOwner={isOwner}
-          />
+          {trackData && (
+            <TrackPlayer 
+              trackId={trackData.id}
+              trackName={trackData.title} 
+              audioUrl={trackData.mp3_url || trackData.compressed_url}
+              originalUrl={trackData.original_url}
+              waveformAnalysisUrl={trackData.original_url || trackData.mp3_url || trackData.compressed_url}
+              originalFilename={trackData.original_filename}
+              isOwner={isOwner}
+            />
+          )}
           
           {isOwner ? (
             <div>
@@ -143,14 +164,14 @@ const TrackView = () => {
                 </Button>
               </div>
               
-              {activeTab === "feedback" ? (
-                <TrackFeedbackDisplay trackId={trackData.id} trackTitle={displayName} />
-              ) : (
-                <ShareLinkManager trackId={trackData.id} trackTitle={displayName} />
+              {trackData && activeTab === "feedback" ? (
+                <TrackFeedbackDisplay trackId={trackData.id} trackTitle={trackData.title} />
+              ) : trackData && (
+                <ShareLinkManager trackId={trackData.id} trackTitle={trackData.title} />
               )}
             </div>
           ) : (
-            <TrackFeedbackSection trackTitle={displayName} user={user} />
+            trackData && <TrackFeedbackSection trackTitle={trackData.title} user={user} />
           )}
         </div>
       </main>
