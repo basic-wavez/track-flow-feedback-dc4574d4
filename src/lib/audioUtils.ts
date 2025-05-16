@@ -63,19 +63,97 @@ export const generateWaveformData = (length: number = 100): number[] => {
 };
 
 /**
- * Cache for waveform data to avoid reanalyzing the same audio files
+ * Cache settings for waveform data
  */
-const waveformCache: Record<string, number[]> = {};
+const CACHE_VERSION = 'v1';
+const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+
+/**
+ * Memory cache for waveform data during the current session
+ */
+const waveformMemoryCache: Record<string, number[]> = {};
+
+/**
+ * Generate a cache key for the audio URL
+ * This helps ensure we have a unique identifier for each audio file
+ */
+const generateCacheKey = (audioUrl: string): string => {
+  // Extract unique identifiers from the URL
+  const urlParts = audioUrl.split('/');
+  const fileName = urlParts[urlParts.length - 1];
+  
+  // Create a composite key with version to allow for future cache invalidation
+  return `waveform_${CACHE_VERSION}_${fileName}`;
+};
+
+/**
+ * Save waveform data to localStorage
+ */
+const saveWaveformToStorage = (key: string, data: number[]): void => {
+  try {
+    const cacheItem = {
+      data,
+      timestamp: Date.now(),
+    };
+    
+    localStorage.setItem(key, JSON.stringify(cacheItem));
+    console.log(`Saved waveform data to localStorage with key: ${key}`);
+  } catch (error) {
+    console.warn('Failed to save waveform data to localStorage:', error);
+    // Silently fail - localStorage might be full or disabled
+  }
+};
+
+/**
+ * Load waveform data from localStorage
+ * Returns null if the data is not found or expired
+ */
+const loadWaveformFromStorage = (key: string): number[] | null => {
+  try {
+    const cachedItem = localStorage.getItem(key);
+    
+    if (!cachedItem) {
+      return null;
+    }
+    
+    const { data, timestamp } = JSON.parse(cachedItem);
+    
+    // Check if the cache has expired
+    if (Date.now() - timestamp > CACHE_EXPIRY) {
+      console.log(`Cache expired for key: ${key}`);
+      localStorage.removeItem(key);
+      return null;
+    }
+    
+    console.log(`Loaded waveform data from localStorage with key: ${key}`);
+    return data;
+  } catch (error) {
+    console.warn('Failed to load waveform data from localStorage:', error);
+    return null;
+  }
+};
 
 /**
  * Analyze audio file to extract waveform data
  * Returns a promise that resolves with an array of amplitude values
+ * Uses both memory and localStorage caching for improved performance
  */
 export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promise<number[]> => {
-  // Return cached waveform data if available
-  if (waveformCache[audioUrl]) {
-    console.log("Using cached waveform data for:", audioUrl);
-    return waveformCache[audioUrl];
+  // Generate a cache key for this audio URL
+  const cacheKey = generateCacheKey(audioUrl);
+  
+  // Check memory cache first (fastest)
+  if (waveformMemoryCache[audioUrl]) {
+    console.log("Using in-memory cached waveform data for:", audioUrl);
+    return waveformMemoryCache[audioUrl];
+  }
+  
+  // Then check localStorage (persists between page loads)
+  const storedData = loadWaveformFromStorage(cacheKey);
+  if (storedData) {
+    // Save to memory cache for faster access next time
+    waveformMemoryCache[audioUrl] = storedData;
+    return storedData;
   }
 
   return new Promise((resolve, reject) => {
@@ -178,9 +256,12 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
           audioContext.close().catch(console.error);
         }
         
-        // Cache the generated waveform data
+        // Cache the generated waveform data in memory
         console.log(`Caching waveform data for: ${audioUrl}`);
-        waveformCache[audioUrl] = waveformData;
+        waveformMemoryCache[audioUrl] = waveformData;
+        
+        // Also save to localStorage for persistence between page loads
+        saveWaveformToStorage(cacheKey, waveformData);
         
         resolve(waveformData);
       })
@@ -214,3 +295,36 @@ export const compressAudioFile = async (file: File): Promise<{ success: boolean,
     message: `File ${file.name} has been compressed.`
   };
 };
+
+/**
+ * Clear expired cache entries from localStorage
+ */
+export const cleanupExpiredCache = (): void => {
+  try {
+    Object.keys(localStorage).forEach(key => {
+      // Only process our waveform cache keys
+      if (key.startsWith(`waveform_${CACHE_VERSION}_`)) {
+        try {
+          const cachedItem = localStorage.getItem(key);
+          if (cachedItem) {
+            const { timestamp } = JSON.parse(cachedItem);
+            
+            // Remove if expired
+            if (Date.now() - timestamp > CACHE_EXPIRY) {
+              localStorage.removeItem(key);
+              console.log(`Removed expired cache item: ${key}`);
+            }
+          }
+        } catch (e) {
+          // If the item is malformed, remove it
+          localStorage.removeItem(key);
+        }
+      }
+    });
+  } catch (error) {
+    console.warn('Error cleaning up expired cache:', error);
+  }
+};
+
+// Run cache cleanup when the module loads
+cleanupExpiredCache();

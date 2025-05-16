@@ -8,7 +8,7 @@ import WaveformStatus from './waveform/WaveformStatus';
 
 interface WaveformProps {
   audioUrl?: string;
-  waveformAnalysisUrl?: string; // New prop specifically for waveform analysis
+  waveformAnalysisUrl?: string; // URL specifically for waveform analysis
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -23,7 +23,7 @@ interface WaveformProps {
 
 const Waveform = ({ 
   audioUrl, 
-  waveformAnalysisUrl, // Add this new prop
+  waveformAnalysisUrl, // Use dedicated analysis URL if available
   isPlaying, 
   currentTime, 
   duration, 
@@ -63,7 +63,7 @@ const Waveform = ({
     setIsAnalyzing(true);
     setAnalysisError(null);
     
-    // Attempt to analyze the audio file
+    // Attempt to analyze the audio file - now with improved caching
     analyzeAudio(urlToAnalyze, segments)
       .then(analyzedData => {
         if (analyzedData && analyzedData.length > 0) {
