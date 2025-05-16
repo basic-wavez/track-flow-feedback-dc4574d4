@@ -24,7 +24,7 @@ const HowItWorks = () => {
           <div>
             <h4 className="font-medium">Share with Others</h4>
             <p className="text-gray-400">
-              Generate a link to share your track with other producers.
+              Generate a link to share your track with others.
             </p>
           </div>
         </li>
