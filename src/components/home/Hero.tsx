@@ -6,7 +6,7 @@ const Hero = () => {
         Share your demo
       </h2>
       <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-        Manage links, update versions, and collect real feedback - all in one place.
+        Manage links, update versions, and collect feedback - all in one place.
       </p>
     </div>
   );
