@@ -40,10 +40,11 @@ const Waveform = ({
   const [isWaveformGenerated, setIsWaveformGenerated] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   
-  // Generate initial placeholder waveform immediately
+  // Generate initial placeholder waveform immediately with more segments for detail
   useEffect(() => {
     if (waveformData.length === 0) {
-      const initialWaveformData = generateWaveformWithVariance(150, 0.3);
+      // Use enhanced generation with 250 segments and higher variance for more dynamics
+      const initialWaveformData = generateWaveformWithVariance(250, 0.6);
       setWaveformData(initialWaveformData);
     }
   }, []);
@@ -56,14 +57,14 @@ const Waveform = ({
     // Always re-analyze when the analysis URL changes
     const urlToAnalyze = waveformAnalysisUrl;
     
-    // Determine number of samples for the waveform - higher for better quality
-    const segments = 200;
+    // Use higher segment count for more detailed visualization
+    const segments = 250;
     
     console.log('Analyzing waveform from URL:', urlToAnalyze);
     setIsAnalyzing(true);
     setAnalysisError(null);
     
-    // Attempt to analyze the audio file - now with improved caching
+    // Attempt to analyze the audio file with enhanced dynamics
     analyzeAudio(urlToAnalyze, segments)
       .then(analyzedData => {
         if (analyzedData && analyzedData.length > 0) {
@@ -79,7 +80,7 @@ const Waveform = ({
         setAnalysisError(`Failed to analyze audio: ${error.message}. Using fallback visualization.`);
         
         // Fall back to generated data with higher variance for more realistic appearance
-        const fallbackData = generateWaveformWithVariance(segments, 0.4);
+        const fallbackData = generateWaveformWithVariance(segments, 0.6);
         setWaveformData(fallbackData);
         setIsWaveformGenerated(true);
       })

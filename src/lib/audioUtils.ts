@@ -136,9 +136,9 @@ const loadWaveformFromStorage = (key: string): number[] | null => {
 /**
  * Analyze audio file to extract waveform data
  * Returns a promise that resolves with an array of amplitude values
- * Uses both memory and localStorage caching for improved performance
+ * Enhanced for more dynamic visualization with emphasized peaks
  */
-export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promise<number[]> => {
+export const analyzeAudio = async (audioUrl: string, samplesCount = 250): Promise<number[]> => {
   // Generate a cache key for this audio URL
   const cacheKey = generateCacheKey(audioUrl);
   
@@ -162,7 +162,7 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
     const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContext) {
       console.warn("AudioContext not supported - falling back to generated waveform");
-      const fallbackData = generateWaveformData(samplesCount);
+      const fallbackData = generateWaveformWithVariance(samplesCount, 0.6);
       resolve(fallbackData);
       return;
     }
@@ -176,7 +176,7 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
         audioContext.close().catch(console.error);
       }
       console.warn("Audio analysis timed out - using fallback data");
-      const fallbackData = generateWaveformData(samplesCount);
+      const fallbackData = generateWaveformWithVariance(samplesCount, 0.6);
       resolve(fallbackData);
     }, 30000); // 30 second timeout - increased for larger files
     
@@ -209,46 +209,87 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
         console.log(`Audio analysis: ${channelData.length} samples, block size ${blockSize}`);
         
         // First pass: Determine the maximum amplitude across the entire audio
+        // and also calculate RMS (root mean square) for a better sense of loudness
         let maxAmplitude = 0;
+        let totalRMS = 0;
+        
         for (let i = 0; i < channelData.length; i++) {
           const sampleValue = Math.abs(channelData[i] || 0);
           maxAmplitude = Math.max(maxAmplitude, sampleValue);
+          totalRMS += sampleValue * sampleValue;
         }
         
-        console.log(`Maximum amplitude detected: ${maxAmplitude}`);
+        const rmsAmplitude = Math.sqrt(totalRMS / channelData.length);
+        console.log(`Maximum amplitude detected: ${maxAmplitude}, RMS amplitude: ${rmsAmplitude}`);
+        
+        // Calculate a dynamic threshold for peak emphasis
+        const thresholdRatio = rmsAmplitude / maxAmplitude;
+        const dynamicThreshold = rmsAmplitude * (thresholdRatio < 0.1 ? 2.5 : 1.5);
         
         // Process the audio data to create a waveform
         for (let i = 0; i < samplesCount; i++) {
           const startSample = blockSize * i;
           let sum = 0;
           let peakInBlock = 0;
+          let sumOfSquares = 0;
           
-          // Calculate both average and peak amplitude for this block
-          // Using both helps create more visually interesting waveforms
+          // Calculate more detailed metrics for this block
           for (let j = 0; j < blockSize; j++) {
             const sampleValue = Math.abs(channelData[startSample + j] || 0);
             sum += sampleValue;
+            sumOfSquares += sampleValue * sampleValue;
             peakInBlock = Math.max(peakInBlock, sampleValue);
           }
           
-          // Use a mix of average and peak for better visualization
-          // Give more weight to the peak for better dynamic range
+          // Calculate block RMS for a better loudness measure
+          const blockRMS = Math.sqrt(sumOfSquares / blockSize);
           const avgAmplitude = sum / blockSize;
-          const weightedAmplitude = (avgAmplitude * 0.5) + (peakInBlock * 0.5);
           
-          // Normalize relative to the maximum amplitude detected
-          // Apply a square root curve for better dynamic range (instead of cube root)
-          // This will make quiet parts more quiet and preserve louder sections
-          const normalizedValue = maxAmplitude > 0 ? weightedAmplitude / maxAmplitude : 0;
+          // Use a weighted combination with emphasis on peaks
+          // Adjust weights to emphasize peaks more (now 70% peak, 30% RMS)
+          const weightedAmplitude = (blockRMS * 0.3) + (peakInBlock * 0.7);
           
-          // Use square root curve for less compression (was using cube root before)
-          const curvedAmplitude = Math.pow(normalizedValue, 0.5);
+          // Emphasize peaks above the dynamic threshold (accentuates the dynamics)
+          const isPeak = peakInBlock > dynamicThreshold;
+          const peakEmphasis = isPeak ? 0.2 : 0;
           
-          // Expand the range to show more dynamics (0.01 to 0.95 instead of 0.05 to 0.85)
-          // Lower minimum makes quiet parts appear much quieter
-          const finalAmplitude = 0.01 + (curvedAmplitude * 0.94);
+          // Normalize with the enhanced peak emphasis
+          const normalizedValue = maxAmplitude > 0 
+            ? (weightedAmplitude / maxAmplitude) + peakEmphasis 
+            : 0;
           
-          waveformData.push(finalAmplitude);
+          // Apply a more aggressive curve for better dynamic range
+          // Now using a square root curve with a bias toward higher values
+          const dynamicBias = 0.85; // Higher values accentuate peaks
+          const curvedAmplitude = Math.pow(normalizedValue * dynamicBias, 0.5);
+          
+          // Expand the range even further (0.01 to 0.98)
+          // This creates more dramatic visualization
+          const finalAmplitude = 0.01 + (curvedAmplitude * 0.97);
+          
+          // Add some additional variance to nearby segments for more natural appearance
+          const neighborFactor = i > 0 ? waveformData[i-1] * 0.2 : 0;
+          const natural = Math.max(0.01, Math.min(0.98, finalAmplitude + (neighborFactor - 0.1)));
+          
+          waveformData.push(natural);
+        }
+        
+        // Perform a post-processing pass to enhance dynamics further
+        // Find average amplitude to determine a threshold
+        const avgWaveformAmplitude = waveformData.reduce((sum, val) => sum + val, 0) / waveformData.length;
+        
+        // Enhance the contrast in the waveform
+        for (let i = 0; i < waveformData.length; i++) {
+          const current = waveformData[i];
+          
+          // Apply a non-linear curve that emphasizes both peaks and valleys
+          if (current > avgWaveformAmplitude * 1.2) {
+            // Boost high peaks even more
+            waveformData[i] = Math.min(0.98, current * 1.15);
+          } else if (current < avgWaveformAmplitude * 0.8) {
+            // Make quiet parts even quieter
+            waveformData[i] = current * 0.85;
+          }
         }
         
         // Close the audio context when done
@@ -274,7 +315,7 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
         if (audioContext.state !== 'closed') {
           audioContext.close().catch(console.error);
         }
-        const fallbackData = generateWaveformData(samplesCount);
+        const fallbackData = generateWaveformWithVariance(samplesCount, 0.6);
         resolve(fallbackData);
       });
   });

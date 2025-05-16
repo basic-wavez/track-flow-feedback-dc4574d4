@@ -1,30 +1,73 @@
 
 /**
  * Helper function to generate waveform with variance as fallback
+ * Now with enhanced dynamics to create more visually striking waveforms
  */
-export const generateWaveformWithVariance = (segments: number, variance: number) => {
+export const generateWaveformWithVariance = (segments: number, variance: number = 0.6) => {
   // Generate base waveform data
   const baseData = generateWaveformData(segments);
   
-  // Apply variance to make more realistic waveforms
-  return baseData.map(value => {
-    // Add some variance based on the parameter
-    const varianceFactor = 1 + (Math.random() * variance - variance / 2);
-    // Use a wider range (0.01 to 0.95) for better dynamics
-    return Math.min(0.95, Math.max(0.01, value * varianceFactor));
+  // Apply variance with dynamic enhancement to make more realistic waveforms
+  return baseData.map((value, index) => {
+    // Add some variance based on the parameter (increased from previous version)
+    const varianceFactor = 1 + (Math.random() * variance * 1.5 - variance * 0.75);
+    
+    // Add occasional dramatic peaks for more visual interest (around 10% of bars)
+    const dramaticPeak = Math.random() > 0.9 ? Math.random() * 0.5 : 0;
+    
+    // Use non-linear mapping to enhance dynamics (power curve)
+    const enhancedValue = Math.pow(value * varianceFactor + dramaticPeak, 0.8);
+    
+    // Create occasional clusters of peaks for more realistic appearance
+    const isInCluster = index > 0 && baseData[index - 1] > 0.6;
+    const clusterBonus = isInCluster ? 0.15 : 0;
+    
+    // Use a wider range (0.01 to 0.98) for better dynamics
+    return Math.min(0.98, Math.max(0.01, enhancedValue + clusterBonus));
   });
 };
 
 /**
  * Generate a placeholder for the waveform visualization
- * Used as a fallback when real audio analysis is not possible
+ * Enhanced to create more dynamic and visually striking patterns
  */
-export const generateWaveformData = (length: number = 100): number[] => {
+export const generateWaveformData = (length: number = 250): number[] => {
   const data = [];
+  
+  // Parameters to control the waveform shape
+  const baseCurveFrequency = 0.05;
+  const secondaryCurveFrequency = 0.1;
+  const tertiaryFrequency = 0.02;
+  let prevValue = Math.random() * 0.3 + 0.2;
+  
   for (let i = 0; i < length; i++) {
-    // Generate values with greater range (0.1 to 0.7 instead of 0.25 to 0.75)
-    // This creates more visual interest in the placeholder waveform
-    data.push(Math.random() * 0.6 + 0.1);
+    // Create a base sine wave pattern for natural-looking oscillations
+    const baseCurve = Math.sin(i * baseCurveFrequency) * 0.15;
+    const secondaryCurve = Math.sin(i * secondaryCurveFrequency * 3) * 0.1;
+    const tertiaryCurve = Math.cos(i * tertiaryFrequency * 7) * 0.05;
+    
+    // Add some randomness for texture
+    const randomFactor = Math.random() * 0.3;
+    
+    // Calculate a value with some continuity from the previous value (smoother transitions)
+    let newValue = prevValue * 0.3 + (0.2 + baseCurve + secondaryCurve + tertiaryCurve + randomFactor) * 0.7;
+    
+    // Ensure values stay in desired range with more extreme dynamics (0.02 to 0.95)
+    newValue = Math.max(0.02, Math.min(0.95, newValue));
+    
+    // Add some dramatic peaks (about 5% of bars)
+    if (Math.random() > 0.95) {
+      newValue = Math.min(0.95, newValue * (1.3 + Math.random() * 0.7));
+    }
+    
+    // Add some very quiet sections (about 8% of bars)
+    if (Math.random() > 0.92) {
+      newValue = newValue * 0.3;
+    }
+    
+    data.push(newValue);
+    prevValue = newValue;
   }
+  
   return data;
 };
