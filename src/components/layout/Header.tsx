@@ -2,7 +2,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, LogOut, User as UserIcon, LayoutDashboard, Music } from "lucide-react";
 import {
   DropdownMenu,
@@ -16,7 +15,7 @@ import {
 const Header = () => {
   const { user, loading, signOut, isAdmin, profile } = useAuth();
 
-  // Get display name for avatar fallback
+  // Get display name for user button
   const getDisplayName = () => {
     // First priority: username from profile if available
     if (profile && profile.username) {
@@ -70,15 +69,11 @@ const Header = () => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild className="outline-none">
                 <Button 
-                  variant="ghost" 
-                  className="relative h-9 w-9 rounded-full"
+                  variant="outline" 
+                  className="h-9 px-3 text-sm"
+                  size="sm"
                 >
-                  <Avatar className="h-9 w-9 border border-wip-gray/30">
-                    <AvatarImage src="..." />
-                    <AvatarFallback className="bg-wip-dark text-white text-xs p-1 overflow-hidden">
-                      {getDisplayName()}
-                    </AvatarFallback>
-                  </Avatar>
+                  {getDisplayName()}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent 
