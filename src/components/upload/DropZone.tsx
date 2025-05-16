@@ -103,11 +103,33 @@ const DropZone = ({ onFileDrop, onFileSelect, isDragging, setIsDragging }: DropZ
     }
   }, [logDragEvent, onFileDrop, setIsDragging]);
 
-  const handleUploadClick = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent default to avoid any bubbling issues
-    if (fileInputRef.current) {
-      console.log("DropZone - Upload button clicked, opening file dialog");
-      fileInputRef.current.click();
+  // Separate handler specifically for button click
+  const handleButtonClick = (e: React.MouseEvent) => {
+    // Stop propagation to prevent the general dropzone click handler from firing
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log("DropZone - Button click handler triggered");
+    
+    // Use a small timeout to ensure the click event is fully processed
+    // before trying to open the file dialog
+    setTimeout(() => {
+      if (fileInputRef.current) {
+        console.log("DropZone - Opening file dialog after button click");
+        fileInputRef.current.click();
+      }
+    }, 50);
+  };
+  
+  // Handler for clicking on the general dropzone area
+  const handleDropZoneClick = (e: React.MouseEvent) => {
+    // Only open file dialog if the click is directly on the dropzone
+    // (not on the button which has its own handler)
+    if (e.target === e.currentTarget || e.currentTarget.contains(e.target as Node)) {
+      console.log("DropZone - Dropzone click handler triggered");
+      if (fileInputRef.current) {
+        fileInputRef.current.click();
+      }
     }
   };
 
@@ -149,7 +171,7 @@ const DropZone = ({ onFileDrop, onFileSelect, isDragging, setIsDragging }: DropZ
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={handleUploadClick}
+        onClick={handleDropZoneClick}
         data-testid="dropzone"
       >
         <div className="flex flex-col items-center justify-center text-center">
@@ -174,8 +196,10 @@ const DropZone = ({ onFileDrop, onFileSelect, isDragging, setIsDragging }: DropZ
             onChange={onFileSelect}
           />
           <Button 
-            onClick={handleUploadClick}
+            onClick={handleButtonClick}
             className="gradient-bg hover:opacity-90"
+            type="button"
+            aria-label="Select audio file from device"
           >
             Select Audio File
           </Button>
