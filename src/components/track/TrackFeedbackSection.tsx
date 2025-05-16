@@ -23,11 +23,7 @@ const TrackFeedbackSection = ({ trackTitle, user }: TrackFeedbackSectionProps) =
 
   const handleFeedbackSubmitted = () => {
     setFeedbackSubmitted(true);
-    
-    // Refresh the page to show the new feedback display
-    if (trackId) {
-      window.location.reload();
-    }
+    // We're removing the page reload to show the thank you message instead
   };
 
   if (feedbackSubmitted) {
