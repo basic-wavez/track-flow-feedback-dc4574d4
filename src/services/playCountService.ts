@@ -18,7 +18,7 @@ const playTracker: PlayTracker = {
 
 // Constants
 const MIN_PLAY_DURATION_MS = 2000; // 2 seconds
-const CLIENT_COOLDOWN_PERIOD_MS = 0; // Disabled for testing (was 600000 - 10 minutes)
+const CLIENT_COOLDOWN_PERIOD_MS = 60000; // 1 minute cooldown for testing (was 0, before that 600000 - 10 minutes)
 
 /**
  * Starts tracking play time for a track
@@ -59,13 +59,26 @@ export const endPlayTracking = async (): Promise<boolean> => {
     return false;
   }
   
-  // Client-side cooldown check disabled for testing
-  console.log("Client-side cooldown disabled for testing");
+  // Check client-side cooldown (1 minute)
+  if (playTracker.lastIncrementTime) {
+    const timeSinceLastIncrement = Date.now() - playTracker.lastIncrementTime;
+    if (timeSinceLastIncrement < CLIENT_COOLDOWN_PERIOD_MS) {
+      console.log("Client-side cooldown period active (1 minute), not incrementing count");
+      return false;
+    }
+  }
   
   // If we have a share key, check server-side cooldown and increment the play count
   if (playTracker.shareKey) {
     try {
-      // Server-side cooldown is now disabled in trackShareService.ts
+      // Check server cooldown (also 1 minute)
+      const inServerCooldown = await isInServerCooldown(playTracker.shareKey);
+      
+      if (inServerCooldown) {
+        console.log("Server-side cooldown period active, not incrementing count");
+        return false;
+      }
+      
       console.log("Incrementing play count for share key:", playTracker.shareKey);
       const success = await incrementPlayCount(playTracker.shareKey);
       
@@ -101,6 +114,11 @@ export const cancelPlayTracking = (): void => {
  * @returns Boolean indicating if the track is in client-side cooldown period
  */
 export const isInCooldownPeriod = (shareKey: string): boolean => {
-  // Cooldown disabled for testing
+  const storedData = localStorage.getItem(`play_count_${shareKey}`);
+  if (storedData) {
+    const lastIncrementTime = parseInt(storedData, 10);
+    const timeSinceLastIncrement = Date.now() - lastIncrementTime;
+    return timeSinceLastIncrement < CLIENT_COOLDOWN_PERIOD_MS;
+  }
   return false;
 };

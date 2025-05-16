@@ -157,16 +157,20 @@ const TrackPlayer = ({
         trackId={trackId}
       />
       
-      {/* Show testing message */}
+      {/* Show cooldown message */}
       {shareKey && (
         <div className="mt-4 text-xs text-center">
-          {playedRecently ? (
+          {isCooldown ? (
+            <div className="text-amber-400">
+              This track has been played recently. Play count will increment after the cooldown period (1 minute).
+            </div>
+          ) : playedRecently ? (
             <div className="text-green-400">
-              Play count has been incremented for this track. (Cooldown disabled for testing)
+              Play count has been incremented for this track.
             </div>
           ) : (
             <div className="text-blue-400">
-              Cooldown has been disabled for testing. Every play will increment the counter.
+              Play count will increment after listening. Cooldown is set to 1 minute for testing.
             </div>
           )}
         </div>
