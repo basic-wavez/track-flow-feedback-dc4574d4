@@ -3,6 +3,8 @@
  * Utility functions for handling audio files
  */
 
+import { generateWaveformWithVariance } from '@/lib/waveformUtils';
+
 /**
  * Check if the file is an allowed audio format
  */
