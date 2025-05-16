@@ -24,3 +24,12 @@ export {
 export {
   deleteTrack
 } from './trackDeletionService';
+
+// Add the new share links service
+export {
+  createShareLink,
+  getShareLinks,
+  incrementPlayCount,
+  deleteShareLink,
+  getTrackIdByShareKey
+} from './trackShareService';

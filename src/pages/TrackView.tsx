@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import TrackPlayer from "@/components/TrackPlayer";
 import TrackFeedbackSection from "@/components/track/TrackFeedbackSection";
@@ -7,30 +8,48 @@ import TrackLoading from "@/components/track/TrackLoading";
 import TrackNotFound from "@/components/track/TrackNotFound";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { getTrack } from "@/services/trackService";
+import { getTrack, incrementPlayCount, getTrackIdByShareKey } from "@/services/trackService";
 import { useAuth } from "@/context/AuthContext";
 import { TrackData } from "@/types/track";
 import TrackFeedbackDisplay from "@/components/track/TrackFeedbackDisplay";
+import ShareLinkManager from "@/components/track/ShareLinkManager";
 
 const TrackView = () => {
-  const { trackId } = useParams<{ trackId: string }>();
+  const { trackId, shareKey } = useParams<{ trackId?: string; shareKey?: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [trackData, setTrackData] = useState<TrackData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("feedback");
 
   useEffect(() => {
     const loadTrack = async () => {
-      if (!trackId) {
-        setIsLoading(false);
-        return;
-      }
-
       setIsLoading(true);
+      
       try {
-        const track = await getTrack(trackId);
+        let actualTrackId = trackId;
+        
+        // If we have a share key, get the track ID from it
+        if (shareKey && !trackId) {
+          actualTrackId = await getTrackIdByShareKey(shareKey);
+          
+          if (actualTrackId) {
+            // Increment play count for shared link
+            await incrementPlayCount(shareKey);
+          }
+        }
+
+        if (!actualTrackId) {
+          setTrackData(null);
+          setIsLoading(false);
+          return;
+        }
+
+        const track = await getTrack(actualTrackId);
         setTrackData(track);
+        
         if (track && user) {
           setIsOwner(track.user_id === user.id);
         }
@@ -43,7 +62,7 @@ const TrackView = () => {
     };
 
     loadTrack();
-  }, [trackId, user]);
+  }, [trackId, shareKey, user]);
 
   if (isLoading) {
     return <TrackLoading />;
@@ -74,7 +93,7 @@ const TrackView = () => {
           </div>
           
           <TrackPlayer 
-            trackId={trackId}
+            trackId={trackData.id}
             trackName={displayName} 
             audioUrl={trackData.mp3_url || trackData.compressed_url}
             originalUrl={trackData.original_url}
@@ -84,9 +103,30 @@ const TrackView = () => {
           />
           
           {isOwner ? (
-            <>
-              <TrackFeedbackDisplay trackId={trackId} trackTitle={displayName} />
-            </>
+            <div>
+              <div className="flex mb-6 space-x-4 border-b">
+                <Button
+                  variant="ghost"
+                  className={`pb-2 ${activeTab === "feedback" ? "border-b-2 border-wip-pink text-wip-pink" : ""}`}
+                  onClick={() => setActiveTab("feedback")}
+                >
+                  Feedback
+                </Button>
+                <Button
+                  variant="ghost"
+                  className={`pb-2 ${activeTab === "share" ? "border-b-2 border-wip-pink text-wip-pink" : ""}`}
+                  onClick={() => setActiveTab("share")}
+                >
+                  Share Links
+                </Button>
+              </div>
+              
+              {activeTab === "feedback" ? (
+                <TrackFeedbackDisplay trackId={trackData.id} trackTitle={displayName} />
+              ) : (
+                <ShareLinkManager trackId={trackData.id} trackTitle={displayName} />
+              )}
+            </div>
           ) : (
             <TrackFeedbackSection trackTitle={displayName} user={user} />
           )}

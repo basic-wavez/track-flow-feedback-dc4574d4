@@ -89,6 +89,47 @@ export type Database = {
         }
         Relationships: []
       }
+      share_links: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_played_at: string | null
+          name: string
+          play_count: number | null
+          share_key: string
+          track_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_played_at?: string | null
+          name: string
+          play_count?: number | null
+          share_key?: string
+          track_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_played_at?: string | null
+          name?: string
+          play_count?: number | null
+          share_key?: string
+          track_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "share_links_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tracks: {
         Row: {
           chunk_count: number | null
