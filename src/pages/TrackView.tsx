@@ -16,6 +16,7 @@ import ShareLinkManager from "@/components/track/ShareLinkManager";
 import { isInCooldownPeriod } from "@/services/playCountService";
 import { Badge } from "@/components/ui/badge";
 import { FilePlus, History } from "lucide-react";
+import VersionControls from "@/components/track/VersionControls";
 
 const TrackView = () => {
   // Get URL information
@@ -29,6 +30,7 @@ const TrackView = () => {
   const [activeTab, setActiveTab] = useState<string>("feedback");
   const [error, setError] = useState<string | null>(null);
   const [currentShareKey, setCurrentShareKey] = useState<string | undefined>(undefined);
+  const [resolvedTrackId, setResolvedTrackId] = useState<string | undefined>(params.trackId);
 
   // Determine if we're on a share link route by checking the URL pattern
   const isShareRoute = location.pathname.startsWith('/track/share/');
@@ -85,6 +87,9 @@ const TrackView = () => {
           return;
         }
 
+        // Store the resolved track ID in state for use throughout the component
+        setResolvedTrackId(actualTrackId);
+
         console.log("Fetching track data for ID:", actualTrackId);
         const track = await getTrack(actualTrackId);
         
@@ -137,41 +142,14 @@ const TrackView = () => {
       <main className="flex-1 py-12 px-4">
         <div className="max-w-5xl mx-auto space-y-8">
           
-          {/* Version indicator and New Version button (for track owners) */}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold gradient-text">{displayName}</h1>
-              <Badge variant="outline" className="text-xs font-mono">
-                v{versionNumber}
-              </Badge>
-            </div>
-            
-            {isOwner && (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex gap-2 items-center"
-                  onClick={() => navigate(`/track/${trackData.id}/version`)}
-                >
-                  <FilePlus className="h-4 w-4" />
-                  New Version
-                </Button>
-                
-                {trackData.parent_track_id && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex gap-2 items-center"
-                    onClick={() => navigate(`/profile`)}
-                  >
-                    <History className="h-4 w-4" />
-                    View History
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Use VersionControls component for better organization */}
+          <VersionControls 
+            trackId={trackData.id}
+            title={displayName}
+            versionNumber={versionNumber}
+            isOwner={isOwner}
+            hasParentTrack={!!trackData.parent_track_id}
+          />
           
           {trackData && (
             <TrackPlayer 
@@ -225,6 +203,7 @@ const TrackView = () => {
               trackTitle={trackData.title} 
               trackVersion={versionNumber}
               user={user} 
+              trackId={resolvedTrackId} // Pass the resolved track ID explicitly
             />
           )}
         </div>

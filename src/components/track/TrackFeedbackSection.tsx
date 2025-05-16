@@ -10,13 +10,22 @@ interface TrackFeedbackSectionProps {
   trackTitle: string;
   trackVersion?: number;
   user: User | null;
+  trackId?: string; // Add explicit trackId prop
 }
 
-const TrackFeedbackSection = ({ trackTitle, trackVersion = 1, user }: TrackFeedbackSectionProps) => {
+const TrackFeedbackSection = ({ 
+  trackTitle, 
+  trackVersion = 1, 
+  user,
+  trackId: explicitTrackId // Rename to avoid collision with the one from useParams
+}: TrackFeedbackSectionProps) => {
   const navigate = useNavigate();
-  const { trackId } = useParams();
+  const { trackId: urlTrackId } = useParams(); // Get trackId from URL params
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+
+  // Prioritize explicit trackId (from props) over the one from URL params
+  const effectiveTrackId = explicitTrackId || urlTrackId;
 
   const handleAuthSuccess = () => {
     setIsAuthModalOpen(false);
@@ -50,7 +59,7 @@ const TrackFeedbackSection = ({ trackTitle, trackVersion = 1, user }: TrackFeedb
   return (
     <>
       <FeedbackForm 
-        trackId={trackId}
+        trackId={effectiveTrackId}
         trackName={trackTitle}
         trackVersion={trackVersion}
         onFeedbackSubmit={handleFeedbackSubmitted}
