@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -369,7 +368,20 @@ const ProfilePage = () => {
                                     variant="outline" 
                                     size="sm"
                                     className="flex gap-2 items-center text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                    onClick={() => setTrackToDelete({...track, id: track.id} as TrackData)}
+                                    onClick={() => {
+                                      // Create a valid TrackData object by adding required fields
+                                      const trackData: TrackData = {
+                                        id: track.id,
+                                        title: track.title,
+                                        original_filename: track.original_filename,
+                                        // Add required fields from TrackData that aren't in TrackWithVersions
+                                        compressed_url: '',
+                                        user_id: '',
+                                        version_number: track.versions[0]?.version_number || 1,
+                                        is_latest_version: true
+                                      };
+                                      setTrackToDelete(trackData);
+                                    }}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                     Delete

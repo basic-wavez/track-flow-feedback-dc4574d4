@@ -26,6 +26,7 @@ const NewVersionPage = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [newVersionId, setNewVersionId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   
   // Initialize dropzone hook
   const {
@@ -36,8 +37,12 @@ const NewVersionPage = () => {
     fileRejections,
     error: dropzoneError,
   } = useDropZone({
-    acceptedFileTypes: ['.wav', '.mp3', '.aif', '.aiff'],
-    maxFileSizeMB: 500,
+    onFileDrop: (file) => {
+      console.log("File dropped:", file.name);
+      // The file is automatically added to acceptedFiles by the hook
+    },
+    isDragging,
+    setIsDragging,
   });
 
   useEffect(() => {

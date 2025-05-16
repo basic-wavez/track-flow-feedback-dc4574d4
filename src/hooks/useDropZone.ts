@@ -1,27 +1,46 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 
-interface UseDropZoneProps {
-  onFileDrop: (file: File) => void;
-  setIsDragging: (isDragging: boolean) => void;
-  isDragging: boolean;
+interface FileRejection {
+  file: File;
+  errors: Array<{
+    code: string;
+    message: string;
+  }>;
 }
 
-export const useDropZone = ({ onFileDrop, setIsDragging, isDragging }: UseDropZoneProps) => {
+interface UseDropZoneOptions {
+  acceptedFileTypes?: string[];
+  maxFileSizeMB?: number;
+}
+
+interface UseDropZoneProps {
+  onFileDrop: (file: File) => void;
+  setIsDragging?: (isDragging: boolean) => void;
+  isDragging?: boolean;
+}
+
+export const useDropZone = ({ onFileDrop, setIsDragging, isDragging = false }: UseDropZoneProps) => {
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  const [acceptedFiles, setAcceptedFiles] = useState<File[]>([]);
+  const [fileRejections, setFileRejections] = useState<FileRejection[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!isDragging) {
+    if (!isDragging && setIsDragging) {
       setIsDragging(true);
     }
+    setIsDragActive(true);
   }, [isDragging, setIsDragging]);
 
   const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
+    if (setIsDragging) setIsDragging(true);
+    setIsDragActive(true);
   }, [setIsDragging]);
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -39,17 +58,46 @@ export const useDropZone = ({ onFileDrop, setIsDragging, isDragging }: UseDropZo
         clientY < rect.top ||
         clientY >= rect.bottom
       ) {
-        setIsDragging(false);
+        if (setIsDragging) setIsDragging(false);
+        setIsDragActive(false);
       }
     } else {
-      setIsDragging(false);
+      if (setIsDragging) setIsDragging(false);
+      setIsDragActive(false);
     }
   }, [setIsDragging]);
 
-  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
+  const validateFile = useCallback((file: File, options?: UseDropZoneOptions): { valid: boolean; error?: string } => {
+    // Check file type if specified
+    if (options?.acceptedFileTypes && options.acceptedFileTypes.length > 0) {
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (!options.acceptedFileTypes.includes(fileExtension)) {
+        return { 
+          valid: false, 
+          error: `File type not accepted. Please use: ${options.acceptedFileTypes.join(', ')}` 
+        };
+      }
+    }
+    
+    // Check file size if specified
+    if (options?.maxFileSizeMB) {
+      const maxSizeBytes = options.maxFileSizeMB * 1024 * 1024;
+      if (file.size > maxSizeBytes) {
+        return { 
+          valid: false, 
+          error: `File too large. Maximum size is ${options.maxFileSizeMB}MB.` 
+        };
+      }
+    }
+    
+    return { valid: true };
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>, options?: UseDropZoneOptions) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    if (setIsDragging) setIsDragging(false);
+    setIsDragActive(false);
     
     try {
       const files = e.dataTransfer.files;
@@ -71,12 +119,52 @@ export const useDropZone = ({ onFileDrop, setIsDragging, isDragging }: UseDropZo
         lastModified: new Date(droppedFile.lastModified).toISOString()
       });
       
+      // Validate file if options provided
+      if (options) {
+        const validation = validateFile(droppedFile, options);
+        if (!validation.valid) {
+          setError(validation.error || "Invalid file");
+          setFileRejections([{
+            file: droppedFile,
+            errors: [{ code: "invalid-file", message: validation.error || "Invalid file" }]
+          }]);
+          return;
+        }
+      }
+      
+      // Add to accepted files
+      setAcceptedFiles([droppedFile]);
+      setFileRejections([]);
+      setError(null);
+      
       // Pass the file to the parent component
       onFileDrop(droppedFile);
     } catch (error) {
       console.error("DropZone - Error handling file drop:", error);
+      setError("Error processing file");
     }
-  }, [onFileDrop, setIsDragging]);
+  }, [onFileDrop, setIsDragging, validateFile]);
+
+  // Add methods to simulate react-dropzone API
+  const getRootProps = () => ({
+    ref: dropZoneRef,
+    onDragOver: handleDragOver,
+    onDragEnter: handleDragEnter,
+    onDragLeave: handleDragLeave,
+    onDrop: (e: React.DragEvent<HTMLDivElement>) => handleDrop(e),
+  });
+
+  const getInputProps = () => ({
+    accept: "audio/*",
+    multiple: false,
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+        const file = e.target.files[0];
+        setAcceptedFiles([file]);
+        onFileDrop(file);
+      }
+    }
+  });
 
   // Add an effect to set up global drag-and-drop event handlers
   useEffect(() => {
@@ -108,6 +196,13 @@ export const useDropZone = ({ onFileDrop, setIsDragging, isDragging }: UseDropZo
     handleDragOver,
     handleDragEnter,
     handleDragLeave,
-    handleDrop
+    handleDrop,
+    // Add react-dropzone style API
+    getRootProps,
+    getInputProps,
+    isDragActive,
+    acceptedFiles,
+    fileRejections,
+    error
   };
 };
