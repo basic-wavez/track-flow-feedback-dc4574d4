@@ -13,7 +13,7 @@ const Header = () => {
     <header className="py-6 px-8 flex justify-between items-center border-b border-wip-gray/30">
       <div className="flex items-center">
         <img 
-          src="/lovable-uploads/9e167482-9f73-4eb4-9bb0-fa8641a7551b.png" 
+          src="/lovable-uploads/e6c4664d-7099-4ef1-aa3a-945789a5ee5a.png" 
           alt="DEMO4U Logo" 
           className="h-10 cursor-pointer" 
           onClick={() => navigate("/")}
