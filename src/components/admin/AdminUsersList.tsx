@@ -33,6 +33,23 @@ interface UserData {
   is_admin: boolean;
 }
 
+// Helper function to safely format dates
+const safeFormatDistance = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return "Unknown";
+  
+  try {
+    const date = new Date(dateStr);
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return "Invalid date";
+    }
+    return formatDistance(date, new Date(), { addSuffix: true });
+  } catch (error) {
+    console.error("Date formatting error:", error);
+    return "Invalid date";
+  }
+};
+
 const AdminUsersList = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,10 +66,10 @@ const AdminUsersList = () => {
     setError(null);
     
     try {
-      // Query profiles and join with auth.users info via the profiles.id which references auth.users.id
+      // Query profiles, explicitly selecting created_at
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('id, username, created_at:id');
+        .select('id, username, created_at');
         
       if (profileError) {
         console.error("AdminUsersList - Profile error:", profileError);
@@ -104,14 +121,31 @@ const AdminUsersList = () => {
       // Create a set of admin user IDs
       const adminSet = new Set(adminRoles?.map(role => role.user_id) || []);
       
-      // Combine the data
-      const userData: UserData[] = profiles.map(profile => ({
-        id: profile.id,
-        email: emailMap[profile.id] || null,
-        created_at: profile.created_at || new Date().toISOString(),
-        username: profile.username,
-        is_admin: adminSet.has(profile.id)
-      }));
+      // Process and validate profile data
+      const userData: UserData[] = profiles.map(profile => {
+        // Ensure created_at is a valid date, or use current date as fallback
+        let createdAt: string;
+        try {
+          if (profile.created_at) {
+            // Validate the date
+            new Date(profile.created_at).toISOString();
+            createdAt = profile.created_at;
+          } else {
+            createdAt = new Date().toISOString();
+          }
+        } catch (e) {
+          console.error(`Invalid date for user ${profile.id}:`, profile.created_at);
+          createdAt = new Date().toISOString();
+        }
+        
+        return {
+          id: profile.id,
+          email: emailMap[profile.id] || null,
+          created_at: createdAt,
+          username: profile.username,
+          is_admin: adminSet.has(profile.id)
+        };
+      });
       
       console.log("AdminUsersList - Combined user data:", userData.length);
       setUsers(userData);
@@ -262,7 +296,7 @@ const AdminUsersList = () => {
                     </TableCell>
                     <TableCell>{user.email || "No email"}</TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {formatDistance(new Date(user.created_at), new Date(), { addSuffix: true })}
+                      {safeFormatDistance(user.created_at)}
                     </TableCell>
                     <TableCell>
                       {user.is_admin ? (

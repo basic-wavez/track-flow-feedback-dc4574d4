@@ -19,21 +19,21 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [authVerified, setAuthVerified] = useState(false);
-  
-  // Use an effect to check admin status without triggering refreshes
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Only check auth status during initial mount
   useEffect(() => {
-    console.log("AdminDashboard - Mounted, isAdmin:", isAdmin, "loading:", loading, "user:", user?.email);
+    if (loading) return;
     
-    // Set auth verified flag when initial load completes
-    if (!loading) {
-      setAuthVerified(true);
-    }
-  }, [isAdmin, loading, user]);
-  
-  // Only redirect after loading completes and we know the user is not an admin
-  useEffect(() => {
-    if (authVerified && isAdmin === false) {
+    console.log("AdminDashboard - Auth check complete:", { 
+      isAdmin, 
+      user: user?.email || "No user" 
+    });
+
+    setIsInitialized(true);
+    
+    // Only navigate away if we're not loading and we know the user is not an admin
+    if (isAdmin === false) {
       console.log("AdminDashboard - Not admin, redirecting");
       toast({
         title: "Access Denied",
@@ -42,7 +42,7 @@ const AdminDashboard = () => {
       });
       navigate("/");
     }
-  }, [authVerified, isAdmin, navigate, toast]);
+  }, [loading, isAdmin, user, navigate, toast]);
 
   // Add an error boundary
   useEffect(() => {
@@ -67,7 +67,8 @@ const AdminDashboard = () => {
     window.location.reload();
   };
 
-  if (loading) {
+  // Show loading state while determining authorization
+  if (loading || !isInitialized) {
     return (
       <div className="min-h-screen bg-wip-dark flex flex-col">
         <Header />
@@ -104,22 +105,7 @@ const AdminDashboard = () => {
     );
   }
   
-  // Show loading if we haven't verified auth status yet
-  if (!authVerified) {
-    return (
-      <div className="min-h-screen bg-wip-dark flex flex-col">
-        <Header />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin h-8 w-8 border-4 border-wip-pink border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p>Verifying admin access...</p>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
+  // If we made it here, we know the user is an admin and we're ready to show the dashboard
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <Header />

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { formatDistance } from "date-fns";
+import { format, formatDistance, isValid } from "date-fns";
 import { getUserDetails } from "@/lib/adminHelpers";
 import { AlertCircle } from "lucide-react";
 
@@ -16,6 +16,39 @@ interface UserStats {
   feedbackGiven: number;
   lastActive: string | null;
 }
+
+// Helper function to safely format dates
+const safeFormatDistance = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return "Never";
+  
+  try {
+    const date = new Date(dateStr);
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return "Invalid date";
+    }
+    return formatDistance(date, new Date(), { addSuffix: true });
+  } catch (error) {
+    console.error("Date formatting error:", error);
+    return "Invalid date";
+  }
+};
+
+// Helper to safely format a date with a fallback
+const safeFormat = (dateStr: string | null | undefined, fallback: string = "Unknown"): string => {
+  if (!dateStr) return fallback;
+  
+  try {
+    const date = new Date(dateStr);
+    if (!isValid(date)) {
+      return fallback;
+    }
+    return date.toLocaleString();
+  } catch (error) {
+    console.error("Date formatting error:", error);
+    return fallback;
+  }
+};
 
 const AdminUserDetails = ({ userId }: UserDetailsProps) => {
   const [userDetails, setUserDetails] = useState<any>(null);
@@ -97,11 +130,14 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
           .order('created_at', { ascending: false })
           .limit(1);
         
+        // Sanitize user info to ensure valid dates
+        const safeUserCreatedAt = userData?.created_at ? userData.created_at : new Date().toISOString();
+        
         // Combine data
         const userInfo = {
           id: userId,
           email: userData ? userData.email : "Email unavailable",
-          created_at: userData ? userData.created_at : new Date().toISOString(),
+          created_at: safeUserCreatedAt,
           last_sign_in_at: userData ? userData.last_sign_in_at : null,
           email_confirmed_at: userData ? userData.email_confirmed_at : null,
           profile
@@ -109,9 +145,33 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
         
         setUserDetails(userInfo);
         
-        const lastTrackDate = lastTrack && lastTrack[0] ? new Date(lastTrack[0].created_at) : null;
-        const lastFeedbackDate = lastFeedback && lastFeedback[0] ? new Date(lastFeedback[0].created_at) : null;
+        // Safely handle dates from track and feedback
+        let lastTrackDate = null;
+        let lastFeedbackDate = null;
         
+        try {
+          if (lastTrack && lastTrack[0] && lastTrack[0].created_at) {
+            const date = new Date(lastTrack[0].created_at);
+            if (isValid(date)) {
+              lastTrackDate = date;
+            }
+          }
+        } catch (err) {
+          console.error("Invalid track date:", err);
+        }
+        
+        try {
+          if (lastFeedback && lastFeedback[0] && lastFeedback[0].created_at) {
+            const date = new Date(lastFeedback[0].created_at);
+            if (isValid(date)) {
+              lastFeedbackDate = date;
+            }
+          }
+        } catch (err) {
+          console.error("Invalid feedback date:", err);
+        }
+        
+        // Determine last active date
         let lastActive = null;
         if (lastTrackDate && lastFeedbackDate) {
           lastActive = lastTrackDate > lastFeedbackDate ? lastTrackDate : lastFeedbackDate;
@@ -221,16 +281,12 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
         
         <div>
           <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
-          <p>{userDetails.created_at ? new Date(userDetails.created_at).toLocaleString() : "Unknown"}</p>
+          <p>{safeFormat(userDetails.created_at, "Unknown")}</p>
         </div>
         
         <div>
           <h3 className="text-sm font-medium text-muted-foreground">Last Sign In</h3>
-          <p>
-            {userDetails.last_sign_in_at
-              ? formatDistance(new Date(userDetails.last_sign_in_at), new Date(), { addSuffix: true })
-              : "Never"}
-          </p>
+          <p>{safeFormatDistance(userDetails.last_sign_in_at)}</p>
         </div>
         
         <div>
@@ -254,11 +310,7 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
           
           <div className="bg-wip-gray/10 p-4 rounded-md">
             <h4 className="text-sm font-medium text-muted-foreground">Last Active</h4>
-            <p>
-              {userStats.lastActive
-                ? formatDistance(new Date(userStats.lastActive), new Date(), { addSuffix: true })
-                : "Never"}
-            </p>
+            <p>{safeFormatDistance(userStats.lastActive)}</p>
           </div>
         </div>
       </div>

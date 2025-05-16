@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { handleError } from "@/utils/errorHandler";
 
 export interface UserEmailResult {
   user_id: string;
@@ -20,20 +21,19 @@ export async function getUserEmails() {
     
     if (error) {
       console.error("Error fetching user emails:", error);
-      throw error;
+      return []; // Return empty array instead of throwing
     }
     
     if (!data || !Array.isArray(data)) {
       console.error("Invalid response format for user emails:", data);
-      return []; // Return an empty array instead of throwing
+      return []; // Return an empty array
     }
     
     console.log(`adminHelpers - Successfully fetched ${data.length} user emails`);
     return data as UserEmailResult[];
   } catch (error) {
     console.error("Failed to fetch user emails:", error);
-    // Return empty array instead of re-throwing to prevent component crashing
-    return [];
+    return []; // Return empty array to prevent component crashing
   }
 }
 
@@ -46,7 +46,7 @@ export async function getUserDetails(userId: string) {
     
     if (error) {
       console.error("Error fetching user details:", error);
-      throw error;
+      throw new Error(`Failed to fetch user details: ${error.message}`);
     }
     
     if (!data) {
@@ -55,9 +55,8 @@ export async function getUserDetails(userId: string) {
     }
     
     console.log("adminHelpers - Successfully fetched user details");
-    // Cast to unknown first, then to our expected interface
     return data as unknown as UserDetailsResult;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to fetch user details:", error);
     // Return a placeholder object instead of re-throwing
     return {

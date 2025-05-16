@@ -11,41 +11,60 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
   const { user, isAdmin, loading } = useAuth();
   const location = useLocation();
   const [authChecked, setAuthChecked] = useState(false);
-  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
-  const MAX_RETRIES = 2;
+  const [checkAttempts, setCheckAttempts] = useState(0);
+  const MAX_CHECK_ATTEMPTS = 3;
   
   useEffect(() => {
-    // Debug logging to help troubleshoot auth state issues
+    // Debug logging to help troubleshoot auth state
     console.log("AdminRoute - Auth state:", { 
       user: user ? `User: ${user.email}` : "No user",
       isAdmin, 
       loading,
-      isCheckingAdmin,
-      path: location.pathname,
       authChecked,
-      retryCount
+      checkAttempts,
+      path: location.pathname
     });
     
-    // Only check admin status if we have a user and haven't exceeded retry count
-    if (user && !loading && !authChecked && retryCount < MAX_RETRIES) {
-      setIsCheckingAdmin(true);
-      
-      // Small timeout to prevent potential race conditions
-      const timeoutId = setTimeout(() => {
-        console.log("AdminRoute - Checking admin status, retry:", retryCount);
-        setRetryCount(prev => prev + 1);
-        setIsCheckingAdmin(false);
+    // If we're still loading or we've already completed our check, do nothing
+    if (loading || authChecked) {
+      return;
+    }
+    
+    // If we have no user or already know they're not admin, mark check as complete
+    if (!user || isAdmin === false) {
+      console.log("AdminRoute - No user or not admin, check complete");
+      setAuthChecked(true);
+      return;
+    }
+    
+    // If we know they're admin, mark check as complete
+    if (isAdmin === true) {
+      console.log("AdminRoute - User is admin, check complete");
+      setAuthChecked(true);
+      return;
+    }
+    
+    // Only increment check attempts if we're still trying to determine admin status
+    // and haven't exceeded max attempts
+    if (user && isAdmin === undefined && checkAttempts < MAX_CHECK_ATTEMPTS) {
+      console.log(`AdminRoute - Admin check attempt ${checkAttempts + 1}/${MAX_CHECK_ATTEMPTS}`);
+      // Set a small delay to prevent immediate re-renders
+      const timer = setTimeout(() => {
+        setCheckAttempts(prev => prev + 1);
       }, 500);
-      
-      return () => clearTimeout(timeoutId);
-    } else if (!loading && !isCheckingAdmin) {
-      // Only set authChecked after all loading is complete
+      return () => clearTimeout(timer);
+    }
+    
+    // If we've exceeded max attempts and still haven't determined admin status,
+    // consider the check complete to prevent infinite loop
+    if (checkAttempts >= MAX_CHECK_ATTEMPTS) {
+      console.log("AdminRoute - Max admin check attempts reached, forcing check completion");
       setAuthChecked(true);
     }
-  }, [user, isAdmin, loading, isCheckingAdmin, location, authChecked, retryCount]);
+  }, [user, isAdmin, loading, location, authChecked, checkAttempts]);
   
-  if (loading || isCheckingAdmin) {
+  // Show loading state while we're determining admin status
+  if (loading || (user && !authChecked)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
