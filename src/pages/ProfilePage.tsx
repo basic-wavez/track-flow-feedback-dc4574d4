@@ -242,7 +242,6 @@ const ProfilePage = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Title</TableHead>
-                          <TableHead>Status</TableHead>
                           <TableHead>Uploaded</TableHead>
                           <TableHead>Feedback</TableHead>
                           <TableHead>Actions</TableHead>
@@ -252,13 +251,6 @@ const ProfilePage = () => {
                         {tracks.map((track) => (
                           <TableRow key={track.id}>
                             <TableCell className="font-medium">{track.title}</TableCell>
-                            <TableCell>
-                              {track.processing_status === 'completed' ? (
-                                <Badge className="bg-green-600">Ready</Badge>
-                              ) : (
-                                <Badge className="bg-yellow-600">Processing</Badge>
-                              )}
-                            </TableCell>
                             <TableCell className="text-gray-400">
                               <div className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
