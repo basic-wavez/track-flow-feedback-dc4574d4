@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 interface ShareLink {
@@ -116,8 +115,8 @@ export const getTrackIdByShareKey = async (shareKey: string): Promise<string | n
   }
 };
 
-// Server-side cooldown period in milliseconds (10 minutes)
-const SERVER_COOLDOWN_PERIOD_MS = 600000;
+// Server-side cooldown period in milliseconds - DISABLED for testing (was 600000 - 10 minutes)
+const SERVER_COOLDOWN_PERIOD_MS = 0;
 
 /**
  * Checks if a share link is in cooldown period based on the server timestamp
@@ -145,8 +144,9 @@ export const isInServerCooldown = async (shareKey: string): Promise<boolean> => 
     const currentTime = Date.now();
     const timeSinceLastPlay = currentTime - lastPlayedTime;
     
-    console.log('Time since last play:', timeSinceLastPlay, 'ms, Cooldown period:', SERVER_COOLDOWN_PERIOD_MS, 'ms');
-    return timeSinceLastPlay < SERVER_COOLDOWN_PERIOD_MS;
+    console.log('Time since last play:', timeSinceLastPlay, 'ms, Cooldown period DISABLED for testing');
+    // Always return false since cooldown is disabled
+    return false;
   } catch (error) {
     console.error('Error in isInServerCooldown:', error);
     return false;
@@ -162,12 +162,8 @@ export const incrementPlayCount = async (shareKey: string): Promise<boolean> => 
   try {
     console.log('Incrementing play count for share key:', shareKey);
     
-    // Check if we're in server cooldown period first
-    const inCooldown = await isInServerCooldown(shareKey);
-    if (inCooldown) {
-      console.log('Share link is in server cooldown period, not incrementing count');
-      return false;
-    }
+    // Always skip the cooldown check for testing purposes
+    console.log('Server cooldown check DISABLED for testing');
     
     const { data: link, error: fetchError } = await supabase
       .from('share_links')
