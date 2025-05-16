@@ -73,8 +73,7 @@ const uploadWithProgress = async (
     
     // Create a controller to abort if needed
     const controller = new AbortController();
-    const { signal } = controller;
-
+    
     // Calculate file size in MB for logging
     const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
     console.log(`uploadService - Beginning upload of ${fileSizeMB}MB file to ${bucketName}/${uniquePath}`);
@@ -122,12 +121,15 @@ const uploadWithProgress = async (
     startProgressTracking();
     
     // Attempt the upload using Supabase's direct upload
+    // Note: We're using only the properties that FileOptions supports
     supabase.storage
       .from(bucketName)
       .upload(uniquePath, file, {
-        signal,
-        duplex: 'half',
+        // Remove the signal property which is causing the TypeScript error
+        // The controller is still useful for our local timeout handling
         cacheControl: '3600',
+        duplex: 'half', 
+        // Pass additional file options that are valid in the type
       })
       .then(({ data, error }) => {
         if (error) {
