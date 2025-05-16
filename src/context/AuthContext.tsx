@@ -14,7 +14,7 @@ interface AuthContextType {
   refreshSession: () => Promise<void>;
   isAuthenticated: boolean;
   updateUsername: (username: string) => Promise<void>;
-  updatePassword: (password: string) => Promise<void>;
+  updatePassword: (newPassword: string, currentPassword: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
 }
 
@@ -113,13 +113,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Add password update function
-  const updatePassword = async (password: string) => {
+  // Update password update function to require current password
+  const updatePassword = async (newPassword: string, currentPassword: string) => {
     try {
       console.log("AuthProvider - Updating password");
+
+      if (!user || !user.email) {
+        throw new Error("No user email found");
+      }
+
+      // First verify the current password by attempting a sign-in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
       
+      if (signInError) {
+        throw new Error("Current password is incorrect");
+      }
+      
+      // Then update to the new password
       const { error } = await supabase.auth.updateUser({
-        password
+        password: newPassword
       });
       
       if (error) throw error;
@@ -131,11 +146,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return Promise.resolve();
     } catch (error: any) {
       console.error("AuthProvider - Password update error:", error.message);
-      toast({
-        title: "Error updating password",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Don't show toast here, pass the error to the component
       return Promise.reject(error);
     }
   };

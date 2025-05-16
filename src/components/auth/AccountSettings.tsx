@@ -19,6 +19,7 @@ const AccountSettings = () => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   
   const [isDeleting, setIsDeleting] = useState(false);
@@ -61,31 +62,35 @@ const AccountSettings = () => {
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPasswordError("");
+    
+    if (!currentPassword) {
+      setPasswordError("Current password is required");
+      return;
+    }
     
     if (newPassword !== confirmPassword) {
-      toast({
-        title: "Passwords do not match",
-        variant: "destructive",
-      });
+      setPasswordError("New passwords do not match");
       return;
     }
     
     if (newPassword.length < 6) {
-      toast({
-        title: "Password must be at least 6 characters long",
-        variant: "destructive",
-      });
+      setPasswordError("New password must be at least 6 characters long");
       return;
     }
     
     setIsUpdatingPassword(true);
     try {
-      await updatePassword(newPassword);
+      await updatePassword(newPassword, currentPassword);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (error) {
+      toast({
+        title: "Password updated successfully",
+      });
+    } catch (error: any) {
       console.error("Error updating password:", error);
+      setPasswordError(error.message || "Failed to update password");
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -153,6 +158,17 @@ const AccountSettings = () => {
           <CardContent>
             <div className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="current-password">Current Password</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  placeholder="Enter current password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  disabled={isUpdatingPassword}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="new-password">New Password</Label>
                 <Input
                   id="new-password"
@@ -174,12 +190,15 @@ const AccountSettings = () => {
                   disabled={isUpdatingPassword}
                 />
               </div>
+              {passwordError && (
+                <p className="text-sm text-red-500">{passwordError}</p>
+              )}
             </div>
           </CardContent>
           <CardFooter>
             <Button 
               type="submit" 
-              disabled={!newPassword || !confirmPassword || isUpdatingPassword}
+              disabled={!currentPassword || !newPassword || !confirmPassword || isUpdatingPassword}
             >
               {isUpdatingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update Password
