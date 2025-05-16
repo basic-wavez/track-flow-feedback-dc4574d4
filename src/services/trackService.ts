@@ -19,3 +19,8 @@ export {
   requestTrackProcessing,
   getTrackProcessingStatus
 } from './trackProcessingService';
+
+// Add the new track deletion service
+export {
+  deleteTrack
+} from './trackDeletionService';

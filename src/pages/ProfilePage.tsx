@@ -7,14 +7,24 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { getUserTracks } from "@/services/trackService";
+import { getUserTracks, deleteTrack } from "@/services/trackService";
 import { formatDistanceToNow } from "date-fns";
-import { Clock, ExternalLink, Share2, Music, MessageSquare, Settings } from "lucide-react";
+import { Clock, ExternalLink, Share2, Music, MessageSquare, Settings, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { TrackData } from "@/types/track";
 import { supabase } from "@/integrations/supabase/client";
 import AccountSettings from "@/components/auth/AccountSettings";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface FeedbackSummary {
   id: string;
@@ -34,6 +44,10 @@ const ProfilePage = () => {
   const [feedback, setFeedback] = useState<FeedbackSummary[]>([]);
   const [activeTab, setActiveTab] = useState("tracks");
   const [feedbackCounts, setFeedbackCounts] = useState<Record<string, number>>({});
+  
+  // New state for track deletion
+  const [trackToDelete, setTrackToDelete] = useState<TrackData | null>(null);
+  const [isDeletingTrack, setIsDeletingTrack] = useState(false);
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -154,6 +168,44 @@ const ProfilePage = () => {
           variant: "destructive",
         });
       });
+  };
+  
+  // New function to handle track deletion
+  const handleDeleteTrack = async () => {
+    if (!trackToDelete) return;
+    
+    setIsDeletingTrack(true);
+    try {
+      const success = await deleteTrack(trackToDelete.id);
+      
+      if (success) {
+        // Remove the track from local state
+        setTracks(tracks.filter(track => track.id !== trackToDelete.id));
+        
+        // Show success message
+        toast({
+          title: "Track Deleted",
+          description: `"${trackToDelete.title}" has been permanently deleted.`,
+        });
+      } else {
+        // Show error message
+        toast({
+          title: "Deletion Failed",
+          description: "There was a problem deleting your track. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error during track deletion:", error);
+      toast({
+        title: "Deletion Error",
+        description: "An unexpected error occurred. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingTrack(false);
+      setTrackToDelete(null); // Close dialog
+    }
   };
   
   if (!user) {
@@ -282,6 +334,15 @@ const ProfilePage = () => {
                                   <Share2 className="h-4 w-4" />
                                   Share
                                 </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="flex gap-2 items-center text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                  onClick={() => setTrackToDelete(track)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -374,6 +435,41 @@ const ProfilePage = () => {
           </Tabs>
         </div>
       </main>
+      
+      {/* Track Delete Confirmation Dialog */}
+      <AlertDialog open={!!trackToDelete} onOpenChange={(open) => !open && setTrackToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Track</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{trackToDelete?.title}"? This action cannot be undone.
+              <p className="mt-2 text-destructive">
+                All feedback associated with this track will also be permanently deleted.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingTrack}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault(); // Prevent the default close behavior
+                handleDeleteTrack();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeletingTrack}
+            >
+              {isDeletingTrack ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                  Deleting...
+                </>
+              ) : (
+                'Delete Track'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <Footer />
     </div>
