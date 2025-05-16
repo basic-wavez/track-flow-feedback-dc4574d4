@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,6 +100,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (error) throw error;
       
+      // Only show toast if no error occurred
       toast({
         title: "Username updated successfully",
       });
@@ -106,11 +108,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return Promise.resolve();
     } catch (error: any) {
       console.error("AuthProvider - Username update error:", error.message);
-      toast({
-        title: "Error updating username",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Don't show toast here, pass the error to the component
       return Promise.reject(error);
     }
   };

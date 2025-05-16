@@ -13,6 +13,7 @@ const AccountSettings = () => {
   const { user, updateUsername, updatePassword, deleteAccount } = useAuth();
   const { toast } = useToast();
   const [username, setUsername] = useState("");
+  const [usernameError, setUsernameError] = useState("");
   const [isUpdatingUsername, setIsUpdatingUsername] = useState(false);
   
   const [currentPassword, setCurrentPassword] = useState("");
@@ -25,24 +26,36 @@ const AccountSettings = () => {
   const handleUsernameUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) {
-      toast({
-        title: "Username cannot be empty",
-        variant: "destructive",
-      });
+      setUsernameError("Username cannot be empty");
       return;
     }
     
     setIsUpdatingUsername(true);
+    setUsernameError("");
     try {
       await updateUsername(username);
       setUsername("");
       toast({
         title: "Username updated successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating username:", error);
+      // Check for duplicate username error
+      if (error.message?.includes("duplicate key")) {
+        setUsernameError("Username is already taken. Please choose a different one.");
+      } else {
+        setUsernameError(error.message || "Failed to update username");
+      }
     } finally {
       setIsUpdatingUsername(false);
+    }
+  };
+
+  // Clear error on input change
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUsername(e.target.value);
+    if (usernameError) {
+      setUsernameError("");
     }
   };
 
@@ -109,9 +122,13 @@ const AccountSettings = () => {
                   id="username"
                   placeholder="Enter new username"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={handleUsernameChange}
                   disabled={isUpdatingUsername}
+                  className={usernameError ? "border-red-500" : ""}
                 />
+                {usernameError && (
+                  <p className="text-sm text-red-500 mt-1">{usernameError}</p>
+                )}
               </div>
             </div>
           </CardContent>
