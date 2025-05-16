@@ -13,6 +13,11 @@ import NewVersionPage from './pages/NewVersionPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import CookiePolicyPage from './pages/CookiePolicyPage';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
+import FAQPage from './pages/FAQPage';
+import BugReportPage from './pages/BugReportPage';
+import CookieConsent from './components/CookieConsent';
 
 // Create a client
 const queryClient = new QueryClient();
@@ -33,13 +38,20 @@ function App() {
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/track/:trackId/version" element={<ProtectedRoute><NewVersionPage /></ProtectedRoute>} />
             
-            {/* Legal pages */}
+            {/* Legal & Information pages */}
             <Route path="/terms" element={<TermsOfServicePage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/cookies" element={<CookiePolicyPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            
+            {/* Support pages */}
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/faq" element={<FAQPage />} />
+            <Route path="/bug-report" element={<BugReportPage />} />
             
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <CookieConsent />
           <Toaster />
         </Router>
       </AuthProvider>
