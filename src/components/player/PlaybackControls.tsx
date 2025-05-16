@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface PlaybackControlsProps {
   isPlaying: boolean;
@@ -28,6 +29,7 @@ const PlaybackControls = ({
   onVolumeChange,
   onToggleMute
 }: PlaybackControlsProps) => {
+  const isMobile = useIsMobile();
   
   const formatTime = (time: number) => {
     // Handle invalid time values
@@ -61,24 +63,26 @@ const PlaybackControls = ({
         {formatTime(currentTime)} / {formatTime(duration)}
       </div>
       
-      <div className="flex items-center ml-auto gap-2">
-        <Button 
-          size="icon" 
-          variant="ghost" 
-          onClick={onToggleMute}
-          className="text-gray-400 hover:text-white hover:bg-transparent"
-        >
-          {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-        </Button>
-        <Slider
-          min={0}
-          max={1}
-          step={0.01}
-          value={[volume]}
-          onValueChange={(value) => onVolumeChange(value[0])}
-          className="w-24"
-        />
-      </div>
+      {!isMobile && (
+        <div className="flex items-center ml-auto gap-2">
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            onClick={onToggleMute}
+            className="text-gray-400 hover:text-white hover:bg-transparent"
+          >
+            {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </Button>
+          <Slider
+            min={0}
+            max={1}
+            step={0.01}
+            value={[volume]}
+            onValueChange={(value) => onVolumeChange(value[0])}
+            className="w-24"
+          />
+        </div>
+      )}
     </div>
   );
 };
