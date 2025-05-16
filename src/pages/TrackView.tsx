@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -31,34 +30,6 @@ const TrackView = () => {
 
   // Determine if we're on a share link route by checking the URL pattern
   const isShareRoute = location.pathname.startsWith('/track/share/');
-  
-  // Extract parameters based on route type
-  let trackId = params.trackId;
-  let shareKey: string | undefined;
-  
-  // Direct extraction from URL for share routes
-  if (isShareRoute) {
-    // The shareKey is the last part of the path for share routes
-    const pathParts = location.pathname.split('/');
-    shareKey = pathParts[pathParts.length - 1];
-    
-    // In case the URL has a trailing slash
-    if (shareKey === '') {
-      shareKey = pathParts[pathParts.length - 2];
-    }
-    
-    console.log("Extracted share key directly from URL path:", shareKey);
-    setCurrentShareKey(shareKey);
-  }
-
-  console.log("TrackView Route Info:", { 
-    pathname: location.pathname,
-    isShareRoute,
-    rawParams: params,
-    extractedTrackId: trackId,
-    extractedShareKey: shareKey,
-    fullPath: location.pathname
-  });
 
   useEffect(() => {
     const loadTrack = async () => {
@@ -66,6 +37,26 @@ const TrackView = () => {
       setError(null);
       
       try {
+        // Extract parameters based on route type
+        let trackId = params.trackId;
+        let shareKey: string | undefined;
+        
+        // For share routes, extract the share key from the URL pathname
+        if (isShareRoute) {
+          const pathParts = location.pathname.split('/');
+          shareKey = pathParts[pathParts.length - 1];
+          
+          // In case the URL has a trailing slash
+          if (shareKey === '') {
+            shareKey = pathParts[pathParts.length - 2];
+          }
+          
+          console.log("Extracted share key directly from URL path:", shareKey);
+          
+          // Important: Set share key in state INSIDE useEffect, not during render
+          setCurrentShareKey(shareKey);
+        }
+        
         console.log("TrackView loading with params:", { trackId, shareKey, isShareRoute });
         let actualTrackId = trackId;
         
@@ -74,9 +65,6 @@ const TrackView = () => {
           console.log("Loading track by share key:", shareKey);
           actualTrackId = await getTrackIdByShareKey(shareKey);
           console.log("Resolved trackId from shareKey:", actualTrackId);
-          
-          // Set the currentShareKey for use in the player
-          setCurrentShareKey(shareKey);
           
           if (!actualTrackId) {
             console.error("No track ID found for share key:", shareKey);
@@ -122,7 +110,10 @@ const TrackView = () => {
     };
 
     loadTrack();
-  }, [trackId, shareKey, user, isShareRoute, location.pathname]);
+  }, [trackId, isShareRoute, user, location.pathname, params.trackId]);
+
+  // Check if share key is in cooldown period
+  const inCooldownPeriod = currentShareKey ? isInCooldownPeriod(currentShareKey) : false;
 
   if (isLoading) {
     return <TrackLoading />;
@@ -134,9 +125,6 @@ const TrackView = () => {
 
   // Use the original filename for display - this keeps hyphens and original capitalization
   const displayName = trackData.title;
-
-  // Check if share key is in cooldown period
-  const inCooldownPeriod = shareKey ? isInCooldownPeriod(shareKey) : false;
 
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
