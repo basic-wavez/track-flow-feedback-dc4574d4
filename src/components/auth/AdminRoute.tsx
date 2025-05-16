@@ -8,32 +8,54 @@ interface AdminRouteProps {
 }
 
 const AdminRoute = ({ children }: AdminRouteProps) => {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, loading, refreshSession } = useAuth();
   const location = useLocation();
   const [authChecked, setAuthChecked] = useState(false);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
+  
+  useEffect(() => {
+    // Refresh session to ensure we have the latest admin status
+    const checkAuth = async () => {
+      setIsCheckingAdmin(true);
+      try {
+        if (user) {
+          await refreshSession();
+        }
+      } catch (err) {
+        console.error("Failed to refresh session:", err);
+      } finally {
+        setIsCheckingAdmin(false);
+      }
+    };
+    
+    if (!loading) {
+      checkAuth();
+    }
+  }, [user, loading, refreshSession]);
   
   useEffect(() => {
     // Debug logging to help troubleshoot auth state issues
     console.log("AdminRoute - Auth state:", { 
       user: user ? `User: ${user.email}` : "No user",
       isAdmin, 
-      loading, 
+      loading,
+      isCheckingAdmin,
       path: location.pathname,
       authChecked
     });
     
-    // Only set authChecked after loading is complete
-    if (!loading) {
+    // Only set authChecked after all loading is complete
+    if (!loading && !isCheckingAdmin) {
       setAuthChecked(true);
     }
-  }, [user, isAdmin, loading, location, authChecked]);
+  }, [user, isAdmin, loading, isCheckingAdmin, location, authChecked]);
   
-  if (loading) {
+  if (loading || isCheckingAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-4 border-wip-pink border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p>Loading...</p>
+          <p>Checking admin permissions...</p>
         </div>
       </div>
     );

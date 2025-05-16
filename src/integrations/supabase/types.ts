@@ -247,6 +247,17 @@ export type Database = {
           count: number
         }[]
       }
+      get_user_details_for_admin: {
+        Args: { user_id: string }
+        Returns: Json
+      }
+      get_user_emails_for_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          email: string
+        }[]
+      }
       get_user_registrations_by_date: {
         Args: { days_back?: number }
         Returns: {

@@ -8,29 +8,57 @@ import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, RefreshCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<string>("users");
-  const { isAdmin, loading } = useAuth();
+  const { isAdmin, loading, user, refreshSession } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  // Verify admin status on mount
+  useEffect(() => {
+    const verifyAdmin = async () => {
+      try {
+        await refreshSession();
+        console.log("AdminDashboard - Refreshed session, isAdmin:", isAdmin);
+      } catch (err) {
+        console.error("AdminDashboard - Error refreshing session:", err);
+        setHasError(true);
+        setErrorMessage("Failed to verify admin privileges");
+      }
+    };
+    
+    if (user && !loading) {
+      verifyAdmin();
+    }
+  }, [user, loading, refreshSession, isAdmin]);
   
   // Extra safety check - if user is not admin, redirect
   useEffect(() => {
     console.log("AdminDashboard - Mounted, isAdmin:", isAdmin, "loading:", loading);
     
-    if (isAdmin === false) {
+    if (isAdmin === false && !loading) {
       console.log("AdminDashboard - Not admin, redirecting");
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to access the admin dashboard.",
+        variant: "destructive"
+      });
       navigate("/");
     }
-  }, [isAdmin, navigate, loading]);
+  }, [isAdmin, navigate, loading, toast]);
 
   // Add an error boundary
   useEffect(() => {
     const handleErrors = (error: ErrorEvent) => {
       console.error("AdminDashboard - Caught error:", error.message);
       setHasError(true);
+      setErrorMessage(error.message || "There was a problem loading the admin dashboard.");
       toast({
         title: "An error occurred",
         description: "There was a problem loading the admin dashboard.",
@@ -41,6 +69,12 @@ const AdminDashboard = () => {
     window.addEventListener('error', handleErrors);
     return () => window.removeEventListener('error', handleErrors);
   }, [toast]);
+
+  const handleRetry = () => {
+    setHasError(false);
+    setErrorMessage(null);
+    window.location.reload();
+  };
 
   if (loading) {
     return (
@@ -63,10 +97,16 @@ const AdminDashboard = () => {
         <Header />
         <main className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full">
           <h1 className="text-3xl font-bold mb-2 text-white">Admin Dashboard</h1>
-          <div className="bg-red-500/10 border border-red-500/50 rounded-md p-4 text-white">
-            <h2 className="text-xl font-semibold mb-2">Error Loading Dashboard</h2>
-            <p>There was a problem loading the admin dashboard. Please try again later or contact support.</p>
-          </div>
+          <Alert variant="destructive" className="my-4">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            <AlertTitle>Error Loading Dashboard</AlertTitle>
+            <AlertDescription>
+              {errorMessage || "There was a problem loading the admin dashboard. Please try again."}
+            </AlertDescription>
+            <Button onClick={handleRetry} className="mt-4" variant="outline" size="sm">
+              <RefreshCcw className="mr-2 h-4 w-4" /> Try Again
+            </Button>
+          </Alert>
         </main>
         <Footer />
       </div>
