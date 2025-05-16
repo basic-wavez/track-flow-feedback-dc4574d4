@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import AudioUploader from "@/components/AudioUploader";
@@ -27,7 +26,8 @@ const Index = () => {
     console.log("Index - Initial auth state:", { 
       isAuthenticated: !!user, 
       userId: user?.id,
-      email: user?.email
+      email: user?.email,
+      path: window.location.pathname
     });
     
     // Ensure we have the latest auth state
@@ -42,7 +42,8 @@ const Index = () => {
       isAuthenticated: !!user, 
       userId: user?.id,
       email: user?.email,
-      isAuthModalOpen
+      isAuthModalOpen,
+      path: window.location.pathname
     });
   }, [user, isAuthModalOpen]);
   
@@ -77,7 +78,8 @@ const Index = () => {
     // Double-check current auth state before opening modal
     await refreshSession();
     
-    console.log("Index - Auth required check:", { 
+    // Check again after refresh to make sure we have the most current state
+    console.log("Index - Auth required check after refresh:", { 
       isAuthenticated: !!user, 
       willOpenModal: !user 
     });

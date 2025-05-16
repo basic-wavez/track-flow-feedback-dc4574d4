@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -15,6 +14,7 @@ interface AudioUploaderProps {
 }
 
 const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps) => {
+  
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -60,6 +60,13 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
       // Refresh the session to ensure we have the latest auth state
       await refreshSession();
       
+      // Log the current authentication state after refresh
+      console.log("AudioUploader - Auth check result:", {
+        isAuthenticated: !!user,
+        userId: user?.id,
+        email: user?.email
+      });
+      
       // If after refresh we still don't have a user, trigger auth modal
       if (!user) {
         console.log("AudioUploader - User not authenticated, showing auth modal");
@@ -98,6 +105,13 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
         return;
       }
 
+      // Check authentication before proceeding further
+      const isAuthenticated = await checkAuthBeforeUpload();
+      if (!isAuthenticated) {
+        console.log("AudioUploader - Authentication check failed, stopping upload process");
+        return;
+      }
+
       setFile(file);
       setUploading(true);
 
@@ -105,13 +119,6 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
       if (file.type === 'audio/mpeg') {
         setShowQualityWarning(true);
         return; // Don't proceed until user confirms
-      }
-
-      // Check authentication before proceeding with upload
-      const isAuthenticated = await checkAuthBeforeUpload();
-      if (!isAuthenticated) {
-        setUploading(false);
-        return;
       }
 
       await uploadFile(file);
@@ -175,16 +182,38 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     e.preventDefault();
     setIsDragging(false);
     
+    console.log("AudioUploader - Drop event detected, checking authentication");
+    
+    // Check authentication first before processing the upload
+    const isAuthenticated = await checkAuthBeforeUpload();
+    if (!isAuthenticated) {
+      console.log("AudioUploader - Auth check failed during drop, not processing file");
+      return;
+    }
+    
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      console.log("AudioUploader - Auth check passed, processing dropped file");
       processUpload(e.dataTransfer.files[0]);
     }
-  }, []);
+  }, [checkAuthBeforeUpload]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
+      console.log("AudioUploader - File selected through button, checking authentication");
+      
+      // Check authentication first before processing the upload
+      const isAuthenticated = await checkAuthBeforeUpload();
+      if (!isAuthenticated) {
+        console.log("AudioUploader - Auth check failed for button selection, not processing file");
+        return;
+      }
+      
+      console.log("AudioUploader - Auth check passed, processing selected file");
       processUpload(e.target.files[0]);
     }
   };
+
+  
 
   const handleUploadClick = () => {
     if (fileInputRef.current) {
@@ -209,6 +238,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     setUploading(false);
     setProgress(0);
   };
+  
   
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -252,6 +282,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
           </div>
         </div>
       ) : uploadError ? (
+        
         <div className="border border-red-600 bg-red-600/20 rounded-lg p-8">
           <h3 className="text-xl font-semibold mb-4 text-red-400">❌ Upload Failed</h3>
           <Alert variant="destructive" className="mb-4">
@@ -270,6 +301,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
           </Button>
         </div>
       ) : showQualityWarning ? (
+        
         <div className="border border-yellow-600 bg-yellow-600/20 rounded-lg p-8">
           <h3 className="text-xl font-semibold mb-4 text-yellow-400">⚠️ Quality Warning</h3>
           <p className="mb-4">
@@ -297,6 +329,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
           </div>
         </div>
       ) : (
+        
         <div className="border border-wip-gray bg-wip-gray/20 rounded-lg p-8">
           <h3 className="text-xl font-semibold mb-4">Processing Your Track</h3>
           <p className="mb-4 text-gray-400">

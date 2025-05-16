@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +11,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  isAuthenticated: boolean; // Add explicit authenticated state
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,6 +20,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Explicit auth state
   const { toast } = useToast();
 
   useEffect(() => {
@@ -37,6 +38,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Update auth state synchronously
         setSession(session);
         setUser(session?.user ?? null);
+        setIsAuthenticated(!!session?.user); // Update explicit auth state
       }
     );
 
@@ -50,6 +52,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       setSession(session);
       setUser(session?.user ?? null);
+      setIsAuthenticated(!!session?.user); // Update explicit auth state
       setLoading(false);
     });
 
@@ -70,6 +73,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       setSession(session);
       setUser(session?.user ?? null);
+      setIsAuthenticated(!!session?.user); // Update explicit auth state
       return Promise.resolve();
     } catch (error) {
       console.error("AuthProvider - Error refreshing session:", error);
@@ -77,6 +81,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  
   const signUp = async (email: string, password: string, username: string) => {
     try {
       console.log("AuthProvider - Attempting signup for:", email);
@@ -144,6 +149,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear local state
       setUser(null);
       setSession(null);
+      setIsAuthenticated(false); // Update explicit auth state
       
       toast({
         title: "Signed out successfully",
@@ -167,6 +173,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signIn,
     signOut,
     refreshSession,
+    isAuthenticated, // Add to context value
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
