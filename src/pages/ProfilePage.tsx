@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { getUserTracks } from "@/services/trackService";
 import { formatDistanceToNow } from "date-fns";
-import { Music, MessageSquare, Clock } from "lucide-react";
+import { Clock, ExternalLink, Share2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { TrackData } from "@/types/track";
@@ -32,6 +33,7 @@ const ProfilePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<FeedbackSummary[]>([]);
   const [activeTab, setActiveTab] = useState("tracks");
+  const [feedbackCounts, setFeedbackCounts] = useState<Record<string, number>>({});
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -63,6 +65,16 @@ const ProfilePage = () => {
           if (error) {
             throw error;
           }
+          
+          // Count feedback per track
+          const counts: Record<string, number> = {};
+          feedbackData.forEach(item => {
+            if (!counts[item.track_id]) {
+              counts[item.track_id] = 0;
+            }
+            counts[item.track_id]++;
+          });
+          setFeedbackCounts(counts);
           
           // Process feedback data to create summaries
           const feedbackByTrack = feedbackData.reduce((acc, item) => {
@@ -121,12 +133,27 @@ const ProfilePage = () => {
     }
   }, [user, toast]);
   
-  const handleViewTrack = (trackId: string) => {
+  const handleOpenTrack = (trackId: string) => {
     navigate(`/track/${trackId}`);
   };
   
-  const handleViewFeedback = (trackId: string) => {
-    navigate(`/feedback/${trackId}`);
+  const handleShareTrack = (trackId: string) => {
+    const shareUrl = `${window.location.origin}/track/${trackId}`;
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => {
+        toast({
+          title: "Link Copied",
+          description: "Track link copied to clipboard!",
+        });
+      })
+      .catch(err => {
+        console.error("Could not copy link:", err);
+        toast({
+          title: "Copy Failed",
+          description: "Could not copy link to clipboard.",
+          variant: "destructive",
+        });
+      });
   };
   
   if (!user) {
@@ -213,6 +240,7 @@ const ProfilePage = () => {
                           <TableHead>Title</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Uploaded</TableHead>
+                          <TableHead>Feedback</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -234,19 +262,29 @@ const ProfilePage = () => {
                               </div>
                             </TableCell>
                             <TableCell>
+                              <Badge variant="outline">
+                                {feedbackCounts[track.id] || 0} {feedbackCounts[track.id] === 1 ? 'review' : 'reviews'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
                               <div className="flex gap-2">
                                 <Button 
-                                  size="sm" 
-                                  onClick={() => handleViewTrack(track.id)}
+                                  size="sm"
+                                  variant="outline"
+                                  className="flex gap-2 items-center"
+                                  onClick={() => handleOpenTrack(track.id)}
                                 >
-                                  Play
+                                  <ExternalLink className="h-4 w-4" />
+                                  Open
                                 </Button>
                                 <Button 
                                   variant="outline" 
                                   size="sm"
-                                  onClick={() => handleViewFeedback(track.id)}
+                                  className="flex gap-2 items-center"
+                                  onClick={() => handleShareTrack(track.id)}
                                 >
-                                  Feedback
+                                  <Share2 className="h-4 w-4" />
+                                  Share
                                 </Button>
                               </div>
                             </TableCell>
