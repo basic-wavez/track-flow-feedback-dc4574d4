@@ -34,11 +34,19 @@ export const createShareLink = async (trackId: string, name: string): Promise<Sh
       throw new Error('You have reached the maximum number of 10 share links for this track.');
     }
     
+    // Get the current user's ID from Supabase auth
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+    
     const { data, error } = await supabase
       .from('share_links')
       .insert({
         track_id: trackId,
-        name: name
+        name: name,
+        user_id: user.id
       })
       .select('*')
       .single();

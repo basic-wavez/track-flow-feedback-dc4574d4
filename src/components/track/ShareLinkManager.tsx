@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Share2, Copy, Trash2, Plus, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -207,7 +206,7 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
               <TableRow key={link.id}>
                 <TableCell className="font-medium">{link.name}</TableCell>
                 <TableCell>
-                  <Badge variant={link.play_count > 0 ? "yellow" : "outline"}>
+                  <Badge variant={link.play_count > 0 ? "warning" : "outline"}>
                     {link.play_count} {link.play_count === 1 ? 'play' : 'plays'}
                   </Badge>
                 </TableCell>
