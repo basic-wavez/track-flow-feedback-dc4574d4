@@ -22,7 +22,9 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
   const [showQualityWarning, setShowQualityWarning] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(false);
+  const [dragEvents, setDragEvents] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user, refreshSession } = useAuth();
   
@@ -38,20 +40,63 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     });
   }, [user]);
 
+  // Add effect to monitor drag event debug info
+  useEffect(() => {
+    if (dragEvents.length > 0) {
+      console.log("AudioUploader - Recent drag events:", dragEvents);
+    }
+  }, [dragEvents]);
+
+  // Helper function to log drag events
+  const logDragEvent = useCallback((eventName: string) => {
+    setDragEvents(prev => {
+      const updated = [...prev, `${eventName} at ${new Date().toISOString()}`];
+      // Keep only the last 5 events
+      return updated.slice(Math.max(updated.length - 5, 0));
+    });
+  }, []);
+
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setIsDragging(true);
-  }, []);
+    e.stopPropagation();
+    logDragEvent('dragOver');
+    console.log("AudioUploader - Drag over event detected");
+    if (!isDragging) {
+      setIsDragging(true);
+    }
+  }, [isDragging, logDragEvent]);
 
   const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+    logDragEvent('dragEnter');
+    console.log("AudioUploader - Drag enter event detected");
     setIsDragging(true);
-  }, []);
+  }, [logDragEvent]);
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setIsDragging(false);
-  }, []);
+    e.stopPropagation();
+    logDragEvent('dragLeave');
+    console.log("AudioUploader - Drag leave event detected");
+    
+    // Check if the drag leave event is leaving the drop zone
+    // and not just entering a child element
+    const rect = dropZoneRef.current?.getBoundingClientRect();
+    if (rect) {
+      const { clientX, clientY } = e;
+      if (
+        clientX < rect.left ||
+        clientX >= rect.right ||
+        clientY < rect.top ||
+        clientY >= rect.bottom
+      ) {
+        setIsDragging(false);
+      }
+    } else {
+      setIsDragging(false);
+    }
+  }, [logDragEvent]);
 
   const checkAuthBeforeUpload = async () => {
     setCheckingAuth(true);
@@ -180,9 +225,11 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
 
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
     
-    console.log("AudioUploader - Drop event detected, checking authentication");
+    logDragEvent('drop');
+    console.log("AudioUploader - Drop event detected with files:", e.dataTransfer.files.length);
     
     // Check authentication first before processing the upload
     const isAuthenticated = await checkAuthBeforeUpload();
@@ -192,10 +239,10 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     }
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      console.log("AudioUploader - Auth check passed, processing dropped file");
+      console.log("AudioUploader - Auth check passed, processing dropped file:", e.dataTransfer.files[0].name);
       processUpload(e.dataTransfer.files[0]);
     }
-  }, [checkAuthBeforeUpload]);
+  }, [checkAuthBeforeUpload, logDragEvent, processUpload]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -239,12 +286,37 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     setProgress(0);
   };
   
+  // Add an effect to set up global drag-and-drop event handlers
+  useEffect(() => {
+    // Prevent default behavior to ensure our handlers work properly
+    const preventDefaults = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // Add global event handlers
+    window.addEventListener('dragenter', preventDefaults, false);
+    window.addEventListener('dragover', preventDefaults, false);
+    window.addEventListener('dragleave', preventDefaults, false);
+    window.addEventListener('drop', preventDefaults, false);
+
+    console.log("AudioUploader - Global drag event listeners added");
+
+    return () => {
+      // Remove global event handlers on cleanup
+      window.removeEventListener('dragenter', preventDefaults);
+      window.removeEventListener('dragover', preventDefaults);
+      window.removeEventListener('dragleave', preventDefaults);
+      window.removeEventListener('drop', preventDefaults);
+    };
+  }, []);
   
   return (
     <div className="w-full max-w-2xl mx-auto">
       {!uploading && !showQualityWarning && !uploadError ? (
         <div
-          className={`border-2 border-dashed rounded-lg p-12 transition-all ${
+          ref={dropZoneRef}
+          className={`border-2 border-dashed rounded-lg p-12 transition-all cursor-pointer ${
             isDragging 
               ? "border-wip-pink bg-wip-pink/10" 
               : "border-gray-600 hover:border-wip-pink hover:bg-wip-pink/5"
@@ -253,10 +325,14 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          onClick={handleUploadClick}
+          data-testid="dropzone"
         >
           <div className="flex flex-col items-center justify-center text-center">
-            <Upload className="h-16 w-16 mb-4 text-wip-pink animate-pulse-glow" />
-            <h3 className="text-xl font-semibold mb-2">Drag & Drop Your Track</h3>
+            <Upload className={`h-16 w-16 mb-4 text-wip-pink ${isDragging ? 'animate-bounce' : 'animate-pulse-glow'}`} />
+            <h3 className="text-xl font-semibold mb-2">
+              {isDragging ? "Drop Your Track Here" : "Drag & Drop Your Track"}
+            </h3>
             <p className="text-gray-400 mb-4">
               Upload your demo to get feedback
             </p>
@@ -343,6 +419,18 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
              progress < 90 ? "Uploading to server..." : 
              "Almost done..."}
           </p>
+        </div>
+      )}
+      
+      {/* Debug Info - only visible during development */}
+      {process.env.NODE_ENV === 'development' && dragEvents.length > 0 && (
+        <div className="mt-4 p-4 bg-gray-800 rounded text-xs">
+          <h4 className="font-semibold mb-2">Drag Event Log:</h4>
+          <ul>
+            {dragEvents.map((event, i) => (
+              <li key={i}>{event}</li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
