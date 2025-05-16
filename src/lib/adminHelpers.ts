@@ -16,12 +16,12 @@ export interface UserDetailsResult {
 export async function getUserEmails() {
   try {
     // Use the generic fetch to bypass TypeScript function name checking
-    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/rpc/get_user_emails_for_admin`, {
+    const response = await fetch(`https://qzykfyavenplpxpdnfxh.supabase.co/rest/v1/rpc/get_user_emails_for_admin`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': `${supabase.supabaseKey}`,
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'apikey': `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6eWtmeWF2ZW5wbHB4cGRuZnhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcyMzk3NjQsImV4cCI6MjA2MjgxNTc2NH0.fMRSARTizLWE04-zI1v70kwugmlOkM1uwbhYSOgGO4g`,
+        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6eWtmeWF2ZW5wbHB4cGRuZnhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcyMzk3NjQsImV4cCI6MjA2MjgxNTc2NH0.fMRSARTizLWE04-zI1v70kwugmlOkM1uwbhYSOgGO4g`
       },
     });
     
@@ -42,12 +42,12 @@ export async function getUserEmails() {
 export async function getUserDetails(userId: string) {
   try {
     // Use the generic fetch to bypass TypeScript function name checking
-    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/rpc/get_user_details_for_admin`, {
+    const response = await fetch(`https://qzykfyavenplpxpdnfxh.supabase.co/rest/v1/rpc/get_user_details_for_admin`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': `${supabase.supabaseKey}`,
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'apikey': `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6eWtmeWF2ZW5wbHB4cGRuZnhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcyMzk3NjQsImV4cCI6MjA2MjgxNTc2NH0.fMRSARTizLWE04-zI1v70kwugmlOkM1uwbhYSOgGO4g`,
+        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6eWtmeWF2ZW5wbHB4cGRuZnhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcyMzk3NjQsImV4cCI6MjA2MjgxNTc2NH0.fMRSARTizLWE04-zI1v70kwugmlOkM1uwbhYSOgGO4g`
       },
       body: JSON.stringify({
         user_id: userId
