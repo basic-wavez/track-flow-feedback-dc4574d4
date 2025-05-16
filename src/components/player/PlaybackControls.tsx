@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 
 interface PlaybackControlsProps {
   isPlaying: boolean;
@@ -69,13 +70,12 @@ const PlaybackControls = ({
         >
           {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
         </Button>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={volume}
-          onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+        <Slider
+          min={0}
+          max={1}
+          step={0.01}
+          value={[volume]}
+          onValueChange={(value) => onVolumeChange(value[0])}
           className="w-24"
         />
       </div>
