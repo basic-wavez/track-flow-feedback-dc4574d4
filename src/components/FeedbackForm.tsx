@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,6 +61,7 @@ const FeedbackForm = ({ trackId, trackName, onFeedbackSubmit, onLoginRequest }: 
         ]);
       
       if (error) {
+        console.error("Feedback submission error:", error);
         throw error;
       }
       
@@ -136,8 +136,6 @@ const FeedbackForm = ({ trackId, trackName, onFeedbackSubmit, onLoginRequest }: 
               </div>
               
               <div className="space-y-4">
-                {/* Removed the "Submit anonymously" checkbox */}
-                
                 <div className="space-y-2">
                   <Label htmlFor="guest-name" className="text-sm">Your Name</Label>
                   <Input

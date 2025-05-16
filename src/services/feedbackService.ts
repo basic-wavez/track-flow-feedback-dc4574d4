@@ -42,6 +42,7 @@ export const checkTrackHasFeedback = async (trackId: string): Promise<boolean> =
 
 /**
  * Submit feedback for a track
+ * Now supports both authenticated and guest submissions
  */
 export const submitFeedback = async (feedbackData: Omit<Feedback, 'id' | 'created_at'>): Promise<boolean> => {
   const { error } = await supabase
