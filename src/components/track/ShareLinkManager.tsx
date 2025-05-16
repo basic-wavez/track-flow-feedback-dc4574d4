@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from "react";
-import { Share2, Copy, Trash2, Plus, ExternalLink } from "lucide-react";
+import { Share2, Copy, Trash2, Plus, ExternalLink, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -50,7 +51,11 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [linkToDelete, setLinkToDelete] = useState<ShareLink | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
+
+  // Auto-refresh interval (every 30 seconds)
+  const AUTO_REFRESH_INTERVAL = 30000;
 
   const loadShareLinks = async () => {
     setIsLoading(true);
@@ -69,10 +74,36 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
     }
   };
 
+  // Manual refresh function
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadShareLinks();
+      toast({
+        title: "Refreshed",
+        description: "Share link data has been updated",
+      });
+    } catch (error) {
+      console.error("Error refreshing share links:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     if (trackId) {
       loadShareLinks();
     }
+    
+    // Set up auto-refresh interval
+    const intervalId = setInterval(() => {
+      if (trackId) {
+        loadShareLinks();
+      }
+    }, AUTO_REFRESH_INTERVAL);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(intervalId);
   }, [trackId]);
 
   const handleCreateLink = async () => {
@@ -169,14 +200,25 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">Share Links for "{trackTitle}"</h2>
-        <Button 
-          onClick={() => setIsCreateDialogOpen(true)} 
-          disabled={shareLinks.length >= MAX_LINKS}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Create Share Link
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleRefresh} 
+            variant="outline"
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+          <Button 
+            onClick={() => setIsCreateDialogOpen(true)} 
+            disabled={shareLinks.length >= MAX_LINKS}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Create Share Link
+          </Button>
+        </div>
       </div>
       
       <div className="mb-2">

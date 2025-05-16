@@ -116,6 +116,43 @@ export const getTrackIdByShareKey = async (shareKey: string): Promise<string | n
   }
 };
 
+// Server-side cooldown period in milliseconds (10 minutes)
+const SERVER_COOLDOWN_PERIOD_MS = 600000;
+
+/**
+ * Checks if a share link is in cooldown period based on the server timestamp
+ * @param shareKey The unique share key
+ * @returns Whether the share link is in cooldown period
+ */
+export const isInServerCooldown = async (shareKey: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('share_links')
+      .select('last_played_at')
+      .eq('share_key', shareKey)
+      .single();
+    
+    if (error || !data) {
+      console.error('Error checking cooldown period:', error);
+      return false;
+    }
+    
+    if (!data.last_played_at) {
+      return false; // Never played before
+    }
+    
+    const lastPlayedTime = new Date(data.last_played_at).getTime();
+    const currentTime = Date.now();
+    const timeSinceLastPlay = currentTime - lastPlayedTime;
+    
+    console.log('Time since last play:', timeSinceLastPlay, 'ms, Cooldown period:', SERVER_COOLDOWN_PERIOD_MS, 'ms');
+    return timeSinceLastPlay < SERVER_COOLDOWN_PERIOD_MS;
+  } catch (error) {
+    console.error('Error in isInServerCooldown:', error);
+    return false;
+  }
+};
+
 /**
  * Increments the play count for a share link
  * @param shareKey The unique share key
@@ -124,6 +161,13 @@ export const getTrackIdByShareKey = async (shareKey: string): Promise<string | n
 export const incrementPlayCount = async (shareKey: string): Promise<boolean> => {
   try {
     console.log('Incrementing play count for share key:', shareKey);
+    
+    // Check if we're in server cooldown period first
+    const inCooldown = await isInServerCooldown(shareKey);
+    if (inCooldown) {
+      console.log('Share link is in server cooldown period, not incrementing count');
+      return false;
+    }
     
     const { data: link, error: fetchError } = await supabase
       .from('share_links')
@@ -149,7 +193,7 @@ export const incrementPlayCount = async (shareKey: string): Promise<boolean> => 
       return false;
     }
     
-    console.log('Successfully incremented play count');
+    console.log('Successfully incremented play count to', link.play_count + 1);
     return true;
   } catch (error) {
     console.error('Error in incrementPlayCount:', error);

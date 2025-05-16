@@ -1,10 +1,11 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Waveform from "./Waveform";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import TrackHeader from "./player/TrackHeader";
 import PlaybackControls from "./player/PlaybackControls";
 import TrackActions from "./player/TrackActions";
+import { isInServerCooldown } from "@/services/trackShareService";
 
 interface TrackPlayerProps {
   trackId: string;
@@ -33,8 +34,24 @@ const TrackPlayer = ({
   shareKey,
   inCooldownPeriod = false
 }: TrackPlayerProps) => {
+  // Local states
+  const [serverCooldown, setServerCooldown] = useState(false);
+  const [playedRecently, setPlayedRecently] = useState(false);
+  
   // Determine which URL to use for playback - prefer MP3 if available
   const playbackUrl = mp3Url || audioUrl;
+  
+  // Check server cooldown on load
+  useEffect(() => {
+    const checkServerCooldown = async () => {
+      if (shareKey) {
+        const inCooldown = await isInServerCooldown(shareKey);
+        setServerCooldown(inCooldown);
+      }
+    };
+    
+    checkServerCooldown();
+  }, [shareKey]);
   
   // Use custom hook for audio playback
   const {
@@ -59,9 +76,29 @@ const TrackPlayer = ({
     shareKey 
   });
   
+  // Update playedRecently when a track finishes playing
+  useEffect(() => {
+    if (playbackState === 'paused' && currentTime > 0 && currentTime >= duration * 0.9) {
+      setPlayedRecently(true);
+      
+      // Check if we're now in server cooldown
+      if (shareKey) {
+        const checkServerCooldown = async () => {
+          const inCooldown = await isInServerCooldown(shareKey);
+          setServerCooldown(inCooldown);
+        };
+        
+        checkServerCooldown();
+      }
+    }
+  }, [playbackState, currentTime, duration, shareKey]);
+  
   // Check if we're using the MP3 version
   const usingMp3 = !!mp3Url;
   const isLoading = playbackState === 'loading';
+  
+  // Determine combined cooldown state
+  const isCooldown = inCooldownPeriod || serverCooldown;
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
@@ -120,9 +157,18 @@ const TrackPlayer = ({
         trackId={trackId}
       />
       
-      {inCooldownPeriod && shareKey && (
-        <div className="mt-4 text-xs text-gray-400 text-center">
-          Play count was recently updated for this track
+      {/* Show cooldown message with more detail */}
+      {shareKey && (
+        <div className="mt-4 text-xs text-center">
+          {isCooldown ? (
+            <div className="text-amber-400">
+              This track has been played recently. Play count will increment after the cooldown period (10 minutes).
+            </div>
+          ) : playedRecently ? (
+            <div className="text-green-400">
+              Play count has been incremented for this track.
+            </div>
+          ) : null}
         </div>
       )}
     </div>

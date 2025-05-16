@@ -1,5 +1,5 @@
 
-import { incrementPlayCount } from "./trackShareService";
+import { incrementPlayCount, isInServerCooldown } from "./trackShareService";
 
 interface PlayTracker {
   startTime: number;
@@ -18,7 +18,7 @@ const playTracker: PlayTracker = {
 
 // Constants
 const MIN_PLAY_DURATION_MS = 2000; // 2 seconds
-const COOLDOWN_PERIOD_MS = 600000; // 10 minutes
+const CLIENT_COOLDOWN_PERIOD_MS = 600000; // 10 minutes
 
 /**
  * Starts tracking play time for a track
@@ -59,18 +59,27 @@ export const endPlayTracking = async (): Promise<boolean> => {
     return false;
   }
   
-  // Check if we're still in cooldown period
+  // Check client-side cooldown first (to save server requests)
   if (playTracker.lastIncrementTime) {
     const timeSinceLastIncrement = Date.now() - playTracker.lastIncrementTime;
-    if (timeSinceLastIncrement < COOLDOWN_PERIOD_MS) {
-      console.log("Still in cooldown period, not incrementing count");
+    if (timeSinceLastIncrement < CLIENT_COOLDOWN_PERIOD_MS) {
+      console.log("Client-side cooldown period active, not incrementing count");
       return false;
     }
   }
   
-  // If we have a share key, increment the play count
+  // If we have a share key, check server-side cooldown and increment the play count
   if (playTracker.shareKey) {
     try {
+      // Double-check with server if we're actually in a cooldown period
+      // This catches cases where the play count was incremented from another browser/device
+      const inServerCooldown = await isInServerCooldown(playTracker.shareKey);
+      
+      if (inServerCooldown) {
+        console.log("Server-side cooldown period active, not incrementing count");
+        return false;
+      }
+      
       console.log("Incrementing play count for share key:", playTracker.shareKey);
       const success = await incrementPlayCount(playTracker.shareKey);
       
@@ -79,7 +88,10 @@ export const endPlayTracking = async (): Promise<boolean> => {
         const currentTime = Date.now();
         localStorage.setItem(`play_count_${playTracker.shareKey}`, currentTime.toString());
         playTracker.lastIncrementTime = currentTime;
+        console.log("Play count incremented successfully and local storage updated");
         return true;
+      } else {
+        console.log("Failed to increment play count on server");
       }
     } catch (error) {
       console.error("Error incrementing play count:", error);
@@ -100,14 +112,14 @@ export const cancelPlayTracking = (): void => {
 /**
  * Check if a track should increment play count based on local storage
  * @param shareKey Share key to check
- * @returns Boolean indicating if the track is in cooldown period
+ * @returns Boolean indicating if the track is in client-side cooldown period
  */
 export const isInCooldownPeriod = (shareKey: string): boolean => {
   const storedData = localStorage.getItem(`play_count_${shareKey}`);
   if (storedData) {
     const lastIncrementTime = parseInt(storedData, 10);
     const timeSinceLastIncrement = Date.now() - lastIncrementTime;
-    return timeSinceLastIncrement < COOLDOWN_PERIOD_MS;
+    return timeSinceLastIncrement < CLIENT_COOLDOWN_PERIOD_MS;
   }
   return false;
 };
