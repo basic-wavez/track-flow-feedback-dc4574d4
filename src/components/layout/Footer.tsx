@@ -6,9 +6,9 @@ const Footer = () => {
   return (
     <footer className="py-6 px-8 border-t border-wip-gray/30">
       <div className="max-w-7xl mx-auto w-full">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          {/* Navigation Links - Left aligned */}
-          <div className="flex flex-col items-start">
+        <div className="flex flex-col md:flex-row md:justify-between gap-6 mb-6">
+          {/* Navigation Links */}
+          <div className="flex flex-col flex-1">
             <h3 className="text-sm font-semibold text-gray-300 mb-3">Navigation</h3>
             <div className="flex flex-col gap-2">
               <Link to="/" className="text-sm text-gray-400 hover:text-wip-pink transition-colors flex items-center gap-2">
@@ -22,8 +22,8 @@ const Footer = () => {
             </div>
           </div>
           
-          {/* Support Links - Left aligned with spacing */}
-          <div className="flex flex-col items-start pl-0 md:pl-[100px]">
+          {/* Support Links */}
+          <div className="flex flex-col flex-1">
             <h3 className="text-sm font-semibold text-gray-300 mb-3">Support</h3>
             <div className="flex flex-col gap-2">
               <Link to="/faq" className="text-sm text-gray-400 hover:text-wip-pink transition-colors flex items-center gap-2">
@@ -41,8 +41,8 @@ const Footer = () => {
             </div>
           </div>
           
-          {/* Legal Links - Left aligned with spacing */}
-          <div className="flex flex-col items-start pl-0 md:pl-[100px]">
+          {/* Legal Links */}
+          <div className="flex flex-col flex-1">
             <h3 className="text-sm font-semibold text-gray-300 mb-3">Legal</h3>
             <div className="flex flex-col gap-2">
               <Link to="/terms" className="text-sm text-gray-400 hover:text-wip-pink transition-colors flex items-center gap-2">
