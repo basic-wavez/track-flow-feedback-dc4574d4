@@ -6,6 +6,7 @@ import { TrackData } from "@/types/track";
 import { uploadFile, validateFileSize } from "./uploadService";
 import { requestMp3Processing } from "./trackProcessingService";
 import { handleError } from "@/utils/errorHandler";
+import { extractTrackName } from "@/lib/audioUtils"; // Import the extractTrackName function
 
 /**
  * Uploads a track to storage and creates a database record
@@ -49,9 +50,9 @@ export const uploadTrack = async (
     console.log("trackUploadService - Upload complete, URL:", publicUrl);
     
     // Create a record in the tracks table
-    // If title is provided, use it; otherwise use the filename without extension
-    // NOTE: We're no longer formatting the filename
-    const trackTitle = title || file.name.split('.')[0];
+    // If title is provided, use it; otherwise use the extracted filename without extension
+    // This now uses the extractTrackName function to preserve exact formatting
+    const trackTitle = title || extractTrackName(file.name);
     
     console.log("trackUploadService - Creating track record with title:", trackTitle);
     const { data: track, error: trackError } = await supabase
