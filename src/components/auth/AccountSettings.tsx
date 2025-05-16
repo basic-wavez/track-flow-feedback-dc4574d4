@@ -5,12 +5,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 const AccountSettings = () => {
-  const { user, updateUsername, updatePassword, deleteAccount } = useAuth();
+  const { user, updateUsername, updatePassword } = useAuth();
   const { toast } = useToast();
   const [username, setUsername] = useState("");
   const [usernameError, setUsernameError] = useState("");
@@ -21,8 +20,6 @@ const AccountSettings = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
-  
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleUsernameUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,17 +90,6 @@ const AccountSettings = () => {
       setPasswordError(error.message || "Failed to update password");
     } finally {
       setIsUpdatingPassword(false);
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    setIsDeleting(true);
-    try {
-      await deleteAccount();
-      // Redirect will happen automatically due to auth state change
-    } catch (error) {
-      console.error("Error deleting account:", error);
-      setIsDeleting(false);
     }
   };
 
@@ -205,44 +191,6 @@ const AccountSettings = () => {
             </Button>
           </CardFooter>
         </form>
-      </Card>
-
-      <Card className="bg-wip-darker border-wip-gray">
-        <CardHeader>
-          <CardTitle className="text-red-500">Danger Zone</CardTitle>
-          <CardDescription>Irreversible actions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-400 mb-4">
-            Deleting your account will remove all your data from our platform. This action cannot be undone.
-          </p>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive">Delete Account</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="bg-wip-darker border-wip-gray">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-red-500" />
-                  Are you absolutely sure?
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="bg-wip-gray hover:bg-wip-gray/80">Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={handleDeleteAccount}
-                  className="bg-red-500 hover:bg-red-600 text-white"
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Yes, delete my account"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardContent>
       </Card>
     </div>
   );

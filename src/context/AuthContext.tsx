@@ -15,7 +15,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   updateUsername: (username: string) => Promise<void>;
   updatePassword: (newPassword: string, currentPassword: string) => Promise<void>;
-  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -150,33 +149,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return Promise.reject(error);
     }
   };
-
-  // Add account deletion function
-  const deleteAccount = async () => {
-    try {
-      if (!user) throw new Error("No user logged in");
-      
-      console.log("AuthProvider - Deleting account for:", user.id);
-      
-      // We'll sign out the user
-      await signOut();
-      
-      toast({
-        title: "Account deletion initiated",
-        description: "Your account deletion has been requested. Our team will process it shortly.",
-      });
-      
-      return Promise.resolve();
-    } catch (error: any) {
-      console.error("AuthProvider - Account deletion error:", error.message);
-      toast({
-        title: "Error deleting account",
-        description: error.message,
-        variant: "destructive",
-      });
-      return Promise.reject(error);
-    }
-  };
   
   const signUp = async (email: string, password: string, username: string) => {
     try {
@@ -272,7 +244,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     isAuthenticated,
     updateUsername,
     updatePassword,
-    deleteAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
