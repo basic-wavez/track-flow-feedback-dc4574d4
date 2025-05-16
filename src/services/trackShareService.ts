@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 interface ShareLink {
@@ -57,13 +56,11 @@ export const createShareLink = async (trackId: string, name: string): Promise<Sh
       return null;
     }
     
-    // Cast to ShareLink and add default download_count
-    const shareLink = {
-      ...data as any,
+    // Add default download_count of 0
+    return {
+      ...data,
       download_count: 0
     } as ShareLink;
-    
-    return shareLink;
   } catch (error) {
     console.error('Error in createShareLink:', error);
     throw error;
@@ -88,13 +85,11 @@ export const getShareLinks = async (trackId: string): Promise<ShareLink[]> => {
       return [];
     }
     
-    // Cast and add default download_count to each link
-    const shareLinks = data.map(link => ({
+    // Add default download_count to each link
+    return data.map(link => ({
       ...link,
-      download_count: link.download_count || 0
+      download_count: 0  // Since the column doesn't exist, we default to 0
     })) as ShareLink[];
-    
-    return shareLinks;
   } catch (error) {
     console.error('Error in getShareLinks:', error);
     return [];
