@@ -15,7 +15,11 @@ export interface UserDetailsResult {
 
 export async function getUserEmails() {
   try {
-    const { data, error } = await supabase.rpc('get_user_emails_for_admin');
+    // Use a type assertion for the RPC call
+    const { data, error } = await supabase.rpc('get_user_emails_for_admin') as unknown as {
+      data: UserEmailResult[] | null;
+      error: Error | null;
+    };
     
     if (error) {
       console.error("Error fetching user emails:", error);
@@ -31,7 +35,11 @@ export async function getUserEmails() {
 
 export async function getUserDetails(userId: string) {
   try {
-    const { data, error } = await supabase.rpc('get_user_details_for_admin', { user_id: userId });
+    // Use a type assertion for the RPC call
+    const { data, error } = await supabase.rpc('get_user_details_for_admin', { user_id: userId }) as unknown as {
+      data: UserDetailsResult | null;
+      error: Error | null;
+    };
     
     if (error) {
       console.error("Error fetching user details:", error);
