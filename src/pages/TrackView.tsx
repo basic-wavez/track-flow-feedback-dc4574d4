@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -110,7 +111,7 @@ const TrackView = () => {
     };
 
     loadTrack();
-  }, [trackId, isShareRoute, user, location.pathname, params.trackId]);
+  }, [params.trackId, isShareRoute, user, location.pathname]);
 
   // Check if share key is in cooldown period
   const inCooldownPeriod = currentShareKey ? isInCooldownPeriod(currentShareKey) : false;
@@ -174,7 +175,7 @@ const TrackView = () => {
                   className={`pb-2 ${activeTab === "share" ? "border-b-2 border-wip-pink text-wip-pink" : ""}`}
                   onClick={() => setActiveTab("share")}
                 >
-                  Share Links
+                  Share
                 </Button>
               </div>
               
