@@ -23,9 +23,10 @@ function App() {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
+            {/* Important: The more specific route (with shareKey) must come BEFORE the more general route */}
+            <Route path="/track/share/:shareKey" element={<TrackView />} />
             <Route path="/track/:trackId" element={<TrackView />} />
             <Route path="/feedback/:feedbackId" element={<FeedbackView />} />
-            <Route path="/track/share/:shareKey" element={<TrackView />} />
             
             {/* Protected routes */}
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
