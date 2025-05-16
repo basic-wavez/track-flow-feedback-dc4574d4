@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -134,15 +133,7 @@ const TrackView = () => {
       
       <main className="flex-1 py-12 px-4">
         <div className="max-w-5xl mx-auto space-y-8">
-          <div className="flex items-center mb-4">
-            <Button 
-              onClick={() => navigate(-1)} 
-              variant="ghost" 
-              className="flex items-center gap-2 text-wip-pink hover:bg-wip-pink/10"
-            >
-              ← Back
-            </Button>
-          </div>
+          
           
           {trackData && (
             <TrackPlayer 
