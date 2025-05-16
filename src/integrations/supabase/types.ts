@@ -24,6 +24,7 @@ export type Database = {
           sound_design_score: number
           track_id: string
           user_id: string | null
+          version_number: number
           written_feedback: string | null
         }
         Insert: {
@@ -40,6 +41,7 @@ export type Database = {
           sound_design_score: number
           track_id: string
           user_id?: string | null
+          version_number?: number
           written_feedback?: string | null
         }
         Update: {
@@ -56,6 +58,7 @@ export type Database = {
           sound_design_score?: number
           track_id?: string
           user_id?: string | null
+          version_number?: number
           written_feedback?: string | null
         }
         Relationships: [
@@ -141,13 +144,17 @@ export type Database = {
           description: string | null
           downloads_enabled: boolean | null
           id: string
+          is_latest_version: boolean
           mp3_url: string | null
           original_filename: string
           original_url: string | null
+          parent_track_id: string | null
           processing_status: string | null
           title: string
           updated_at: string | null
           user_id: string
+          version_notes: string | null
+          version_number: number
           waveform_data: Json | null
         }
         Insert: {
@@ -157,13 +164,17 @@ export type Database = {
           description?: string | null
           downloads_enabled?: boolean | null
           id?: string
+          is_latest_version?: boolean
           mp3_url?: string | null
           original_filename: string
           original_url?: string | null
+          parent_track_id?: string | null
           processing_status?: string | null
           title: string
           updated_at?: string | null
           user_id: string
+          version_notes?: string | null
+          version_number?: number
           waveform_data?: Json | null
         }
         Update: {
@@ -173,16 +184,28 @@ export type Database = {
           description?: string | null
           downloads_enabled?: boolean | null
           id?: string
+          is_latest_version?: boolean
           mp3_url?: string | null
           original_filename?: string
           original_url?: string | null
+          parent_track_id?: string | null
           processing_status?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string
+          version_notes?: string | null
+          version_number?: number
           waveform_data?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tracks_parent_track_id_fkey"
+            columns: ["parent_track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

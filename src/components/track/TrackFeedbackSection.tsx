@@ -8,10 +8,11 @@ import { User } from "@supabase/supabase-js";
 
 interface TrackFeedbackSectionProps {
   trackTitle: string;
+  trackVersion?: number;
   user: User | null;
 }
 
-const TrackFeedbackSection = ({ trackTitle, user }: TrackFeedbackSectionProps) => {
+const TrackFeedbackSection = ({ trackTitle, trackVersion = 1, user }: TrackFeedbackSectionProps) => {
   const navigate = useNavigate();
   const { trackId } = useParams();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -51,6 +52,7 @@ const TrackFeedbackSection = ({ trackTitle, user }: TrackFeedbackSectionProps) =
       <FeedbackForm 
         trackId={trackId}
         trackName={trackTitle}
+        trackVersion={trackVersion}
         onFeedbackSubmit={handleFeedbackSubmitted}
         onLoginRequest={() => setIsAuthModalOpen(true)}
       />

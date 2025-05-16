@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -125,6 +126,7 @@ const TrackView = () => {
 
   // Use the original filename for display - this keeps hyphens and original capitalization
   const displayName = trackData.title;
+  const versionNumber = trackData.version_number || 1;
 
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
@@ -149,6 +151,7 @@ const TrackView = () => {
               inCooldownPeriod={inCooldownPeriod}
               processingStatus={trackData.processing_status}
               downloadsEnabled={trackData.downloads_enabled || false}
+              versionNumber={versionNumber}
             />
           )}
           
@@ -172,13 +175,21 @@ const TrackView = () => {
               </div>
               
               {trackData && activeTab === "feedback" ? (
-                <TrackFeedbackDisplay trackId={trackData.id} trackTitle={trackData.title} />
+                <TrackFeedbackDisplay 
+                  trackId={trackData.id} 
+                  trackTitle={trackData.title} 
+                  trackVersion={versionNumber}
+                />
               ) : trackData && (
                 <ShareLinkManager trackId={trackData.id} trackTitle={trackData.title} />
               )}
             </div>
           ) : (
-            trackData && <TrackFeedbackSection trackTitle={trackData.title} user={user} />
+            trackData && <TrackFeedbackSection 
+              trackTitle={trackData.title} 
+              trackVersion={versionNumber}
+              user={user} 
+            />
           )}
         </div>
       </main>

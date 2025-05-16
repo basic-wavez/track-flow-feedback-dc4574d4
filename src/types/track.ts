@@ -12,6 +12,11 @@ export interface TrackData {
   processing_status?: string;
   downloads_enabled?: boolean;
   download_count?: number;
+  // Version-related fields
+  version_number: number;
+  parent_track_id?: string;
+  is_latest_version: boolean;
+  version_notes?: string;
 }
 
 export interface TrackUpdateDetails {

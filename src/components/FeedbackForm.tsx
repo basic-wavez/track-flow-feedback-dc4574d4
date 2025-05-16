@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,11 +14,18 @@ import { supabase } from "@/integrations/supabase/client";
 interface FeedbackFormProps {
   trackId?: string;
   trackName: string;
+  trackVersion?: number;
   onFeedbackSubmit: () => void;
   onLoginRequest: () => void;
 }
 
-const FeedbackForm = ({ trackId, trackName, onFeedbackSubmit, onLoginRequest }: FeedbackFormProps) => {
+const FeedbackForm = ({ 
+  trackId, 
+  trackName, 
+  trackVersion = 1, // Default to version 1 if not specified
+  onFeedbackSubmit, 
+  onLoginRequest 
+}: FeedbackFormProps) => {
   const { user } = useAuth();
   const [mixingRating, setMixingRating] = useState<number>(5);
   const [harmoniesRating, setHarmoniesRating] = useState<number>(5);
@@ -56,7 +64,8 @@ const FeedbackForm = ({ trackId, trackName, onFeedbackSubmit, onLoginRequest }: 
             written_feedback: additionalFeedback || null,
             user_id: user?.id || null,
             anonymous: false, // Always set to false since we're removing the anonymous option
-            guest_name: !user?.id ? guestName : null
+            guest_name: !user?.id ? guestName : null,
+            version_number: trackVersion // Include the track version number
           }
         ]);
       
@@ -111,7 +120,7 @@ const FeedbackForm = ({ trackId, trackName, onFeedbackSubmit, onLoginRequest }: 
     <Card className="w-full max-w-3xl mx-auto bg-wip-darker border-wip-gray">
       <CardHeader>
         <CardTitle className="text-xl font-bold">
-          Provide Feedback for "{trackName}"
+          Provide Feedback for "{trackName}" {trackVersion > 1 && <span className="text-wip-pink ml-2">(v{trackVersion})</span>}
         </CardTitle>
       </CardHeader>
       

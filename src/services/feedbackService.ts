@@ -9,11 +9,18 @@ export type Feedback = Database['public']['Tables']['feedback']['Row'] & {
 /**
  * Get all feedback for a specific track
  */
-export const getFeedbackForTrack = async (trackId: string): Promise<Feedback[]> => {
-  const { data, error } = await supabase
+export const getFeedbackForTrack = async (trackId: string, versionNumber?: number): Promise<Feedback[]> => {
+  let query = supabase
     .from('feedback')
     .select('*')
     .eq('track_id', trackId);
+    
+  // If a version number is provided, filter by that version
+  if (versionNumber) {
+    query = query.eq('version_number', versionNumber);
+  }
+  
+  const { data, error } = await query;
     
   if (error) {
     console.error('Error fetching feedback:', error);
@@ -43,6 +50,7 @@ export const checkTrackHasFeedback = async (trackId: string): Promise<boolean> =
 /**
  * Submit feedback for a track
  * Now supports both authenticated and guest submissions
+ * and includes version tracking
  */
 export const submitFeedback = async (feedbackData: Omit<Feedback, 'id' | 'created_at'>): Promise<boolean> => {
   const { error } = await supabase
@@ -55,4 +63,31 @@ export const submitFeedback = async (feedbackData: Omit<Feedback, 'id' | 'create
   }
   
   return true;
+};
+
+/**
+ * Get feedback versions available for a track
+ * Returns an array of unique version numbers
+ */
+export const getFeedbackVersions = async (trackId: string): Promise<number[]> => {
+  const { data, error } = await supabase
+    .from('feedback')
+    .select('version_number')
+    .eq('track_id', trackId)
+    .order('version_number', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching feedback versions:', error);
+    return [];
+  }
+  
+  // Extract unique version numbers
+  const versions = new Set<number>();
+  data?.forEach(item => {
+    if (item.version_number) {
+      versions.add(item.version_number);
+    }
+  });
+  
+  return Array.from(versions);
 };

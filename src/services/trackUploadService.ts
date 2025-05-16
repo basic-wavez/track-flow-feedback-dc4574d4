@@ -14,7 +14,9 @@ import { extractTrackName } from "@/lib/audioUtils"; // Import the extractTrackN
 export const uploadTrack = async (
   file: File, 
   title?: string,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  parentTrackId?: string,
+  versionNotes?: string
 ): Promise<TrackData | null> => {
   try {
     console.log("trackUploadService - Starting upload of:", file.name, file.type, file.size);
@@ -49,6 +51,34 @@ export const uploadTrack = async (
     const publicUrl = await uploadFile(file, filePath, 'audio', onProgress);
     console.log("trackUploadService - Upload complete, URL:", publicUrl);
     
+    // If this is a new version of an existing track, update the old version to not be latest
+    let versionNumber = 1;
+    
+    if (parentTrackId) {
+      console.log("trackUploadService - This is a new version of track:", parentTrackId);
+      
+      // Get the parent track to determine its version
+      const { data: parentTrack, error: parentTrackError } = await supabase
+        .from('tracks')
+        .select('version_number')
+        .eq('id', parentTrackId)
+        .single();
+        
+      if (parentTrackError) {
+        console.error("trackUploadService - Error fetching parent track:", parentTrackError);
+      } else if (parentTrack) {
+        // Increment the version number
+        versionNumber = (parentTrack.version_number || 1) + 1;
+        console.log("trackUploadService - New version number:", versionNumber);
+        
+        // Mark previous version as not latest
+        await supabase
+          .from('tracks')
+          .update({ is_latest_version: false })
+          .eq('id', parentTrackId);
+      }
+    }
+    
     // Create a record in the tracks table
     // If title is provided, use it; otherwise use the extracted filename without extension
     // This now uses the extractTrackName function to preserve exact formatting
@@ -64,7 +94,11 @@ export const uploadTrack = async (
         original_url: publicUrl,    // Both URLs are the same since we're uploading once
         user_id: user.id,
         downloads_enabled: false,
-        processing_status: 'pending' // Initial processing status
+        processing_status: 'pending', // Initial processing status
+        parent_track_id: parentTrackId || null,
+        version_number: versionNumber,
+        is_latest_version: true,
+        version_notes: versionNotes || null
       })
       .select()
       .single();
@@ -87,6 +121,43 @@ export const uploadTrack = async (
   } catch (error: any) {
     console.error("trackUploadService - Upload error:", error);
     handleError(error, "Upload Failed", "There was an error uploading your track");
+    return null;
+  }
+};
+
+/**
+ * Creates a new version of an existing track
+ */
+export const createTrackVersion = async (
+  originalTrackId: string,
+  file: File,
+  versionNotes?: string,
+  onProgress?: (progress: number) => void
+): Promise<TrackData | null> => {
+  try {
+    // First get the original track details to maintain title consistency
+    const { data: originalTrack, error: fetchError } = await supabase
+      .from('tracks')
+      .select('title')
+      .eq('id', originalTrackId)
+      .single();
+      
+    if (fetchError) {
+      console.error("trackUploadService - Error fetching original track:", fetchError);
+      throw new Error("Could not find the original track");
+    }
+    
+    // Upload the new version with the same title but as a child of the original
+    return await uploadTrack(
+      file,
+      originalTrack.title,
+      onProgress,
+      originalTrackId,
+      versionNotes
+    );
+  } catch (error: any) {
+    console.error("trackUploadService - Version creation error:", error);
+    handleError(error, "Version Creation Failed", "There was an error creating a new version of your track");
     return null;
   }
 };
