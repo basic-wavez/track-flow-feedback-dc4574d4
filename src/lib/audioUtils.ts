@@ -130,6 +130,15 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
         
         console.log(`Audio analysis: ${channelData.length} samples, block size ${blockSize}`);
         
+        // First pass: Determine the maximum amplitude across the entire audio
+        let maxAmplitude = 0;
+        for (let i = 0; i < channelData.length; i++) {
+          const sampleValue = Math.abs(channelData[i] || 0);
+          maxAmplitude = Math.max(maxAmplitude, sampleValue);
+        }
+        
+        console.log(`Maximum amplitude detected: ${maxAmplitude}`);
+        
         // Process the audio data to create a waveform
         for (let i = 0; i < samplesCount; i++) {
           const startSample = blockSize * i;
@@ -148,12 +157,16 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
           const avgAmplitude = sum / blockSize;
           const weightedAmplitude = (avgAmplitude * 0.7) + (peakInBlock * 0.3);
           
-          // Normalize between 0-1 with minimum value to ensure visibility
-          // Apply a slight curve to emphasize differences in loudness
-          const curvedAmplitude = Math.pow(weightedAmplitude, 0.8);
-          const amplitude = Math.max(0.05, Math.min(1, curvedAmplitude * 3));
+          // Normalize relative to the maximum amplitude detected
+          // Apply a cube root curve for more natural representation of audio dynamics
+          // and ensure a minimum visibility while capping at 1.0
+          const normalizedValue = maxAmplitude > 0 ? weightedAmplitude / maxAmplitude : 0;
+          const curvedAmplitude = Math.pow(normalizedValue, 0.33); // Cube root for better dynamic range
           
-          waveformData.push(amplitude);
+          // Ensure a range that's visible but not too extreme (0.05 to 0.85)
+          const finalAmplitude = 0.05 + (curvedAmplitude * 0.8);
+          
+          waveformData.push(finalAmplitude);
         }
         
         // Close the audio context when done

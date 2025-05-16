@@ -48,7 +48,8 @@ const WaveformCanvas = ({
       
       for (let i = 0; i < waveformData.length; i++) {
         const x = i * barWidth;
-        const amplitude = waveformData[i] * 0.85; // Use more of canvas height (85%)
+        // No additional scaling here - use the amplitude directly as it's already properly scaled
+        const amplitude = waveformData[i]; 
         const barHeight = height * amplitude;
         const y = (height - barHeight) / 2;
         
