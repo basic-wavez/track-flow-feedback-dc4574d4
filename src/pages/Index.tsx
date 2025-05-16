@@ -103,7 +103,7 @@ const Index = () => {
       <main className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-3xl mx-auto text-center mb-12">
           <h2 className="text-4xl font-bold mb-4 text-wip-pink">
-            Share Your Works In Progress
+            Share your demo
           </h2>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto">
             Upload your music, get detailed feedback from other producers, and perfect your tracks.
@@ -120,31 +120,31 @@ const Index = () => {
           
           <ol className="space-y-6">
             <li className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-wip-pink flex items-center justify-center font-bold">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-wip-pink flex items-center justify-center font-bold text-black">
                 1
               </div>
               <div>
                 <h4 className="font-medium">Upload Your Track</h4>
                 <p className="text-gray-400">
-                  Drag and drop your audio file (WAV, FLAC, AIFF, or MP3). We'll compress it while preserving quality.
+                  Drag and drop your audio file (WAV, FLAC, AIFF, or MP3).
                 </p>
               </div>
             </li>
             
             <li className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-wip-pink flex items-center justify-center font-bold">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-wip-pink flex items-center justify-center font-bold text-black">
                 2
               </div>
               <div>
                 <h4 className="font-medium">Share with Others</h4>
                 <p className="text-gray-400">
-                  Generate a link to share your track with other producers and get their honest feedback.
+                  Generate a link to share your track with other producers.
                 </p>
               </div>
             </li>
             
             <li className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-wip-pink flex items-center justify-center font-bold">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-wip-pink flex items-center justify-center font-bold text-black">
                 3
               </div>
               <div>
@@ -157,14 +157,6 @@ const Index = () => {
           </ol>
         </div>
       </main>
-      
-      <Footer />
-      
-      <AuthModal 
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onSuccess={handleAuthSuccess}
-      />
     </div>
   );
 };

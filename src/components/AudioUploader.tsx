@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -175,7 +176,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
             <Upload className="h-16 w-16 mb-4 text-wip-pink animate-pulse-glow" />
             <h3 className="text-xl font-semibold mb-2">Drag & Drop Your Track</h3>
             <p className="text-gray-400 mb-4">
-              Upload your work-in-progress track to get feedback
+              Upload your demo to get feedback
             </p>
             <p className="text-sm text-gray-500 mb-2">
               Supported formats: MP3, WAV, FLAC, AIFF, AAC
