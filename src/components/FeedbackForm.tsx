@@ -7,10 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Switch } from "@/components/ui/switch";
 
 interface FeedbackFormProps {
   trackId?: string;
@@ -31,7 +30,6 @@ const FeedbackForm = ({ trackId, trackName, onFeedbackSubmit, onLoginRequest }: 
   const [additionalFeedback, setAdditionalFeedback] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [guestName, setGuestName] = useState<string>("");
-  const [isAnonymous, setIsAnonymous] = useState<boolean>(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,8 +56,8 @@ const FeedbackForm = ({ trackId, trackName, onFeedbackSubmit, onLoginRequest }: 
             casual_listening: wouldListen,
             written_feedback: additionalFeedback || null,
             user_id: user?.id || null,
-            anonymous: isAnonymous || !user?.id,
-            guest_name: !user?.id && !isAnonymous ? guestName : null
+            anonymous: false, // Always set to false since we're removing the anonymous option
+            guest_name: !user?.id ? guestName : null
           }
         ]);
       
@@ -107,7 +105,7 @@ const FeedbackForm = ({ trackId, trackName, onFeedbackSubmit, onLoginRequest }: 
     </div>
   );
 
-  const showGuestFields = !user && !isAnonymous;
+  const showGuestFields = !user;
 
   return (
     <Card className="w-full max-w-3xl mx-auto bg-wip-darker border-wip-gray">
@@ -138,28 +136,19 @@ const FeedbackForm = ({ trackId, trackName, onFeedbackSubmit, onLoginRequest }: 
               </div>
               
               <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="anonymous" 
-                    checked={isAnonymous} 
-                    onCheckedChange={(checked) => setIsAnonymous(checked === true)}
-                  />
-                  <Label htmlFor="anonymous" className="text-sm">Submit anonymously</Label>
-                </div>
+                {/* Removed the "Submit anonymously" checkbox */}
                 
-                {showGuestFields && (
-                  <div className="space-y-2">
-                    <Label htmlFor="guest-name" className="text-sm">Your Name</Label>
-                    <Input
-                      id="guest-name"
-                      placeholder="Enter your name"
-                      value={guestName}
-                      onChange={(e) => setGuestName(e.target.value)}
-                      required={showGuestFields}
-                      className="bg-wip-gray/10"
-                    />
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="guest-name" className="text-sm">Your Name</Label>
+                  <Input
+                    id="guest-name"
+                    placeholder="Enter your name"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    required={showGuestFields}
+                    className="bg-wip-gray/10"
+                  />
+                </div>
               </div>
             </div>
           )}
