@@ -222,6 +222,12 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
         </div>
       </div>
       
+      <div className="mb-4 p-4 bg-muted/30 rounded-lg border border-muted">
+        <p className="text-sm text-muted-foreground">
+          Sharing this track with multiple different labels or people? Here you can create up to 10 unique links and track how many times they get played or downloaded.
+        </p>
+      </div>
+      
       <div className="mb-2">
         <Badge variant="outline" className="text-sm">
           {shareLinks.length} of {MAX_LINKS} links used
