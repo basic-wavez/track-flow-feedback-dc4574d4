@@ -63,21 +63,43 @@ export const generateWaveformData = (length: number = 100): number[] => {
 };
 
 /**
+ * Cache for waveform data to avoid reanalyzing the same audio files
+ */
+const waveformCache: Record<string, number[]> = {};
+
+/**
  * Analyze audio file to extract waveform data
  * Returns a promise that resolves with an array of amplitude values
  */
 export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promise<number[]> => {
+  // Return cached waveform data if available
+  if (waveformCache[audioUrl]) {
+    console.log("Using cached waveform data for:", audioUrl);
+    return waveformCache[audioUrl];
+  }
+
   return new Promise((resolve, reject) => {
     // Create audio context
     const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContext) {
       console.warn("AudioContext not supported - falling back to generated waveform");
-      resolve(generateWaveformData(samplesCount));
+      const fallbackData = generateWaveformData(samplesCount);
+      resolve(fallbackData);
       return;
     }
     
     const audioContext = new AudioContext();
     const waveformData: number[] = [];
+    
+    // Set a timeout to abort if it takes too long
+    const timeoutId = setTimeout(() => {
+      if (audioContext.state !== 'closed') {
+        audioContext.close().catch(console.error);
+      }
+      console.warn("Audio analysis timed out - using fallback data");
+      const fallbackData = generateWaveformData(samplesCount);
+      resolve(fallbackData);
+    }, 15000); // 15 second timeout
     
     // Fetch the audio file
     fetch(audioUrl)
@@ -87,7 +109,10 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
         }
         return response.arrayBuffer();
       })
-      .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+      .then(arrayBuffer => {
+        clearTimeout(timeoutId); // Clear timeout as we've received data
+        return audioContext.decodeAudioData(arrayBuffer);
+      })
       .then(audioBuffer => {
         // Get the audio data from the buffer
         const channelData = audioBuffer.getChannelData(0); // Use first channel
@@ -97,32 +122,49 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
         for (let i = 0; i < samplesCount; i++) {
           const startSample = blockSize * i;
           let sum = 0;
+          let peakInBlock = 0;
           
-          // Calculate the average amplitude for this block
+          // Calculate both average and peak amplitude for this block
+          // Using both helps create more visually interesting waveforms
           for (let j = 0; j < blockSize; j++) {
-            sum += Math.abs(channelData[startSample + j] || 0);
+            const sampleValue = Math.abs(channelData[startSample + j] || 0);
+            sum += sampleValue;
+            peakInBlock = Math.max(peakInBlock, sampleValue);
           }
           
+          // Use a mix of average and peak for better visualization
+          const avgAmplitude = sum / blockSize;
+          const weightedAmplitude = (avgAmplitude * 0.7) + (peakInBlock * 0.3);
+          
           // Normalize between 0-1 with minimum value to ensure visibility
-          const amplitude = Math.max(0.05, Math.min(1, sum / blockSize * 3));
+          // Apply a slight curve to emphasize differences in loudness
+          const curvedAmplitude = Math.pow(weightedAmplitude, 0.8);
+          const amplitude = Math.max(0.05, Math.min(1, curvedAmplitude * 3));
+          
           waveformData.push(amplitude);
         }
         
         // Close the audio context when done
         if (audioContext.state !== 'closed') {
-          audioContext.close();
+          audioContext.close().catch(console.error);
         }
+        
+        // Cache the generated waveform data
+        waveformCache[audioUrl] = waveformData;
         
         resolve(waveformData);
       })
       .catch(error => {
+        clearTimeout(timeoutId); // Clear timeout on error
         console.error("Error analyzing audio:", error);
+        
         // Fall back to generated data
         console.warn("Using generated waveform data as fallback");
         if (audioContext.state !== 'closed') {
-          audioContext.close();
+          audioContext.close().catch(console.error);
         }
-        resolve(generateWaveformData(samplesCount));
+        const fallbackData = generateWaveformData(samplesCount);
+        resolve(fallbackData);
       });
   });
 };

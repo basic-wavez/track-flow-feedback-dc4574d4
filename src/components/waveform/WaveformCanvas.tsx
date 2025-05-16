@@ -48,33 +48,55 @@ const WaveformCanvas = ({
       
       for (let i = 0; i < waveformData.length; i++) {
         const x = i * barWidth;
-        const amplitude = waveformData[i] * 0.7; // Reduce max height to 70% of canvas
+        const amplitude = waveformData[i] * 0.85; // Use more of canvas height (85%)
         const barHeight = height * amplitude;
         const y = (height - barHeight) / 2;
         
         // Determine color based on playback position and MP3 availability
         if (x < progressPixel) {
-          // Gradient for played section - brighter for MP3
+          // Gradient for played section - brighter for analyzed waveforms
           const gradient = ctx.createLinearGradient(0, 0, 0, height);
           if (isMp3Available) {
-            // Higher quality MP3 visualization with richer colors
-            gradient.addColorStop(0, 'rgba(241, 172, 210, 0.95)'); // Brighter pink for MP3
-            gradient.addColorStop(1, 'rgba(210, 133, 181, 0.85)'); // Darker shade with more opacity
+            // Higher quality visualization with richer colors
+            gradient.addColorStop(0, 'rgba(255, 182, 220, 0.95)'); // Brighter pink at top
+            gradient.addColorStop(1, 'rgba(210, 133, 181, 0.9)');  // Deeper pink at bottom
           } else {
-            // Standard visualization for chunks
-            gradient.addColorStop(0, 'rgba(231, 162, 200, 0.9)'); 
-            gradient.addColorStop(1, 'rgba(200, 123, 171, 0.7)');
+            // Standard visualization
+            gradient.addColorStop(0, 'rgba(241, 172, 210, 0.95)'); 
+            gradient.addColorStop(1, 'rgba(200, 123, 171, 0.8)');
           }
           ctx.fillStyle = gradient;
         } else {
-          // Color for unplayed section
+          // Color for unplayed section - slightly different for analyzed vs generated
           ctx.fillStyle = isMp3Available 
-            ? 'rgba(241, 172, 210, 0.4)' // Higher opacity for MP3
-            : 'rgba(231, 162, 200, 0.3)'; 
+            ? 'rgba(241, 172, 210, 0.45)' // Higher opacity for analyzed audio
+            : 'rgba(231, 162, 200, 0.35)'; 
         }
         
-        // Draw the bar
-        ctx.fillRect(x + barMargin/2, y, effectiveBarWidth, barHeight);
+        // Draw the bar with rounded corners for a smoother look
+        ctx.beginPath();
+        const radius = Math.min(effectiveBarWidth / 2, 3);
+        
+        // Top-left corner
+        ctx.moveTo(x + barMargin/2 + radius, y);
+        // Top-right corner
+        ctx.lineTo(x + barMargin/2 + effectiveBarWidth - radius, y);
+        ctx.quadraticCurveTo(x + barMargin/2 + effectiveBarWidth, y, 
+                            x + barMargin/2 + effectiveBarWidth, y + radius);
+        // Bottom-right corner
+        ctx.lineTo(x + barMargin/2 + effectiveBarWidth, y + barHeight - radius);
+        ctx.quadraticCurveTo(x + barMargin/2 + effectiveBarWidth, y + barHeight,
+                            x + barMargin/2 + effectiveBarWidth - radius, y + barHeight);
+        // Bottom-left corner
+        ctx.lineTo(x + barMargin/2 + radius, y + barHeight);
+        ctx.quadraticCurveTo(x + barMargin/2, y + barHeight,
+                            x + barMargin/2, y + barHeight - radius);
+        // Back to top-left
+        ctx.lineTo(x + barMargin/2, y + radius);
+        ctx.quadraticCurveTo(x + barMargin/2, y, 
+                            x + barMargin/2 + radius, y);
+        
+        ctx.fill();
         
         // Add a subtle pulsing effect to bars near the current position when playing
         if ((isPlaying || isBuffering) && x >= progressPixel - barWidth * 5 && x <= progressPixel + barWidth * 5) {
@@ -86,7 +108,29 @@ const WaveformCanvas = ({
             const pulseFactor = isBuffering ? 1 + (0.3 * (1 - distance)) : 1 + (0.2 * (1 - distance));
             const pulseHeight = barHeight * pulseFactor;
             const pulseY = (height - pulseHeight) / 2;
-            ctx.fillRect(x + barMargin/2, pulseY, effectiveBarWidth, pulseHeight);
+            
+            // Draw pulsing bar with rounded corners
+            ctx.beginPath();
+            // Top-left corner
+            ctx.moveTo(x + barMargin/2 + radius, pulseY);
+            // Top-right corner
+            ctx.lineTo(x + barMargin/2 + effectiveBarWidth - radius, pulseY);
+            ctx.quadraticCurveTo(x + barMargin/2 + effectiveBarWidth, pulseY, 
+                                x + barMargin/2 + effectiveBarWidth, pulseY + radius);
+            // Bottom-right corner
+            ctx.lineTo(x + barMargin/2 + effectiveBarWidth, pulseY + pulseHeight - radius);
+            ctx.quadraticCurveTo(x + barMargin/2 + effectiveBarWidth, pulseY + pulseHeight,
+                                x + barMargin/2 + effectiveBarWidth - radius, pulseY + pulseHeight);
+            // Bottom-left corner
+            ctx.lineTo(x + barMargin/2 + radius, pulseY + pulseHeight);
+            ctx.quadraticCurveTo(x + barMargin/2, pulseY + pulseHeight,
+                                x + barMargin/2, pulseY + pulseHeight - radius);
+            // Back to top-left
+            ctx.lineTo(x + barMargin/2, pulseY + radius);
+            ctx.quadraticCurveTo(x + barMargin/2, pulseY, 
+                                x + barMargin/2 + radius, pulseY);
+            
+            ctx.fill();
           }
         }
       }

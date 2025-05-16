@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { analyzeAudio } from '@/lib/audioUtils';
 import { generateWaveformWithVariance } from '@/lib/waveformUtils';
@@ -45,12 +46,11 @@ const Waveform = ({
     }
   }, []);
   
-  // Generate or analyze waveform data when component mounts or audioUrl changes
+  // Try to analyze waveform data when audio URL is available and audio is loaded
   useEffect(() => {
     if (!audioUrl) return;
     
-    // If we already have waveform data for this audioUrl, don't regenerate
-    // unless it's specifically for an MP3 that just became available
+    // If we already have analyzed waveform data for this audioUrl, don't regenerate
     if (isWaveformGenerated && !isMp3Available) return;
     
     // Determine number of samples for the waveform
@@ -58,8 +58,8 @@ const Waveform = ({
       ? 200 // More segments for MP3 for better visualization
       : Math.max(150, 50 * totalChunks);
     
-    // For MP3 files, analyze the actual audio data
-    if (isMp3Available && audioUrl && audioLoaded) {
+    // Only attempt audio analysis if the audio is loaded and URL is available
+    if (audioUrl && audioLoaded) {
       setIsAnalyzing(true);
       setAnalysisError(null);
       
@@ -76,7 +76,7 @@ const Waveform = ({
           console.error("Error analyzing audio:", error);
           setAnalysisError("Failed to analyze audio. Using fallback visualization.");
           
-          // Fall back to generated data
+          // Fall back to generated data with higher variance for more realistic appearance
           const fallbackData = generateWaveformWithVariance(segments, 0.4);
           setWaveformData(fallbackData);
           setIsWaveformGenerated(true);
@@ -84,17 +84,17 @@ const Waveform = ({
         .finally(() => {
           setIsAnalyzing(false);
         });
-    } else {
-      // For non-MP3 or when analysis fails, use generated data
+    } else if (!isWaveformGenerated) {
+      // For cases where analysis isn't possible yet, use generated data as placeholder
       const newWaveformData = generateWaveformWithVariance(
         segments, 
-        isMp3Available ? 0.4 : 0.2 // Higher variance for MP3 waveforms
+        isMp3Available ? 0.4 : 0.2 // Higher variance for better looking waveforms
       );
       
       setWaveformData(newWaveformData);
       setIsWaveformGenerated(true);
     }
-  }, [audioUrl, totalChunks, isMp3Available, isWaveformGenerated, audioLoaded]);
+  }, [audioUrl, totalChunks, isMp3Available, audioLoaded, isWaveformGenerated]);
   
   // Show loading states
   if (isAnalyzing) {
