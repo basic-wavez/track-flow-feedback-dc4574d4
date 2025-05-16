@@ -44,11 +44,8 @@ export const isLosslessFormat = (file: File): boolean => {
  * Extract track name from file name
  */
 export const extractTrackName = (fileName: string): string => {
-  // Remove extension and replace underscores/hyphens with spaces
-  return fileName
-    .replace(/\.[^/.]+$/, "") // Remove extension
-    .replace(/[_-]/g, " ") // Replace underscores and hyphens with spaces
-    .replace(/\b\w/g, (char) => char.toUpperCase()); // Capitalize first letter of each word
+  // Only remove the file extension, preserve all other characters and formatting
+  return fileName.replace(/\.[^/.]+$/, "");
 };
 
 /**

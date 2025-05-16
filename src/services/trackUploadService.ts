@@ -49,7 +49,9 @@ export const uploadTrack = async (
     console.log("trackUploadService - Upload complete, URL:", publicUrl);
     
     // Create a record in the tracks table
-    const trackTitle = title || file.name.split('.')[0]; // Use provided title or extract from filename
+    // If title is provided, use it; otherwise use the filename without extension
+    // NOTE: We're no longer formatting the filename
+    const trackTitle = title || file.name.split('.')[0];
     
     console.log("trackUploadService - Creating track record with title:", trackTitle);
     const { data: track, error: trackError } = await supabase

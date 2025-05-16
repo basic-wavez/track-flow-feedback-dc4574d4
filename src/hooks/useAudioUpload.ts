@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
@@ -143,7 +142,7 @@ export const useAudioUpload = ({
       setProgress(30);
       setProcessingState('Uploading to server...');
       
-      // Upload to Supabase with progress tracking
+      // Use the extractTrackName function which now preserves the original formatting
       const trackName = extractTrackName(fileToUpload.name);
       console.log("useAudioUpload - Calling uploadTrack service with file:", {
         name: fileToUpload.name,
