@@ -15,17 +15,23 @@ export interface UserDetailsResult {
 
 export async function getUserEmails() {
   try {
-    // Use a type assertion for the RPC call
-    const { data, error } = await supabase.rpc('get_user_emails_for_admin') as unknown as {
-      data: UserEmailResult[] | null;
-      error: Error | null;
-    };
+    // Use the generic fetch to bypass TypeScript function name checking
+    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/rpc/get_user_emails_for_admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': `${supabase.supabaseKey}`,
+        'Authorization': `Bearer ${supabase.supabaseKey}`
+      },
+    });
     
-    if (error) {
-      console.error("Error fetching user emails:", error);
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error fetching user emails:", errorData);
+      throw new Error(errorData.message || 'Error fetching user emails');
     }
     
+    const data = await response.json();
     return data as UserEmailResult[];
   } catch (error) {
     console.error("Failed to fetch user emails:", error);
@@ -35,17 +41,26 @@ export async function getUserEmails() {
 
 export async function getUserDetails(userId: string) {
   try {
-    // Use a type assertion for the RPC call
-    const { data, error } = await supabase.rpc('get_user_details_for_admin', { user_id: userId }) as unknown as {
-      data: UserDetailsResult | null;
-      error: Error | null;
-    };
+    // Use the generic fetch to bypass TypeScript function name checking
+    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/rpc/get_user_details_for_admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': `${supabase.supabaseKey}`,
+        'Authorization': `Bearer ${supabase.supabaseKey}`
+      },
+      body: JSON.stringify({
+        user_id: userId
+      })
+    });
     
-    if (error) {
-      console.error("Error fetching user details:", error);
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error fetching user details:", errorData);
+      throw new Error(errorData.message || 'Error fetching user details');
     }
     
+    const data = await response.json();
     return data as UserDetailsResult;
   } catch (error) {
     console.error("Failed to fetch user details:", error);
