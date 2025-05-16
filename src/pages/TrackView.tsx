@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,8 @@ import { TrackData } from "@/types/track";
 import TrackFeedbackDisplay from "@/components/track/TrackFeedbackDisplay";
 import ShareLinkManager from "@/components/track/ShareLinkManager";
 import { isInCooldownPeriod } from "@/services/playCountService";
+import { Badge } from "@/components/ui/badge";
+import { FilePlus, History } from "lucide-react";
 
 const TrackView = () => {
   // Get URL information
@@ -136,6 +137,41 @@ const TrackView = () => {
       <main className="flex-1 py-12 px-4">
         <div className="max-w-5xl mx-auto space-y-8">
           
+          {/* Version indicator and New Version button (for track owners) */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold gradient-text">{displayName}</h1>
+              <Badge variant="outline" className="text-xs font-mono">
+                v{versionNumber}
+              </Badge>
+            </div>
+            
+            {isOwner && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex gap-2 items-center"
+                  onClick={() => navigate(`/track/${trackData.id}/version`)}
+                >
+                  <FilePlus className="h-4 w-4" />
+                  New Version
+                </Button>
+                
+                {trackData.parent_track_id && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex gap-2 items-center"
+                    onClick={() => navigate(`/profile`)}
+                  >
+                    <History className="h-4 w-4" />
+                    View History
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
           
           {trackData && (
             <TrackPlayer 
