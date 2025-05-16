@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { isAllowedAudioFormat, isLosslessFormat, extractTrackName } from "@/lib/audioUtils";
 import { uploadTrack } from "@/services/trackService";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { handleError } from "@/utils/errorHandler";
 
 interface AudioUploaderProps {
   onUploadComplete: (trackId: string, trackName: string) => void;
@@ -22,6 +23,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
   const [showQualityWarning, setShowQualityWarning] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(false);
+  const [processingState, setProcessingState] = useState<string>('');
   const [dragEvents, setDragEvents] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -48,9 +50,9 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
   }, [dragEvents]);
 
   // Helper function to log drag events
-  const logDragEvent = useCallback((eventName: string) => {
+  const logDragEvent = useCallback((eventName: string, details?: any) => {
     setDragEvents(prev => {
-      const updated = [...prev, `${eventName} at ${new Date().toISOString()}`];
+      const updated = [...prev, `${eventName} at ${new Date().toISOString()}${details ? ' - ' + JSON.stringify(details) : ''}`];
       // Keep only the last 5 events
       return updated.slice(Math.max(updated.length - 5, 0));
     });
@@ -60,7 +62,6 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     e.preventDefault();
     e.stopPropagation();
     logDragEvent('dragOver');
-    console.log("AudioUploader - Drag over event detected");
     if (!isDragging) {
       setIsDragging(true);
     }
@@ -70,7 +71,6 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     e.preventDefault();
     e.stopPropagation();
     logDragEvent('dragEnter');
-    console.log("AudioUploader - Drag enter event detected");
     setIsDragging(true);
   }, [logDragEvent]);
 
@@ -78,7 +78,6 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     e.preventDefault();
     e.stopPropagation();
     logDragEvent('dragLeave');
-    console.log("AudioUploader - Drag leave event detected");
     
     // Check if the drag leave event is leaving the drop zone
     // and not just entering a child element
@@ -99,9 +98,11 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
   }, [logDragEvent]);
 
   const checkAuthBeforeUpload = async () => {
-    setCheckingAuth(true);
-    
     try {
+      setCheckingAuth(true);
+      setProcessingState('Checking authentication...');
+      console.log("AudioUploader - Starting authentication check");
+      
       // Refresh the session to ensure we have the latest auth state
       await refreshSession();
       
@@ -123,6 +124,11 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
       return true;
     } catch (error) {
       console.error("AudioUploader - Error checking authentication:", error);
+      toast({
+        title: "Authentication Error",
+        description: "There was a problem verifying your account. Please try again.",
+        variant: "destructive",
+      });
       return false;
     } finally {
       setCheckingAuth(false);
@@ -133,11 +139,15 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     try {
       // Reset error state
       setUploadError(null);
+      setProcessingState('Validating file...');
+      console.log("AudioUploader - Processing file:", file.name, file.type, file.size);
       
       if (!isAllowedAudioFormat(file)) {
+        const errorMsg = `Invalid file type: ${file.type}. Please upload an MP3, WAV, FLAC, AIFF, or AAC file.`;
+        console.error("AudioUploader - " + errorMsg);
         toast({
           title: "Invalid File Type",
-          description: "Please upload an MP3, WAV, FLAC, AIFF, or AAC file.",
+          description: errorMsg,
           variant: "destructive",
         });
         return;
@@ -146,11 +156,14 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
       // Check file size before attempting upload
       if (file.size > MAX_FILE_SIZE) {
         const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
-        setUploadError(`File size exceeds the 200MB limit (your file: ${fileSizeMB}MB)`);
+        const errorMsg = `File size exceeds the 200MB limit (your file: ${fileSizeMB}MB)`;
+        console.error("AudioUploader - " + errorMsg);
+        setUploadError(errorMsg);
         return;
       }
 
       // Check authentication before proceeding further
+      setProcessingState('Checking authentication...');
       const isAuthenticated = await checkAuthBeforeUpload();
       if (!isAuthenticated) {
         console.log("AudioUploader - Authentication check failed, stopping upload process");
@@ -158,53 +171,74 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
       }
 
       setFile(file);
-      setUploading(true);
-
+      
       // Check if it's MP3 and warn about quality loss
       if (file.type === 'audio/mpeg') {
+        console.log("AudioUploader - MP3 file detected, showing quality warning");
         setShowQualityWarning(true);
         return; // Don't proceed until user confirms
       }
 
+      setProcessingState('Starting upload...');
       await uploadFile(file);
     } catch (error) {
+      console.error("AudioUploader - Upload preparation error:", error);
       setUploading(false);
-      setUploadError(error instanceof Error ? error.message : "Upload failed");
+      setUploadError(error instanceof Error ? error.message : "Upload preparation failed");
+      handleError(error, "Upload Error", "There was a problem processing your audio file");
     }
   };
 
   const uploadFile = async (fileToUpload: File) => {
     try {
+      console.log("AudioUploader - Starting file upload for:", fileToUpload.name);
+      setUploading(true);
       setProgress(10);
       
       // Double-check authentication is valid
+      setProcessingState('Verifying authentication...');
       const isAuthenticated = await checkAuthBeforeUpload();
       if (!isAuthenticated) {
+        console.log("AudioUploader - Final authentication check failed before upload");
         setUploading(false);
         setProgress(0);
         return;
       }
       
       setProgress(30);
+      setProcessingState('Uploading to server...');
       
       // Upload to Supabase with progress tracking
       const trackName = extractTrackName(fileToUpload.name);
+      console.log("AudioUploader - Calling uploadTrack service with file:", {
+        name: fileToUpload.name,
+        size: fileToUpload.size,
+        type: fileToUpload.type,
+        trackName: trackName
+      });
+      
       const result = await uploadTrack(
         fileToUpload, 
         trackName,
         (uploadProgress) => {
           // Update progress based on chunked upload
-          setProgress(30 + (uploadProgress * 0.6)); // Scale to 30-90% range
+          const newProgress = 30 + (uploadProgress * 0.6);
+          setProgress(newProgress);
+          setProcessingState(`Uploading: ${Math.round(uploadProgress)}%`);
+          console.log("AudioUploader - Upload progress:", uploadProgress, "Combined progress:", newProgress);
         }
       );
       
+      console.log("AudioUploader - Upload result:", result);
+      setProcessingState('Processing upload...');
       setProgress(90);
       
       if (!result) {
-        throw new Error("Upload failed");
+        throw new Error("Upload service returned no result");
       }
       
       setProgress(100);
+      setProcessingState('Upload complete!');
       
       // Wait for progress to update visually before completing
       setTimeout(() => {
@@ -212,14 +246,17 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
         setUploading(false);
         setProgress(0);
         
+        console.log("AudioUploader - Upload complete, calling onUploadComplete with:", result.id, result.title);
         // Call upload complete callback with track ID and name
         onUploadComplete(result.id, result.title);
       }, 800);
     } catch (error: any) {
-      console.error("Upload error:", error);
+      console.error("AudioUploader - Upload error:", error);
       setUploading(false);
       setProgress(0);
+      setProcessingState('');
       setUploadError(error.message || "There was an error processing your audio file.");
+      handleError(error, "Upload Failed", "There was a problem uploading your audio file");
     }
   };
 
@@ -228,42 +265,73 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     e.stopPropagation();
     setIsDragging(false);
     
-    logDragEvent('drop');
-    console.log("AudioUploader - Drop event detected with files:", e.dataTransfer.files.length);
-    
-    // Check authentication first before processing the upload
-    const isAuthenticated = await checkAuthBeforeUpload();
-    if (!isAuthenticated) {
-      console.log("AudioUploader - Auth check failed during drop, not processing file");
-      return;
-    }
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      console.log("AudioUploader - Auth check passed, processing dropped file:", e.dataTransfer.files[0].name);
-      processUpload(e.dataTransfer.files[0]);
-    }
-  }, [checkAuthBeforeUpload, logDragEvent, processUpload]);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      console.log("AudioUploader - File selected through button, checking authentication");
+    try {
+      const files = e.dataTransfer.files;
       
-      // Check authentication first before processing the upload
-      const isAuthenticated = await checkAuthBeforeUpload();
-      if (!isAuthenticated) {
-        console.log("AudioUploader - Auth check failed for button selection, not processing file");
+      logDragEvent('drop', { 
+        fileCount: files.length, 
+        fileInfo: files.length > 0 ? {
+          name: files[0].name,
+          type: files[0].type,
+          size: files[0].size
+        } : 'No files'
+      });
+      
+      console.log("AudioUploader - Drop event detected with files:", files.length);
+      
+      if (!files || files.length === 0) {
+        console.error("AudioUploader - No files found in drop event");
+        toast({
+          title: "Upload Error",
+          description: "No files were detected in the drop. Please try again.",
+          variant: "destructive",
+        });
         return;
       }
       
-      console.log("AudioUploader - Auth check passed, processing selected file");
-      processUpload(e.target.files[0]);
+      // Access the file before the auth check to validate it's accessible
+      const droppedFile = files[0];
+      console.log("AudioUploader - Dropped file details:", {
+        name: droppedFile.name,
+        type: droppedFile.type,
+        size: droppedFile.size,
+        lastModified: new Date(droppedFile.lastModified).toISOString()
+      });
+      
+      // Now proceed with processing the file
+      await processUpload(droppedFile);
+    } catch (error) {
+      console.error("AudioUploader - Error handling file drop:", error);
+      setUploadError(error instanceof Error ? error.message : "Error accessing dropped file");
+      toast({
+        title: "Upload Error",
+        description: "There was a problem processing the dropped file.",
+        variant: "destructive",
+      });
+    }
+  }, [logDragEvent, processUpload, toast]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (e.target.files && e.target.files.length > 0) {
+        console.log("AudioUploader - File selected through button:", e.target.files[0].name);
+        await processUpload(e.target.files[0]);
+      }
+    } catch (error) {
+      console.error("AudioUploader - Error handling file selection:", error);
+      setUploadError(error instanceof Error ? error.message : "Error accessing selected file");
+      toast({
+        title: "Upload Error",
+        description: "There was a problem processing the selected file.",
+        variant: "destructive",
+      });
     }
   };
 
-  
-
-  const handleUploadClick = () => {
+  const handleUploadClick = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default to avoid any bubbling issues
     if (fileInputRef.current) {
+      console.log("AudioUploader - Upload button clicked, opening file dialog");
       fileInputRef.current.click();
     }
   };
@@ -284,6 +352,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     setUploadError(null);
     setUploading(false);
     setProgress(0);
+    setProcessingState('');
   };
   
   // Add an effect to set up global drag-and-drop event handlers
@@ -413,11 +482,11 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
           </p>
           <Progress value={progress} className="h-2 mb-4" />
           <p className="text-sm text-gray-500">
-            {checkingAuth ? "Verifying authentication..." :
+            {processingState || (checkingAuth ? "Verifying authentication..." : 
              progress < 30 ? "Preparing upload..." : 
              progress < 50 ? "Creating upload..." :
              progress < 90 ? "Uploading to server..." : 
-             "Almost done..."}
+             "Almost done...")}
           </p>
         </div>
       )}

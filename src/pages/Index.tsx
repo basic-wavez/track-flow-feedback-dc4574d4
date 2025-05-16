@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import AudioUploader from "@/components/AudioUploader";
@@ -70,12 +71,16 @@ const Index = () => {
     
     // If user is already authenticated, set flag to navigate
     if (user) {
+      console.log("Index - User authenticated, proceeding to navigation");
       setShouldNavigate(true);
+    } else {
+      console.log("Index - User not authenticated after upload completion");
     }
   }, [user]);
   
   const handleAuthRequired = useCallback(async () => {
     // Double-check current auth state before opening modal
+    console.log("Index - Auth required triggered, refreshing session");
     await refreshSession();
     
     // Check again after refresh to make sure we have the most current state
@@ -86,10 +91,13 @@ const Index = () => {
     
     // Only open auth modal if user is not logged in
     if (!user) {
+      console.log("Index - Opening auth modal");
       setIsAuthModalOpen(true);
     } else {
+      console.log("Index - User already authenticated, no need for auth modal");
       // If we already have authentication and a track ID, navigate
       if (uploadedTrackId) {
+        console.log("Index - Have track ID already, setting navigation flag");
         setShouldNavigate(true);
       }
     }
@@ -103,6 +111,7 @@ const Index = () => {
     
     // Only navigate if we have a track ID
     if (uploadedTrackId) {
+      console.log("Index - Auth success with track ID, setting navigation flag");
       setShouldNavigate(true);
     }
   }, [uploadedTrackId]);

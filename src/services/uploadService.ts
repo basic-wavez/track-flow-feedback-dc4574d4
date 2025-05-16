@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "@/components/ui/use-toast";
+import { handleError } from "@/utils/errorHandler";
 
 // Increased constants for chunked uploads
 export const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks (unchanged)
@@ -28,6 +29,8 @@ export const uploadFileInChunks = async (
   bucketName: string = 'audio',
   onProgress?: (progress: number) => void
 ): Promise<UploadResult> => {
+  console.log("uploadService - Starting chunked upload for:", file.name, file.size);
+  
   // Track upload progress
   const progress: UploadProgress = {
     totalChunks: 0,
@@ -39,20 +42,29 @@ export const uploadFileInChunks = async (
   // Calculate total chunks
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
   progress.totalChunks = totalChunks;
+  
+  console.log("uploadService - File will be uploaded in", totalChunks, "chunks");
 
   try {
     // For small files (< 5MB), upload directly
     if (file.size <= CHUNK_SIZE) {
+      console.log("uploadService - Small file, uploading directly");
+      
       const { data, error } = await supabase.storage
         .from(bucketName)
         .upload(uniquePath, file);
 
-      if (error) throw error;
+      if (error) {
+        console.error("uploadService - Direct upload error:", error);
+        throw error;
+      }
 
       // Get the URL
       const { data: { publicUrl } } = supabase.storage
         .from(bucketName)
         .getPublicUrl(uniquePath);
+      
+      console.log("uploadService - Direct upload complete, URL:", publicUrl);
 
       if (progress.onProgress) {
         progress.onProgress(100);
@@ -62,7 +74,10 @@ export const uploadFileInChunks = async (
     }
 
     // True chunked upload implementation for larger files
+    console.log("uploadService - Large file, using chunked upload");
+    
     // Create an array buffer from the file
+    console.log("uploadService - Reading file as array buffer");
     const fileBuffer = await file.arrayBuffer();
     const fileUint8 = new Uint8Array(fileBuffer);
     
@@ -81,13 +96,18 @@ export const uploadFileInChunks = async (
       
       progress.currentChunk = i + 1;
       
+      console.log(`uploadService - Uploading chunk ${i+1}/${totalChunks}`, chunkPath);
+      
       // Upload the chunk
-      const { error: chunkError } = await supabase.storage
+      const { data, error: chunkError } = await supabase.storage
         .from(bucketName)
         .upload(chunkPath, chunkBlob);
       
       if (chunkError) {
+        console.error(`uploadService - Error uploading chunk ${i+1}:`, chunkError);
+        
         // Clean up already uploaded chunks on error
+        console.log("uploadService - Cleaning up previously uploaded chunks");
         await Promise.all(
           chunkPaths.map(path => 
             supabase.storage.from(bucketName).remove([path])
@@ -98,23 +118,30 @@ export const uploadFileInChunks = async (
       
       // Update progress
       const chunkProgress = Math.floor((i + 1) / totalChunks * 100);
+      console.log(`uploadService - Chunk ${i+1} uploaded, progress: ${chunkProgress}%`);
+      
       if (progress.onProgress) {
         progress.onProgress(chunkProgress);
       }
     }
     
     // All chunks uploaded successfully
+    console.log("uploadService - All chunks uploaded successfully");
     
     // Get the URL of the first chunk
     const { data: { publicUrl } } = supabase.storage
       .from(bucketName)
       .getPublicUrl(chunkPaths[0]);
     
+    console.log("uploadService - Upload complete, first chunk URL:", publicUrl);
+    
     return {
       compressedUrl: publicUrl,
       totalChunks: totalChunks
     };
   } catch (error: any) {
+    console.error("uploadService - Chunked upload error:", error);
+    
     // Handle specific Supabase error codes
     if (error.statusCode === 413) {
       throw new Error('Payload too large: The file is too large for the server to process.');
@@ -129,7 +156,13 @@ export const uploadFileInChunks = async (
  * Validates that a file size is within acceptable limits
  */
 export const validateFileSize = (file: File): void => {
+  console.log("uploadService - Validating file size:", file.size, "Max:", MAX_FILE_SIZE);
+  
   if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`File size exceeds the ${MAX_FILE_SIZE / (1024 * 1024)}MB limit (your file: ${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
+    const errorMsg = `File size exceeds the ${MAX_FILE_SIZE / (1024 * 1024)}MB limit (your file: ${(file.size / (1024 * 1024)).toFixed(1)}MB)`;
+    console.error("uploadService - File size validation failed:", errorMsg);
+    throw new Error(errorMsg);
   }
+  
+  console.log("uploadService - File size validation passed");
 };
