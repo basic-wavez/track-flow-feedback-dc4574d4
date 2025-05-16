@@ -47,6 +47,7 @@ const TrackHeader = ({
   };
 
   const toggleStatus = () => {
+    if (!isOwner) return;
     setStatusMode(statusMode === "wip" ? "demo" : "wip");
   };
 
@@ -113,8 +114,9 @@ const TrackHeader = ({
         <div className="flex items-center gap-3">
           <Badge 
             variant="outline" 
-            className="border-wip-pink text-wip-pink cursor-pointer hover:bg-wip-pink/10 transition-colors"
+            className={`border-wip-pink text-wip-pink ${isOwner ? 'cursor-pointer hover:bg-wip-pink/10 transition-colors' : 'opacity-75'}`}
             onClick={toggleStatus}
+            title={isOwner ? `Change status to ${statusMode === "wip" ? "Demo" : "Work In Progress"}` : "Only the owner can change this status"}
           >
             {statusMode === "wip" ? "Work In Progress" : "Demo"}
           </Badge>
