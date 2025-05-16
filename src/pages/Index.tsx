@@ -157,6 +157,12 @@ const Index = () => {
           </ol>
         </div>
       </main>
+      
+      <AuthModal 
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   );
 };

@@ -33,7 +33,13 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     setIsDragging(true);
   }, []);
 
-  const handleDragLeave = useCallback(() => {
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
     setIsDragging(false);
   }, []);
 
@@ -169,6 +175,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
               : "border-gray-600 hover:border-wip-pink hover:bg-wip-pink/5"
           }`}
           onDragOver={handleDragOver}
+          onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
