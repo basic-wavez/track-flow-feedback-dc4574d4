@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Download, Share2, MoreHorizontal } from "lucide-react";
+import { Download, Share2, MoreHorizontal, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { incrementDownloadCount } from "@/services/trackShareService";
+import TrackSettingsDialog from "@/components/track/TrackSettingsDialog";
 
 interface TrackActionsProps {
   isOwner: boolean;
@@ -29,6 +30,7 @@ const TrackActions = ({
   shareKey
 }: TrackActionsProps) => {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { toast } = useToast();
   
   const handleDownload = async () => {
@@ -140,21 +142,31 @@ const TrackActions = ({
       </Button>
       
       {isOwner && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => window.location.href = `/track/${trackId}/edit`}>
-              Edit Track
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => window.location.href = `/track/${trackId}/delete`} className="text-destructive">
-              Delete Track
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsSettingsOpen(true)}>
+                <Settings className="h-4 w-4 mr-2" />
+                Track Settings
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => window.location.href = `/track/${trackId}/delete`} className="text-destructive">
+                Delete Track
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <TrackSettingsDialog 
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            trackId={trackId}
+            downloadsEnabled={downloadsEnabled}
+          />
+        </>
       )}
     </div>
   );
