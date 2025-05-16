@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, LogOut, User as UserIcon, LayoutDashboard, FileVideo } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon, LayoutDashboard, Music } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,10 +16,10 @@ import {
 const Header = () => {
   const { user, loading, signOut, isAdmin } = useAuth();
 
-  // Extract initials for avatar fallback
-  const getInitials = () => {
-    if (!user || !user.email) return "?";
-    return user.email.substring(0, 2).toUpperCase();
+  // Extract email for avatar fallback
+  const getEmail = () => {
+    if (!user || !user.email) return "User";
+    return user.email;
   };
 
   return (
@@ -39,7 +39,7 @@ const Header = () => {
               to="/my-demos"
               className="inline-flex items-center px-3 py-1 text-sm font-medium text-white hover:text-wip-pink transition-colors"
             >
-              <FileVideo className="h-4 w-4 mr-1" />
+              <Music className="h-4 w-4 mr-1" />
               My Demos
             </Link>
           )}
@@ -65,8 +65,8 @@ const Header = () => {
                 >
                   <Avatar className="h-9 w-9 border border-wip-gray/30">
                     <AvatarImage src="..." />
-                    <AvatarFallback className="bg-wip-dark text-white">
-                      {getInitials()}
+                    <AvatarFallback className="bg-wip-dark text-white text-xs p-1 overflow-hidden">
+                      {getEmail()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
