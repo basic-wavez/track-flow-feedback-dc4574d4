@@ -12,7 +12,7 @@ const buttonVariants = cva(
       variant: {
         default: "bg-supabase-pink text-supabase-darker hover:bg-supabase-pink/90",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-red-500 text-white hover:bg-red-600", // Updated to a lighter, more visible red
         outline:
           "border border-input bg-transparent hover:bg-accent/10 hover:text-accent",
         secondary:

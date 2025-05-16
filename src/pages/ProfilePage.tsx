@@ -443,7 +443,7 @@ const ProfilePage = () => {
             <AlertDialogTitle>Delete Track</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete "{trackToDelete?.title}"? This action cannot be undone.
-              <p className="mt-2 text-destructive">
+              <p className="mt-2 text-red-300">
                 All feedback associated with this track will also be permanently deleted.
               </p>
             </AlertDialogDescription>
@@ -455,7 +455,7 @@ const ProfilePage = () => {
                 e.preventDefault(); // Prevent the default close behavior
                 handleDeleteTrack();
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-red-500 text-white hover:bg-red-600"
               disabled={isDeletingTrack}
             >
               {isDeletingTrack ? (
