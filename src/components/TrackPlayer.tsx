@@ -1,6 +1,5 @@
 
 import { useState, useRef } from "react";
-import { requestTrackProcessing } from "@/services/trackService";
 import Waveform from "./Waveform";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import TrackHeader from "./player/TrackHeader";
@@ -28,9 +27,7 @@ const TrackPlayer = ({
   processingStatus = 'completed',
   mp3Url
 }: TrackPlayerProps) => {
-  // State management
-  const [isRequestingProcessing, setIsRequestingProcessing] = useState(false);
-  const [currentProcessingStatus, setCurrentProcessingStatus] = useState<string>(processingStatus);
+  // Remove isRequestingProcessing state since we're removing the button
   
   // Determine which URL to use for playback - prefer MP3 if available
   const playbackUrl = mp3Url || audioUrl;
@@ -54,21 +51,10 @@ const TrackPlayer = ({
     handleVolumeChange,
   } = useAudioPlayer({ mp3Url: playbackUrl });
   
-  const handleRequestProcessing = async () => {
-    if (!trackId || isRequestingProcessing) return;
-    
-    setIsRequestingProcessing(true);
-    try {
-      await requestTrackProcessing(trackId);
-      // Update status immediately for better UX
-      setCurrentProcessingStatus('queued');
-    } finally {
-      setIsRequestingProcessing(false);
-    }
-  };
-
-  const showProcessButton = isOwner && 
-    (currentProcessingStatus === 'failed' || !mp3Url);
+  // Remove handleRequestProcessing function
+  
+  // Always hide the process button now
+  const showProcessButton = false;
   
   // Check if we're using the MP3 version
   const usingMp3 = !!mp3Url;
@@ -88,10 +74,10 @@ const TrackPlayer = ({
         playbackState={playbackState}
         isLoading={isLoading}
         usingMp3={usingMp3}
-        processingStatus={currentProcessingStatus}
+        processingStatus={processingStatus}
         showProcessButton={showProcessButton}
-        isRequestingProcessing={isRequestingProcessing}
-        onRequestProcessing={handleRequestProcessing}
+        isRequestingProcessing={false}
+        onRequestProcessing={async () => {}} // Empty function since we're not using it
       />
       
       <PlaybackControls 

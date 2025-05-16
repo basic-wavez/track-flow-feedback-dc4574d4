@@ -1,6 +1,5 @@
+
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Loader, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 interface TrackHeaderProps {
@@ -34,47 +33,6 @@ const TrackHeader = ({
     return null;
   };
 
-  // Helper function to render processing status
-  const renderProcessingStatus = () => {
-    if (usingMp3) return null;
-    
-    switch (processingStatus) {
-      case 'pending':
-        return (
-          <Badge variant="outline" className="bg-gray-700 text-gray-300">
-            MP3 Processing Pending
-          </Badge>
-        );
-      case 'queued':
-        return (
-          <Badge variant="outline" className="bg-blue-900 text-blue-200 border-blue-700">
-            MP3 Processing Queued
-          </Badge>
-        );
-      case 'processing':
-        return (
-          <Badge variant="outline" className="bg-amber-900 text-amber-200 border-amber-700 flex items-center gap-1">
-            <Loader className="h-3 w-3 animate-spin" />
-            MP3 Processing
-          </Badge>
-        );
-      case 'failed':
-        return (
-          <Badge variant="outline" className="bg-red-900 text-red-200 border-red-700">
-            MP3 Processing Failed
-          </Badge>
-        );
-      case 'completed':
-        return (
-          <Badge variant="outline" className="bg-green-900 text-green-200 border-green-700">
-            MP3 Processing Complete
-          </Badge>
-        );
-      default:
-        return null;
-    }
-  };
-
   const toggleStatus = () => {
     setStatusMode(statusMode === "wip" ? "demo" : "wip");
   };
@@ -87,26 +45,11 @@ const TrackHeader = ({
           <p className="text-gray-400 text-sm">
             {renderPlaybackStatus()}
           </p>
-          {renderProcessingStatus()}
+          {/* Processing status badges completely removed */}
         </div>
       </div>
       <div className="flex items-center gap-3">
-        {showProcessButton && (
-          <Button
-            onClick={onRequestProcessing}
-            variant="outline"
-            size="sm"
-            className="border-wip-pink text-wip-pink hover:bg-wip-pink/10 flex gap-1 items-center"
-            disabled={isRequestingProcessing}
-          >
-            {isRequestingProcessing ? (
-              <Loader className="h-3 w-3 animate-spin mr-1" />
-            ) : (
-              <RefreshCw className="h-3 w-3 mr-1" />
-            )}
-            Process MP3
-          </Button>
-        )}
+        {/* Process MP3 button removed */}
         <Badge 
           variant="outline" 
           className="border-wip-pink text-wip-pink cursor-pointer hover:bg-wip-pink/10 transition-colors"
