@@ -67,56 +67,62 @@ const uploadWithProgress = (
   onProgress: (progress: number) => void
 ): Promise<string> => {
   return new Promise((resolve, reject) => {
+    // Create FormData to send the file
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Create the XHR request
     const xhr = new XMLHttpRequest();
     
-    // Get the upload URL from Supabase
-    supabase.storage.from(bucketName).getUploadUrl(uniquePath)
+    // Configure to track progress
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = Math.round((event.loaded / event.total) * 100);
+        console.log(`uploadService - Upload progress: ${percentComplete}%`);
+        onProgress(percentComplete);
+      }
+    };
+    
+    // Handle completion
+    xhr.onload = async () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        console.log("uploadService - XHR upload successful");
+        
+        // Get the public URL after successful upload
+        const { data } = supabase.storage
+          .from(bucketName)
+          .getPublicUrl(uniquePath);
+        
+        resolve(data.publicUrl);
+      } else {
+        console.error("uploadService - XHR upload failed:", xhr.statusText);
+        reject(new Error(`Upload failed with status: ${xhr.status}`));
+      }
+    };
+    
+    // Handle errors
+    xhr.onerror = () => {
+      console.error("uploadService - XHR upload error");
+      reject(new Error('Network error during upload'));
+    };
+    
+    // Get the signed URL for uploading
+    supabase.storage.from(bucketName)
+      .createSignedUploadUrl(uniquePath)
       .then(({ data, error }) => {
         if (error) {
-          console.error("uploadService - Failed to get upload URL:", error);
+          console.error("uploadService - Failed to get signed URL:", error);
           reject(error);
           return;
         }
-        
-        const { url, token } = data;
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        // Track upload progress
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percentComplete = Math.round((event.loaded / event.total) * 100);
-            console.log(`uploadService - Upload progress: ${percentComplete}%`);
-            onProgress(percentComplete);
-          }
-        };
-        
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            console.log("uploadService - XHR upload successful");
-            // Get the public URL for the uploaded file
-            const { data } = supabase.storage
-              .from(bucketName)
-              .getPublicUrl(uniquePath);
-            
-            resolve(data.publicUrl);
-          } else {
-            console.error("uploadService - XHR upload failed:", xhr.statusText);
-            reject(new Error(`Upload failed with status: ${xhr.status}`));
-          }
-        };
-        
-        xhr.onerror = () => {
-          console.error("uploadService - XHR upload error");
-          reject(new Error('Network error during upload'));
-        };
-        
-        xhr.open('POST', url);
-        xhr.setRequestHeader('authorization', `Bearer ${token}`);
-        xhr.send(formData);
+
+        // Use the signed URL to upload the file
+        xhr.open('POST', data.signedUrl);
+        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.send(file);
       })
       .catch(error => {
-        console.error("uploadService - Error getting upload URL:", error);
+        console.error("uploadService - Error getting signed URL:", error);
         reject(error);
       });
   });
