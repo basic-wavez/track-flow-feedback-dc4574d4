@@ -14,6 +14,8 @@ interface TrackPlayerProps {
   originalUrl?: string;
   originalFilename?: string;
   isOwner?: boolean;
+  processingStatus?: string;
+  mp3Url?: string;
 }
 
 const TrackPlayer = ({ 
@@ -22,11 +24,16 @@ const TrackPlayer = ({
   audioUrl, 
   originalUrl,
   originalFilename,
-  isOwner = false 
+  isOwner = false,
+  processingStatus = 'completed',
+  mp3Url
 }: TrackPlayerProps) => {
   // State management
   const [isRequestingProcessing, setIsRequestingProcessing] = useState(false);
-  const [processingStatus, setProcessingStatus] = useState<string>('completed');
+  const [currentProcessingStatus, setCurrentProcessingStatus] = useState<string>(processingStatus);
+  
+  // Determine which URL to use for playback - prefer MP3 if available
+  const playbackUrl = mp3Url || audioUrl;
   
   // Use custom hook for audio playback
   const {
@@ -45,10 +52,7 @@ const TrackPlayer = ({
     handleSeek,
     toggleMute,
     handleVolumeChange,
-  } = useAudioPlayer({ mp3Url: audioUrl });
-  
-  // Hidden audio element for preloading next chunk (kept for compatibility)
-  const nextAudioRef = useRef<HTMLAudioElement>(null);
+  } = useAudioPlayer({ mp3Url: playbackUrl });
   
   const handleRequestProcessing = async () => {
     if (!trackId || isRequestingProcessing) return;
@@ -57,17 +61,17 @@ const TrackPlayer = ({
     try {
       await requestTrackProcessing(trackId);
       // Update status immediately for better UX
-      setProcessingStatus('queued');
+      setCurrentProcessingStatus('queued');
     } finally {
       setIsRequestingProcessing(false);
     }
   };
 
   const showProcessButton = isOwner && 
-    processingStatus === 'failed';
+    (currentProcessingStatus === 'failed' || !mp3Url);
   
-  // Always using MP3 now
-  const usingMp3 = true;
+  // Check if we're using the MP3 version
+  const usingMp3 = !!mp3Url;
   const isLoading = playbackState === 'loading';
 
   return (
@@ -75,15 +79,8 @@ const TrackPlayer = ({
       {/* Main audio element */}
       <audio 
         ref={audioRef} 
-        src={audioUrl}
+        src={playbackUrl}
         preload="auto"
-      />
-      
-      {/* Hidden audio element for preloading (kept for compatibility) */}
-      <audio 
-        ref={nextAudioRef} 
-        preload="auto" 
-        style={{ display: 'none' }}
       />
       
       <TrackHeader 
@@ -91,7 +88,7 @@ const TrackPlayer = ({
         playbackState={playbackState}
         isLoading={isLoading}
         usingMp3={usingMp3}
-        processingStatus={processingStatus}
+        processingStatus={currentProcessingStatus}
         showProcessButton={showProcessButton}
         isRequestingProcessing={isRequestingProcessing}
         onRequestProcessing={handleRequestProcessing}
@@ -111,12 +108,12 @@ const TrackPlayer = ({
       />
       
       <Waveform 
-        audioUrl={audioUrl}
+        audioUrl={playbackUrl}
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}
         onSeek={handleSeek}
-        totalChunks={1} // We're only using MP3 now
+        totalChunks={1} // No more chunks, always 1
         isBuffering={isBuffering}
         showBufferingUI={showBufferingUI}
         isMp3Available={usingMp3}

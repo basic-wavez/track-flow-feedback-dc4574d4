@@ -1,63 +1,38 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { v4 as uuidv4 } from "uuid";
 import { toast } from "@/components/ui/use-toast";
 import { handleError } from "@/utils/errorHandler";
 
-// Increased constants for chunked uploads
-export const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks (unchanged)
-export const MAX_FILE_SIZE = 200 * 1024 * 1024; // Increased from 80MB to 200MB maximum file size
-
-interface UploadProgress {
-  totalChunks: number;
-  currentChunk: number;
-  progress: number; // 0-100
-  onProgress?: (progress: number) => void;
-}
-
-interface UploadResult {
-  compressedUrl: string;
-  totalChunks: number;
-}
+// Maximum file size (200MB)
+export const MAX_FILE_SIZE = 200 * 1024 * 1024;
 
 /**
- * Uploads a file in chunks to Supabase Storage
+ * Uploads a file directly to Supabase Storage
  */
-export const uploadFileInChunks = async (
+export const uploadFile = async (
   file: File,
   uniquePath: string,
   bucketName: string = 'audio',
   onProgress?: (progress: number) => void
-): Promise<UploadResult> => {
-  console.log("uploadService - Starting chunked upload for:", file.name, file.size);
-  console.log("uploadService - File object type check:", Object.prototype.toString.call(file));
-  console.log("uploadService - File object methods:", Object.getOwnPropertyNames(Object.getPrototypeOf(file)));
+): Promise<string> => {
+  console.log("uploadService - Starting upload for:", file.name, file.size);
   
-  // Track upload progress
-  const progress: UploadProgress = {
-    totalChunks: 0,
-    currentChunk: 0,
-    progress: 0,
-    onProgress
-  };
-
-  // Calculate total chunks
-  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-  progress.totalChunks = totalChunks;
-  
-  console.log("uploadService - File will be uploaded in", totalChunks, "chunks");
-
   try {
-    // For small files (< 5MB), upload directly
-    if (file.size <= CHUNK_SIZE) {
-      console.log("uploadService - Small file, uploading directly");
-      
+    // Validate file size before upload
+    validateFileSize(file);
+    
+    // Track upload progress with XHR if progress callback provided
+    if (onProgress) {
+      // For uploads with progress tracking, use XHR
+      return await uploadWithProgress(file, uniquePath, bucketName, onProgress);
+    } else {
+      // For uploads without progress tracking, use direct upload
       const { data, error } = await supabase.storage
         .from(bucketName)
         .upload(uniquePath, file);
 
       if (error) {
-        console.error("uploadService - Direct upload error:", error);
+        console.error("uploadService - Upload error:", error);
         throw error;
       }
 
@@ -66,91 +41,11 @@ export const uploadFileInChunks = async (
         .from(bucketName)
         .getPublicUrl(uniquePath);
       
-      console.log("uploadService - Direct upload complete, URL:", publicUrl);
-
-      if (progress.onProgress) {
-        progress.onProgress(100);
-      }
-
-      return { compressedUrl: publicUrl, totalChunks: 1 };
-    }
-
-    // True chunked upload implementation for larger files
-    console.log("uploadService - Large file, using chunked upload");
-    
-    // Create an array buffer from the file
-    console.log("uploadService - Reading file as array buffer");
-    try {
-      const fileBuffer = await file.arrayBuffer();
-      console.log("uploadService - File buffer created successfully, size:", fileBuffer.byteLength);
-      const fileUint8 = new Uint8Array(fileBuffer);
-      
-      // Initialize temporary chunk paths
-      const chunkPaths: string[] = [];
-      
-      // Upload each chunk
-      for (let i = 0; i < totalChunks; i++) {
-        const start = i * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, file.size);
-        const chunkData = fileUint8.slice(start, end);
-        const chunkBlob = new Blob([chunkData]);
-        
-        console.log(`uploadService - Processing chunk ${i+1}/${totalChunks}, size: ${chunkBlob.size} bytes, range: ${start}-${end}`);
-        
-        const chunkPath = `${uniquePath}_chunk_${i}`;
-        chunkPaths.push(chunkPath);
-        
-        progress.currentChunk = i + 1;
-        
-        console.log(`uploadService - Uploading chunk ${i+1}/${totalChunks}`, chunkPath);
-        
-        // Upload the chunk
-        const { data, error: chunkError } = await supabase.storage
-          .from(bucketName)
-          .upload(chunkPath, chunkBlob);
-        
-        if (chunkError) {
-          console.error(`uploadService - Error uploading chunk ${i+1}:`, chunkError);
-          
-          // Clean up already uploaded chunks on error
-          console.log("uploadService - Cleaning up previously uploaded chunks");
-          await Promise.all(
-            chunkPaths.map(path => 
-              supabase.storage.from(bucketName).remove([path])
-            )
-          );
-          throw chunkError;
-        }
-        
-        // Update progress
-        const chunkProgress = Math.floor((i + 1) / totalChunks * 100);
-        console.log(`uploadService - Chunk ${i+1} uploaded, progress: ${chunkProgress}%`);
-        
-        if (progress.onProgress) {
-          progress.onProgress(chunkProgress);
-        }
-      }
-      
-      // All chunks uploaded successfully
-      console.log("uploadService - All chunks uploaded successfully:", totalChunks);
-      
-      // Get the URL of the first chunk
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(chunkPaths[0]);
-      
-      console.log("uploadService - Upload complete, first chunk URL:", publicUrl);
-      
-      return {
-        compressedUrl: publicUrl,
-        totalChunks: totalChunks
-      };
-    } catch (bufferError) {
-      console.error("uploadService - Error creating array buffer:", bufferError);
-      throw new Error(`Failed to read file data: ${bufferError.message}`);
+      console.log("uploadService - Upload complete, URL:", publicUrl);
+      return publicUrl;
     }
   } catch (error: any) {
-    console.error("uploadService - Chunked upload error:", error);
+    console.error("uploadService - Upload error:", error);
     
     // Handle specific Supabase error codes
     if (error.statusCode === 413) {
@@ -160,6 +55,71 @@ export const uploadFileInChunks = async (
     }
     throw error;
   }
+};
+
+/**
+ * Upload file with progress tracking using XHR
+ */
+const uploadWithProgress = (
+  file: File,
+  uniquePath: string,
+  bucketName: string,
+  onProgress: (progress: number) => void
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    
+    // Get the upload URL from Supabase
+    supabase.storage.from(bucketName).getUploadUrl(uniquePath)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("uploadService - Failed to get upload URL:", error);
+          reject(error);
+          return;
+        }
+        
+        const { url, token } = data;
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Track upload progress
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            console.log(`uploadService - Upload progress: ${percentComplete}%`);
+            onProgress(percentComplete);
+          }
+        };
+        
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            console.log("uploadService - XHR upload successful");
+            // Get the public URL for the uploaded file
+            const { data } = supabase.storage
+              .from(bucketName)
+              .getPublicUrl(uniquePath);
+            
+            resolve(data.publicUrl);
+          } else {
+            console.error("uploadService - XHR upload failed:", xhr.statusText);
+            reject(new Error(`Upload failed with status: ${xhr.status}`));
+          }
+        };
+        
+        xhr.onerror = () => {
+          console.error("uploadService - XHR upload error");
+          reject(new Error('Network error during upload'));
+        };
+        
+        xhr.open('POST', url);
+        xhr.setRequestHeader('authorization', `Bearer ${token}`);
+        xhr.send(formData);
+      })
+      .catch(error => {
+        console.error("uploadService - Error getting upload URL:", error);
+        reject(error);
+      });
+  });
 };
 
 /**

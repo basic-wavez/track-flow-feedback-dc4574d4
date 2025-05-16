@@ -131,7 +131,7 @@ async function processAudio(supabase: any, trackId: string) {
       .update({ processing_status: "processing" })
       .eq("id", trackId);
     
-    // Get track details to find chunks
+    // Get track details to find the audio file
     const { data: track, error: trackError } = await supabase
       .from("tracks")
       .select("*")
@@ -144,16 +144,74 @@ async function processAudio(supabase: any, trackId: string) {
       return;
     }
 
-    let mp3Url = '';
+    // Extract the file path from the original URL
+    const audioUrl = track.original_url || track.compressed_url;
+    let filePath = '';
+    
+    try {
+      // Parse the URL to extract the path after /audio/
+      const url = new URL(audioUrl);
+      const pathParts = url.pathname.split('/');
+      let relevantPath = '';
+      
+      // Find the portion after 'audio' in the path
+      const audioIndex = pathParts.findIndex(part => part === 'audio');
+      if (audioIndex >= 0 && audioIndex < pathParts.length - 1) {
+        relevantPath = pathParts.slice(audioIndex + 1).join('/');
+      }
+      
+      if (relevantPath) {
+        filePath = relevantPath;
+      } else {
+        // Fallback if we can't parse the URL properly
+        filePath = audioUrl.split('/public/audio/')[1];
+      }
+      
+      console.log(`Extracted file path: ${filePath} from URL: ${audioUrl}`);
+    } catch (error) {
+      console.error("Error parsing URL:", error);
+      await updateTrackStatusToFailed(supabase, trackId);
+      return;
+    }
+    
+    if (!filePath) {
+      console.error("Could not determine file path");
+      await updateTrackStatusToFailed(supabase, trackId);
+      return;
+    }
+    
+    // Download the audio file from Supabase
+    const { data: fileData, error: downloadError } = await supabase
+      .storage
+      .from('audio')
+      .download(filePath);
+      
+    if (downloadError || !fileData) {
+      console.error("Error downloading audio file:", downloadError);
+      await updateTrackStatusToFailed(supabase, trackId);
+      return;
+    }
+    
+    console.log(`Successfully downloaded audio file for track ${trackId}, size: ${fileData.size} bytes`);
 
-    // If there are no chunks or only one chunk, process a single file
-    if (!track.chunk_count || track.chunk_count <= 1) {
-      console.log(`Track ${trackId} has only one chunk, processing via Cloudinary`);
-      mp3Url = await processSingleFile(supabase, track);
-    } else {
-      // Process multiple chunks
-      console.log(`Track ${trackId} has ${track.chunk_count} chunks that will be merged`);
-      mp3Url = await processMultipleChunks(supabase, track);
+    // Process with Cloudinary - with retries
+    let mp3Url = null;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        mp3Url = await uploadToCloudinary(fileData, track);
+        if (mp3Url) break;
+        
+        console.log(`Attempt ${attempt} failed, retrying...`);
+      } catch (error) {
+        console.error(`Upload attempt ${attempt} failed:`, error);
+        if (attempt === MAX_RETRIES) {
+          console.error("All retry attempts failed");
+          await updateTrackStatusToFailed(supabase, trackId);
+          return;
+        }
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+      }
     }
     
     if (mp3Url) {
@@ -173,182 +231,6 @@ async function processAudio(supabase: any, trackId: string) {
   } catch (error) {
     console.error(`Error processing audio for track ${trackId}:`, error);
     await updateTrackStatusToFailed(supabase, trackId);
-  }
-}
-
-async function processSingleFile(supabase: any, track: any): Promise<string | null> {
-  try {
-    // Extract the file path from the original URL
-    const compressedUrl = track.compressed_url;
-    let filePath = '';
-    
-    try {
-      // Parse the URL to extract the path after /audio/
-      const url = new URL(compressedUrl);
-      const pathParts = url.pathname.split('/');
-      let relevantPath = '';
-      
-      // Find the portion after 'audio' in the path
-      const audioIndex = pathParts.findIndex(part => part === 'audio');
-      if (audioIndex >= 0 && audioIndex < pathParts.length - 1) {
-        relevantPath = pathParts.slice(audioIndex + 1).join('/');
-      }
-      
-      if (relevantPath) {
-        filePath = relevantPath;
-      } else {
-        // Fallback if we can't parse the URL properly
-        filePath = compressedUrl.split('/public/audio/')[1];
-      }
-      
-      console.log(`Extracted file path: ${filePath} from URL: ${compressedUrl}`);
-    } catch (error) {
-      console.error("Error parsing URL:", error);
-      return null;
-    }
-    
-    if (!filePath) {
-      console.error("Could not determine file path");
-      return null;
-    }
-    
-    // Download the original file from Supabase
-    const { data: fileData, error: downloadError } = await supabase
-      .storage
-      .from('audio')
-      .download(filePath);
-      
-    if (downloadError || !fileData) {
-      console.error("Error downloading original file:", downloadError);
-      return null;
-    }
-
-    // Upload to Cloudinary and convert to MP3 - with retries
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const mp3Url = await uploadToCloudinary(fileData, track);
-        if (mp3Url) return mp3Url;
-        
-        console.log(`Attempt ${attempt} failed, retrying...`);
-      } catch (error) {
-        console.error(`Upload attempt ${attempt} failed:`, error);
-        if (attempt === MAX_RETRIES) {
-          console.error("All retry attempts failed");
-          return null;
-        }
-        // Wait before retrying (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error("Error in processSingleFile:", error);
-    return null;
-  }
-}
-
-async function processMultipleChunks(supabase: any, track: any): Promise<string | null> {
-  try {
-    // Extract the base path from the original URL to determine the chunk path pattern
-    const baseUrl = track.compressed_url;
-    let basePath = '';
-    
-    try {
-      // Extract the path portion of the URL (after the bucket name)
-      const url = new URL(baseUrl);
-      const pathParts = url.pathname.split('/');
-      let relevantPath = '';
-      
-      // Find the portion after 'audio' in the path
-      const audioIndex = pathParts.findIndex(part => part === 'audio');
-      if (audioIndex >= 0 && audioIndex < pathParts.length - 1) {
-        relevantPath = pathParts.slice(audioIndex + 1).join('/');
-      }
-      
-      if (relevantPath) {
-        basePath = relevantPath.split('_chunk_0')[0];
-      } else {
-        // Fallback if we can't parse the URL properly
-        basePath = baseUrl.split('/public/audio/')[1].split('_chunk_0')[0];
-      }
-      
-      console.log(`Identified base path for chunks: ${basePath}`);
-    } catch (error) {
-      console.error("Error parsing URL for chunks:", error);
-      return null;
-    }
-    
-    if (!basePath) {
-      console.error("Could not determine base path for chunks");
-      return null;
-    }
-    
-    // Download all chunks and combine them
-    const chunks: Blob[] = [];
-    let totalSize = 0;
-    
-    console.log(`Downloading ${track.chunk_count} chunks for track ${track.id}...`);
-    
-    // Download all chunks
-    for (let i = 0; i < track.chunk_count; i++) {
-      const chunkPath = `${basePath}_chunk_${i}`;
-      console.log(`Downloading chunk ${i+1}/${track.chunk_count}: ${chunkPath}`);
-      
-      const { data: chunkData, error: downloadError } = await supabase
-        .storage
-        .from('audio')
-        .download(chunkPath);
-      
-      if (downloadError || !chunkData) {
-        console.error(`Error downloading chunk ${i}:`, downloadError);
-        return null;
-      }
-      
-      chunks.push(chunkData);
-      totalSize += chunkData.size;
-      console.log(`Successfully downloaded chunk ${i+1}/${track.chunk_count}, size: ${chunkData.size} bytes`);
-    }
-    
-    if (chunks.length === 0) {
-      console.error("No chunks were downloaded");
-      return null;
-    }
-    
-    // Create a new Blob by concatenating all chunks
-    console.log(`Concatenating ${chunks.length} chunks with total size: ${totalSize} bytes`);
-    const concatenatedFile = new Blob(chunks, { type: chunks[0].type });
-    
-    console.log(`Combined file created with size: ${concatenatedFile.size} bytes`);
-    
-    // Upload combined file to Cloudinary
-    console.log(`Uploading combined file (${concatenatedFile.size} bytes) to Cloudinary...`);
-    
-    // Upload to Cloudinary and convert to MP3 - with retries
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const mp3Url = await uploadToCloudinary(concatenatedFile, track);
-        if (mp3Url) {
-          console.log(`Successfully processed all ${chunks.length} chunks for track ${track.id}`);
-          return mp3Url;
-        }
-        
-        console.log(`Attempt ${attempt} failed, retrying...`);
-      } catch (error) {
-        console.error(`Upload attempt ${attempt} failed:`, error);
-        if (attempt === MAX_RETRIES) {
-          console.error("All retry attempts failed");
-          return null;
-        }
-        // Wait before retrying (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error("Error in processMultipleChunks:", error);
-    return null;
   }
 }
 

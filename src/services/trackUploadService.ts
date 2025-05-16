@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "@/components/ui/use-toast";
 import { TrackData } from "@/types/track";
-import { uploadFileInChunks, validateFileSize } from "./uploadService";
+import { uploadFile, validateFileSize } from "./uploadService";
 import { requestMp3Processing } from "./trackProcessingService";
 import { handleError } from "@/utils/errorHandler";
 
@@ -17,8 +17,6 @@ export const uploadTrack = async (
 ): Promise<TrackData | null> => {
   try {
     console.log("trackUploadService - Starting upload of:", file.name, file.type, file.size);
-    console.log("trackUploadService - File object type:", Object.prototype.toString.call(file));
-    console.log("trackUploadService - File object properties:", Object.keys(file));
     
     // Validate file size
     validateFileSize(file);
@@ -41,35 +39,14 @@ export const uploadTrack = async (
     // Generate a unique file name to prevent collisions
     const fileExt = file.name.split('.').pop();
     const uniqueFileName = `${uuidv4()}.${fileExt}`;
-    const uniquePath = `${user.id}/${uniqueFileName}`;
+    const filePath = `${user.id}/${uniqueFileName}`;
     
-    console.log("trackUploadService - Generated unique path:", uniquePath);
+    console.log("trackUploadService - Generated unique path:", filePath);
     
-    // Upload the file to storage using chunking for the compressed version
-    console.log("trackUploadService - Starting chunked upload");
-    const { compressedUrl, totalChunks } = await uploadFileInChunks(file, uniquePath, 'audio', onProgress);
-    console.log("trackUploadService - Chunked upload complete, URL:", compressedUrl, "Total chunks:", totalChunks);
-    
-    // Upload the original file directly to storage for download purposes
-    const originalFilePath = `${user.id}/original_${uniqueFileName}`;
-    console.log("trackUploadService - Uploading original file to:", originalFilePath);
-    
-    const { data: originalFileData, error: originalFileError } = await supabase.storage
-      .from('audio')
-      .upload(originalFilePath, file);
-      
-    if (originalFileError) {
-      console.error("trackUploadService - Error uploading original file:", originalFileError);
-      // Continue with process even if original file upload fails
-    } else {
-      console.log("trackUploadService - Original file upload complete");
-    }
-    
-    // Get public URL for the original file
-    const { data: originalUrlData } = originalFileError ? { data: null } : 
-      await supabase.storage
-        .from('audio')
-        .getPublicUrl(originalFilePath);
+    // Upload file to storage with progress tracking
+    console.log("trackUploadService - Starting file upload");
+    const publicUrl = await uploadFile(file, filePath, 'audio', onProgress);
+    console.log("trackUploadService - Upload complete, URL:", publicUrl);
     
     // Create a record in the tracks table
     const trackTitle = title || file.name.split('.')[0]; // Use provided title or extract from filename
@@ -79,12 +56,11 @@ export const uploadTrack = async (
       .from('tracks')
       .insert({
         title: trackTitle,
-        compressed_url: compressedUrl,
+        compressed_url: publicUrl,  // This will be the same as the original URL initially
         original_filename: file.name,
-        original_url: originalUrlData?.publicUrl || null,
+        original_url: publicUrl,    // Both URLs are the same since we're uploading once
         user_id: user.id,
         downloads_enabled: false,
-        chunk_count: totalChunks, // Store the number of chunks
         processing_status: 'pending' // Initial processing status
       })
       .select()
