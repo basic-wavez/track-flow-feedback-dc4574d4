@@ -8,30 +8,12 @@ interface AdminRouteProps {
 }
 
 const AdminRoute = ({ children }: AdminRouteProps) => {
-  const { user, isAdmin, loading, refreshSession } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
   const location = useLocation();
   const [authChecked, setAuthChecked] = useState(false);
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
-  
-  useEffect(() => {
-    // Refresh session to ensure we have the latest admin status
-    const checkAuth = async () => {
-      setIsCheckingAdmin(true);
-      try {
-        if (user) {
-          await refreshSession();
-        }
-      } catch (err) {
-        console.error("Failed to refresh session:", err);
-      } finally {
-        setIsCheckingAdmin(false);
-      }
-    };
-    
-    if (!loading) {
-      checkAuth();
-    }
-  }, [user, loading, refreshSession]);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 2;
   
   useEffect(() => {
     // Debug logging to help troubleshoot auth state issues
@@ -41,14 +23,27 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
       loading,
       isCheckingAdmin,
       path: location.pathname,
-      authChecked
+      authChecked,
+      retryCount
     });
     
-    // Only set authChecked after all loading is complete
-    if (!loading && !isCheckingAdmin) {
+    // Only check admin status if we have a user and haven't exceeded retry count
+    if (user && !loading && !authChecked && retryCount < MAX_RETRIES) {
+      setIsCheckingAdmin(true);
+      
+      // Small timeout to prevent potential race conditions
+      const timeoutId = setTimeout(() => {
+        console.log("AdminRoute - Checking admin status, retry:", retryCount);
+        setRetryCount(prev => prev + 1);
+        setIsCheckingAdmin(false);
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    } else if (!loading && !isCheckingAdmin) {
+      // Only set authChecked after all loading is complete
       setAuthChecked(true);
     }
-  }, [user, isAdmin, loading, isCheckingAdmin, location, authChecked]);
+  }, [user, isAdmin, loading, isCheckingAdmin, location, authChecked, retryCount]);
   
   if (loading || isCheckingAdmin) {
     return (

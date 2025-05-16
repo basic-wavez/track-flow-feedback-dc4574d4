@@ -14,35 +14,26 @@ import { Button } from "@/components/ui/button";
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<string>("users");
-  const { isAdmin, loading, user, refreshSession } = useAuth();
+  const { isAdmin, loading, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [authVerified, setAuthVerified] = useState(false);
   
-  // Verify admin status on mount
+  // Use an effect to check admin status without triggering refreshes
   useEffect(() => {
-    const verifyAdmin = async () => {
-      try {
-        await refreshSession();
-        console.log("AdminDashboard - Refreshed session, isAdmin:", isAdmin);
-      } catch (err) {
-        console.error("AdminDashboard - Error refreshing session:", err);
-        setHasError(true);
-        setErrorMessage("Failed to verify admin privileges");
-      }
-    };
+    console.log("AdminDashboard - Mounted, isAdmin:", isAdmin, "loading:", loading, "user:", user?.email);
     
-    if (user && !loading) {
-      verifyAdmin();
+    // Set auth verified flag when initial load completes
+    if (!loading) {
+      setAuthVerified(true);
     }
-  }, [user, loading, refreshSession, isAdmin]);
+  }, [isAdmin, loading, user]);
   
-  // Extra safety check - if user is not admin, redirect
+  // Only redirect after loading completes and we know the user is not an admin
   useEffect(() => {
-    console.log("AdminDashboard - Mounted, isAdmin:", isAdmin, "loading:", loading);
-    
-    if (isAdmin === false && !loading) {
+    if (authVerified && isAdmin === false) {
       console.log("AdminDashboard - Not admin, redirecting");
       toast({
         title: "Access Denied",
@@ -51,7 +42,7 @@ const AdminDashboard = () => {
       });
       navigate("/");
     }
-  }, [isAdmin, navigate, loading, toast]);
+  }, [authVerified, isAdmin, navigate, toast]);
 
   // Add an error boundary
   useEffect(() => {
@@ -107,6 +98,22 @@ const AdminDashboard = () => {
               <RefreshCcw className="mr-2 h-4 w-4" /> Try Again
             </Button>
           </Alert>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+  
+  // Show loading if we haven't verified auth status yet
+  if (!authVerified) {
+    return (
+      <div className="min-h-screen bg-wip-dark flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin h-8 w-8 border-4 border-wip-pink border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p>Verifying admin access...</p>
+          </div>
         </main>
         <Footer />
       </div>

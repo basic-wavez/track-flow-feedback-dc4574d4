@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { formatDistance } from "date-fns";
 import { getUserDetails } from "@/lib/adminHelpers";
+import { AlertCircle } from "lucide-react";
 
 interface UserDetailsProps {
   userId: string;
@@ -24,13 +25,17 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
     lastActive: null
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   
   useEffect(() => {
     const fetchUserDetails = async () => {
       setLoading(true);
+      setError(null);
       
       try {
+        console.log("AdminUserDetails - Fetching details for user:", userId);
+        
         // Fetch user profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -38,13 +43,20 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
           .eq('id', userId)
           .single();
         
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error("AdminUserDetails - Profile error:", profileError);
+          setError("Could not load user profile");
+          setLoading(false);
+          return;
+        }
         
         // Get user's email and metadata using our custom helper
-        const userData = await getUserDetails(userId);
-          
-        if (!userData) {
-          console.error("Could not fetch user details");
+        let userData;
+        try {
+          userData = await getUserDetails(userId);
+          console.log("AdminUserDetails - User details fetched");
+        } catch (err) {
+          console.error("AdminUserDetails - Error fetching user details:", err);
           // Continue without user details if they can't be fetched
         }
         
@@ -54,7 +66,10 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId);
         
-        if (trackError) throw trackError;
+        if (trackError) {
+          console.error("AdminUserDetails - Track count error:", trackError);
+          // Continue with default value
+        }
         
         // Fetch feedback count
         const { count: feedbackCount, error: feedbackError } = await supabase
@@ -62,7 +77,10 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId);
         
-        if (feedbackError) throw feedbackError;
+        if (feedbackError) {
+          console.error("AdminUserDetails - Feedback count error:", feedbackError);
+          // Continue with default value
+        }
         
         // Find last active timestamp (most recent track or feedback)
         const { data: lastTrack } = await supabase
@@ -82,7 +100,7 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
         // Combine data
         const userInfo = {
           id: userId,
-          email: userData ? userData.email : null,
+          email: userData ? userData.email : "Email unavailable",
           created_at: userData ? userData.created_at : new Date().toISOString(),
           last_sign_in_at: userData ? userData.last_sign_in_at : null,
           email_confirmed_at: userData ? userData.email_confirmed_at : null,
@@ -110,12 +128,13 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
         });
         
       } catch (error: any) {
+        console.error("AdminUserDetails - Error fetching user details:", error);
+        setError(error.message || "Failed to load user details");
         toast({
           title: "Error fetching user details",
           description: error.message,
           variant: "destructive"
         });
-        console.error("Error fetching user details:", error);
       } finally {
         setLoading(false);
       }
@@ -127,7 +146,7 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
   }, [userId, toast]);
   
   const resetUserPassword = async () => {
-    if (!userDetails?.email) {
+    if (!userDetails?.email || userDetails.email === "Email unavailable") {
       toast({
         title: "Cannot reset password",
         description: "User email is not available",
@@ -165,8 +184,21 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
     );
   }
   
+  if (error) {
+    return (
+      <div className="py-4 text-center">
+        <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
+  
   if (!userDetails) {
-    return <div>User not found</div>;
+    return (
+      <div className="py-4 text-center">
+        <p>User not found</p>
+      </div>
+    );
   }
   
   return (

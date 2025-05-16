@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { formatDistance } from "date-fns";
-import { Shield, Search, User, X, AlertTriangle } from "lucide-react";
+import { Shield, Search, User, X, AlertTriangle, RefreshCcw } from "lucide-react";
 import AdminUserDetails from "./AdminUserDetails";
 import { getUserEmails, UserEmailResult } from "@/lib/adminHelpers";
 
@@ -39,19 +39,16 @@ const AdminUsersList = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
   
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-  
-  const fetchUsers = async () => {
+  // Use useCallback to prevent excessive re-renders
+  const fetchUsers = useCallback(async () => {
+    console.log("AdminUsersList - Starting to fetch users");
     setLoading(true);
     setError(null);
     
     try {
-      console.log("AdminUsersList - Fetching users...");
-      
       // Query profiles and join with auth.users info via the profiles.id which references auth.users.id
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
@@ -59,10 +56,17 @@ const AdminUsersList = () => {
         
       if (profileError) {
         console.error("AdminUsersList - Profile error:", profileError);
-        throw profileError;
+        setError("Failed to load user profiles");
+        return;
       }
       
-      console.log("AdminUsersList - Profiles fetched:", profiles?.length);
+      if (!profiles || profiles.length === 0) {
+        console.log("AdminUsersList - No profiles found");
+        setUsers([]);
+        return;
+      }
+      
+      console.log("AdminUsersList - Profiles fetched:", profiles.length);
       
       // Get users with emails using our custom helper
       let emails: UserEmailResult[] = [];
@@ -92,25 +96,26 @@ const AdminUsersList = () => {
       
       if (rolesError) {
         console.error("AdminUsersList - Roles error:", rolesError);
-        throw rolesError;
+        // Continue with empty admin roles
       }
       
-      console.log("AdminUsersList - Admin roles fetched:", adminRoles?.length);
+      console.log("AdminUsersList - Admin roles fetched:", adminRoles?.length || 0);
       
       // Create a set of admin user IDs
       const adminSet = new Set(adminRoles?.map(role => role.user_id) || []);
       
       // Combine the data
-      const userData: UserData[] = profiles?.map(profile => ({
+      const userData: UserData[] = profiles.map(profile => ({
         id: profile.id,
         email: emailMap[profile.id] || null,
         created_at: profile.created_at || new Date().toISOString(),
         username: profile.username,
         is_admin: adminSet.has(profile.id)
-      })) || [];
+      }));
       
       console.log("AdminUsersList - Combined user data:", userData.length);
       setUsers(userData);
+      setError(null);
     } catch (error: any) {
       console.error("AdminUsersList - Error fetching users:", error);
       setError(error.message || "Failed to fetch users");
@@ -122,7 +127,11 @@ const AdminUsersList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+  
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
   
   const toggleAdminRole = async (userId: string, isCurrentlyAdmin: boolean) => {
     try {
@@ -182,6 +191,7 @@ const AdminUsersList = () => {
   
   const openUserDetails = (userId: string) => {
     setSelectedUserId(userId);
+    setDialogOpen(true);
   };
 
   const handleRetry = () => {
@@ -199,7 +209,9 @@ const AdminUsersList = () => {
           <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Error Loading Users</h3>
           <p className="mb-4">{error}</p>
-          <Button onClick={handleRetry}>Try Again</Button>
+          <Button onClick={handleRetry} className="gap-2">
+            <RefreshCcw className="h-4 w-4" /> Try Again
+          </Button>
         </div>
       </div>
     );
@@ -261,7 +273,10 @@ const AdminUsersList = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Dialog>
+                        <Dialog open={dialogOpen && selectedUserId === user.id} onOpenChange={(open) => {
+                          if (!open) setSelectedUserId(null);
+                          setDialogOpen(open);
+                        }}>
                           <DialogTrigger asChild>
                             <Button 
                               variant="outline" 
