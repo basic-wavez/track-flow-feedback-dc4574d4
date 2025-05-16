@@ -1,16 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  NavigationMenu, 
-  NavigationMenuList, 
-  NavigationMenuItem,
-} from "@/components/ui/navigation-menu";
 import { Button } from "@/components/ui/button";
 import TrackPlayer from "@/components/TrackPlayer";
 import TrackFeedbackSection from "@/components/track/TrackFeedbackSection";
 import TrackLoading from "@/components/track/TrackLoading";
 import TrackNotFound from "@/components/track/TrackNotFound";
 import Header from "@/components/layout/Header";
+import Navigation from "@/components/layout/Navigation";
 import Footer from "@/components/layout/Footer";
 import { getTrack } from "@/services/trackService";
 import { useAuth } from "@/context/AuthContext";
@@ -64,10 +60,11 @@ const TrackView = () => {
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <Header />
+      <Navigation />
       
-      <div className="py-6 px-8 border-b border-wip-gray/30">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between">
+      <main className="flex-1 py-12 px-4">
+        <div className="max-w-5xl mx-auto space-y-8">
+          <div className="flex items-center mb-4">
             <Button 
               onClick={() => navigate(-1)} 
               variant="ghost" 
@@ -75,48 +72,8 @@ const TrackView = () => {
             >
               ← Back
             </Button>
-            
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <Button 
-                    variant="ghost"
-                    className="bg-transparent hover:bg-wip-gray/10 text-wip-pink"
-                    onClick={() => navigate("/")}
-                  >
-                    Home
-                  </Button>
-                </NavigationMenuItem>
-                {user && (
-                  <NavigationMenuItem>
-                    <Button 
-                      variant="ghost"
-                      className="bg-transparent hover:bg-wip-gray/10 text-wip-pink"
-                      onClick={() => navigate("/profile")}
-                    >
-                      My Profile
-                    </Button>
-                  </NavigationMenuItem>
-                )}
-                {trackId && (
-                  <NavigationMenuItem>
-                    <Button 
-                      variant="ghost"
-                      className="bg-transparent hover:bg-wip-gray/10 text-wip-pink"
-                      onClick={() => navigate(`/feedback/${trackId}`)}
-                    >
-                      View Feedback
-                    </Button>
-                  </NavigationMenuItem>
-                )}
-              </NavigationMenuList>
-            </NavigationMenu>
           </div>
-        </div>
-      </div>
-
-      <main className="flex-1 py-12 px-4">
-        <div className="max-w-5xl mx-auto space-y-8">
+          
           <TrackPlayer 
             trackId={trackId}
             trackName={displayName} 
