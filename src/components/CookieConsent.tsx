@@ -58,7 +58,7 @@ const CookieConsent = () => {
           <Button
             size="sm"
             onClick={acceptAll}
-            className="bg-wip-pink hover:bg-wip-pink/80 text-white text-xs whitespace-nowrap"
+            className="bg-wip-pink hover:bg-wip-pink/80 text-black text-xs whitespace-nowrap"
           >
             Accept All
           </Button>
