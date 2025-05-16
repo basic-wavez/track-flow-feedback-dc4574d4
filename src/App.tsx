@@ -10,6 +10,9 @@ import TrackView from './pages/TrackView';
 import { AuthProvider } from './context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import NewVersionPage from './pages/NewVersionPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import CookiePolicyPage from './pages/CookiePolicyPage';
 
 // Create a client
 const queryClient = new QueryClient();
@@ -29,6 +32,11 @@ function App() {
             {/* Protected routes */}
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/track/:trackId/version" element={<ProtectedRoute><NewVersionPage /></ProtectedRoute>} />
+            
+            {/* Legal pages */}
+            <Route path="/terms" element={<TermsOfServicePage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/cookies" element={<CookiePolicyPage />} />
             
             <Route path="*" element={<NotFound />} />
           </Routes>
