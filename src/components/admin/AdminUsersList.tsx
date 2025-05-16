@@ -26,7 +26,7 @@ import AdminUserDetails from "./AdminUserDetails";
 
 interface UserData {
   id: string;
-  email: string;
+  email: string | null;
   created_at: string;
   username: string | null;
   is_admin: boolean;
@@ -47,20 +47,31 @@ const AdminUsersList = () => {
     setLoading(true);
     
     try {
-      // Fetch all users
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      // Query profiles and join with auth.users info via the profiles.id which references auth.users.id
+      // We need to use RPC here because we can't directly query auth.users
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, username, created_at:id');
+        
+      if (profileError) throw profileError;
       
-      if (authError) {
-        throw authError;
+      // Get users with emails from profiles table
+      // In a production environment, you would want to create a secure RPC function
+      // that returns this information only to admins
+      const { data: emails, error: emailError } = await supabase
+        .rpc('get_user_emails_for_admin');
+      
+      if (emailError) {
+        console.error("Error fetching emails:", emailError);
+        // Continue without emails if they can't be fetched
       }
       
-      // Fetch profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, username');
-      
-      if (profilesError) {
-        throw profilesError;
+      // Create an email lookup map
+      const emailMap: Record<string, string> = {};
+      if (emails) {
+        emails.forEach((item: { user_id: string, email: string }) => {
+          emailMap[item.user_id] = item.email;
+        });
       }
       
       // Fetch admin roles
@@ -69,29 +80,21 @@ const AdminUsersList = () => {
         .select('user_id')
         .eq('role', 'admin');
       
-      if (rolesError) {
-        throw rolesError;
-      }
-      
-      // Create a map of user IDs to usernames
-      const profileMap: Record<string, string | null> = {};
-      profiles?.forEach(profile => {
-        profileMap[profile.id] = profile.username;
-      });
+      if (rolesError) throw rolesError;
       
       // Create a set of admin user IDs
       const adminSet = new Set(adminRoles?.map(role => role.user_id) || []);
       
       // Combine the data
-      const combinedUsers = authUsers.users.map(user => ({
-        id: user.id,
-        email: user.email || '',
-        created_at: user.created_at,
-        username: profileMap[user.id] || null,
-        is_admin: adminSet.has(user.id)
-      }));
+      const userData: UserData[] = profiles?.map(profile => ({
+        id: profile.id,
+        email: emailMap[profile.id] || null,
+        created_at: profile.created_at || new Date().toISOString(),
+        username: profile.username,
+        is_admin: adminSet.has(profile.id)
+      })) || [];
       
-      setUsers(combinedUsers);
+      setUsers(userData);
     } catch (error: any) {
       toast({
         title: "Error fetching users",
@@ -155,7 +158,7 @@ const AdminUsersList = () => {
   const filteredUsers = users.filter(user => {
     const searchLower = searchTerm.toLowerCase();
     return (
-      user.email.toLowerCase().includes(searchLower) || 
+      (user.email?.toLowerCase() || "").includes(searchLower) || 
       (user.username?.toLowerCase() || "").includes(searchLower)
     );
   });
@@ -207,7 +210,7 @@ const AdminUsersList = () => {
                         <span>{user.username || "No username"}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.email || "No email"}</TableCell>
                     <TableCell className="hidden md:table-cell">
                       {formatDistance(new Date(user.created_at), new Date(), { addSuffix: true })}
                     </TableCell>

@@ -5,10 +5,22 @@ import Footer from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AdminUsersList from "@/components/admin/AdminUsersList";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
+import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<string>("users");
+  const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   
+  // Extra safety check - if user is not admin, redirect
+  useEffect(() => {
+    if (isAdmin === false) {
+      navigate("/");
+    }
+  }, [isAdmin, navigate]);
+
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <Header />

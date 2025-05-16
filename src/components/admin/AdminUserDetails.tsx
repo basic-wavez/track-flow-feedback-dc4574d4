@@ -30,13 +30,6 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
       setLoading(true);
       
       try {
-        // Fetch user details
-        const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId);
-        
-        if (authError) {
-          throw authError;
-        }
-        
         // Fetch user profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -44,8 +37,15 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
           .eq('id', userId)
           .single();
         
-        if (profileError && profileError.code !== 'PGRST116') { // No results error is ok
-          throw profileError;
+        if (profileError) throw profileError;
+        
+        // Get user's email and metadata (requires an RPC function that only admins can access)
+        const { data: userData, error: userError } = await supabase
+          .rpc('get_user_details_for_admin', { user_id: userId });
+          
+        if (userError) {
+          console.error("Error fetching user details:", userError);
+          // Continue without user details if they can't be fetched
         }
         
         // Fetch track count
@@ -54,9 +54,7 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId);
         
-        if (trackError) {
-          throw trackError;
-        }
+        if (trackError) throw trackError;
         
         // Fetch feedback count
         const { count: feedbackCount, error: feedbackError } = await supabase
@@ -64,9 +62,7 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId);
         
-        if (feedbackError) {
-          throw feedbackError;
-        }
+        if (feedbackError) throw feedbackError;
         
         // Find last active timestamp (most recent track or feedback)
         const { data: lastTrack } = await supabase
@@ -84,10 +80,16 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
           .limit(1);
         
         // Combine data
-        setUserDetails({
-          ...authUser.user,
+        const userInfo = {
+          id: userId,
+          email: userData ? userData.email : null,
+          created_at: userData ? userData.created_at : new Date().toISOString(),
+          last_sign_in_at: userData ? userData.last_sign_in_at : null,
+          email_confirmed_at: userData ? userData.email_confirmed_at : null,
           profile
-        });
+        };
+        
+        setUserDetails(userInfo);
         
         const lastTrackDate = lastTrack && lastTrack[0] ? new Date(lastTrack[0].created_at) : null;
         const lastFeedbackDate = lastFeedback && lastFeedback[0] ? new Date(lastFeedback[0].created_at) : null;
@@ -125,7 +127,14 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
   }, [userId, toast]);
   
   const resetUserPassword = async () => {
-    if (!userDetails?.email) return;
+    if (!userDetails?.email) {
+      toast({
+        title: "Cannot reset password",
+        description: "User email is not available",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(
@@ -165,7 +174,7 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <h3 className="text-sm font-medium text-muted-foreground">Email</h3>
-          <p>{userDetails.email}</p>
+          <p>{userDetails.email || "Not available"}</p>
         </div>
         
         <div>
@@ -180,7 +189,7 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
         
         <div>
           <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
-          <p>{new Date(userDetails.created_at).toLocaleString()}</p>
+          <p>{userDetails.created_at ? new Date(userDetails.created_at).toLocaleString() : "Unknown"}</p>
         </div>
         
         <div>
