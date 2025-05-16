@@ -19,6 +19,7 @@ interface TrackPlayerProps {
   shareKey?: string;
   inCooldownPeriod?: boolean;
   downloadsEnabled?: boolean;
+  versionNumber?: number;  // Added versionNumber prop
 }
 
 const TrackPlayer = ({ 
@@ -33,7 +34,8 @@ const TrackPlayer = ({
   mp3Url,
   shareKey,
   inCooldownPeriod = false,
-  downloadsEnabled = false
+  downloadsEnabled = false,
+  versionNumber = 1  // Set default value to 1
 }: TrackPlayerProps) => {
   // Local states
   const [serverCooldown, setServerCooldown] = useState(false);
