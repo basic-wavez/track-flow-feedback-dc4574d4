@@ -220,6 +220,7 @@ const FeedbackView = () => {
               trackName={trackData.title || 'Untitled Track'} 
               audioUrl={trackData.mp3_url || trackData.compressed_url}
               originalUrl={trackData.original_url}
+              waveformAnalysisUrl={trackData.original_url || trackData.mp3_url || trackData.compressed_url}
               originalFilename={trackData.original_filename}
               isOwner={true}
             />
