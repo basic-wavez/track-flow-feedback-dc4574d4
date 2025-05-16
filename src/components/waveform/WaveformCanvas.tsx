@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from 'react';
 
 interface WaveformCanvasProps {
@@ -59,7 +58,7 @@ const WaveformCanvas = ({
         ctx.fillRect(0, 0, width, height);
       }
       
-      // Draw each bar with enhanced styling
+      // Draw each bar with enhanced styling and reduced height
       for (let i = 0; i < waveformData.length; i++) {
         const x = i * barWidth;
         

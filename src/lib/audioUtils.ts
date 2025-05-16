@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for handling audio files
  */
@@ -59,7 +58,8 @@ export const extractTrackName = (fileName: string): string => {
 export const generateWaveformData = (length: number = 100): number[] => {
   const data = [];
   for (let i = 0; i < length; i++) {
-    data.push(Math.random() * 0.5 + 0.25); // Values between 0.25 and 0.75
+    // Reduced amplitude values between 0.15 and 0.5 (was 0.25 and 0.75)
+    data.push(Math.random() * 0.35 + 0.15); 
   }
   return data;
 };
@@ -138,7 +138,7 @@ const loadWaveformFromStorage = (key: string): number[] | null => {
 /**
  * Analyze audio file to extract waveform data
  * Returns a promise that resolves with an array of amplitude values
- * Enhanced for more dynamic visualization with emphasized peaks
+ * Enhanced for more dynamic visualization with emphasized peaks but overall reduced amplitude
  */
 export const analyzeAudio = async (audioUrl: string, samplesCount = 250): Promise<number[]> => {
   // Generate a cache key for this audio URL
@@ -228,6 +228,9 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 250): Promis
         const thresholdRatio = rmsAmplitude / maxAmplitude;
         const dynamicThreshold = rmsAmplitude * (thresholdRatio < 0.1 ? 2.5 : 1.5);
         
+        // Amplitude reduction factor (approximately 2/3 of original)
+        const amplitudeReductionFactor = 0.67;
+        
         // Process the audio data to create a waveform
         for (let i = 0; i < samplesCount; i++) {
           const startSample = blockSize * i;
@@ -265,13 +268,15 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 250): Promis
           const dynamicBias = 0.85; // Higher values accentuate peaks
           const curvedAmplitude = Math.pow(normalizedValue * dynamicBias, 0.5);
           
-          // Expand the range even further (0.01 to 0.98)
-          // This creates more dramatic visualization
-          const finalAmplitude = 0.01 + (curvedAmplitude * 0.97);
+          // Reduce overall amplitude to about 2/3 of original
+          const reducedAmplitude = curvedAmplitude * amplitudeReductionFactor;
+          
+          // Expand the range but with reduced maximum (0.01 to 0.65)
+          const finalAmplitude = 0.01 + (reducedAmplitude * 0.64);
           
           // Add some additional variance to nearby segments for more natural appearance
           const neighborFactor = i > 0 ? waveformData[i-1] * 0.2 : 0;
-          const natural = Math.max(0.01, Math.min(0.98, finalAmplitude + (neighborFactor - 0.1)));
+          const natural = Math.max(0.01, Math.min(0.65, finalAmplitude + (neighborFactor - 0.1)));
           
           waveformData.push(natural);
         }
@@ -286,8 +291,8 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 250): Promis
           
           // Apply a non-linear curve that emphasizes both peaks and valleys
           if (current > avgWaveformAmplitude * 1.2) {
-            // Boost high peaks even more
-            waveformData[i] = Math.min(0.98, current * 1.15);
+            // Boost high peaks even more, but stay within reduced amplitude range
+            waveformData[i] = Math.min(0.65, current * 1.15);
           } else if (current < avgWaveformAmplitude * 0.8) {
             // Make quiet parts even quieter
             waveformData[i] = current * 0.85;
