@@ -9,11 +9,12 @@ import TrackNotFound from "@/components/track/TrackNotFound";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { getTrack } from "@/services/trackQueryService";
-import { incrementPlayCount, getTrackIdByShareKey } from "@/services/trackShareService";
+import { getTrackIdByShareKey } from "@/services/trackShareService";
 import { useAuth } from "@/context/AuthContext";
 import { TrackData } from "@/types/track";
 import TrackFeedbackDisplay from "@/components/track/TrackFeedbackDisplay";
 import ShareLinkManager from "@/components/track/ShareLinkManager";
+import { isInCooldownPeriod } from "@/services/playCountService";
 
 const TrackView = () => {
   // Get URL information
@@ -26,6 +27,7 @@ const TrackView = () => {
   const [isOwner, setIsOwner] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("feedback");
   const [error, setError] = useState<string | null>(null);
+  const [currentShareKey, setCurrentShareKey] = useState<string | undefined>(undefined);
 
   // Determine if we're on a share link route by checking the URL pattern
   const isShareRoute = location.pathname.startsWith('/track/share/');
@@ -46,6 +48,7 @@ const TrackView = () => {
     }
     
     console.log("Extracted share key directly from URL path:", shareKey);
+    setCurrentShareKey(shareKey);
   }
 
   console.log("TrackView Route Info:", { 
@@ -72,11 +75,10 @@ const TrackView = () => {
           actualTrackId = await getTrackIdByShareKey(shareKey);
           console.log("Resolved trackId from shareKey:", actualTrackId);
           
-          if (actualTrackId) {
-            // Increment play count for shared link
-            console.log("Incrementing play count for share key:", shareKey);
-            await incrementPlayCount(shareKey);
-          } else {
+          // NOTE: We no longer increment the play count here
+          // It will be handled by the audio player when the user actually plays the track
+          
+          if (!actualTrackId) {
             console.error("No track ID found for share key:", shareKey);
             setError(`Invalid share link: ${shareKey}`);
             setTrackData(null);
@@ -133,6 +135,9 @@ const TrackView = () => {
   // Use the original filename for display - this keeps hyphens and original capitalization
   const displayName = trackData.title;
 
+  // Check if share key is in cooldown period
+  const inCooldownPeriod = shareKey ? isInCooldownPeriod(shareKey) : false;
+
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <Header />
@@ -159,6 +164,8 @@ const TrackView = () => {
               waveformAnalysisUrl={trackData.original_url || trackData.mp3_url || trackData.compressed_url}
               originalFilename={trackData.original_filename}
               isOwner={isOwner}
+              shareKey={currentShareKey}
+              inCooldownPeriod={inCooldownPeriod}
             />
           )}
           

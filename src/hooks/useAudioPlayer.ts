@@ -8,4 +8,6 @@ export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 export interface UseAudioPlayerProps {
   mp3Url: string | null | undefined;
   defaultAudioUrl?: string;
+  trackId?: string;
+  shareKey?: string;
 }

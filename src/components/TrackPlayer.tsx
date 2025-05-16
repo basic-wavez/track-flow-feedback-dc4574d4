@@ -11,11 +11,13 @@ interface TrackPlayerProps {
   trackName: string;
   audioUrl?: string;
   originalUrl?: string;
-  waveformAnalysisUrl?: string; // New prop for waveform analysis
+  waveformAnalysisUrl?: string;
   originalFilename?: string;
   isOwner?: boolean;
   processingStatus?: string;
   mp3Url?: string;
+  shareKey?: string;
+  inCooldownPeriod?: boolean;
 }
 
 const TrackPlayer = ({ 
@@ -23,11 +25,13 @@ const TrackPlayer = ({
   trackName, 
   audioUrl, 
   originalUrl,
-  waveformAnalysisUrl, // Add this new prop
+  waveformAnalysisUrl,
   originalFilename,
   isOwner = false,
   processingStatus = 'completed',
-  mp3Url
+  mp3Url,
+  shareKey,
+  inCooldownPeriod = false
 }: TrackPlayerProps) => {
   // Determine which URL to use for playback - prefer MP3 if available
   const playbackUrl = mp3Url || audioUrl;
@@ -49,7 +53,11 @@ const TrackPlayer = ({
     handleSeek,
     toggleMute,
     handleVolumeChange,
-  } = useAudioPlayer({ mp3Url: playbackUrl });
+  } = useAudioPlayer({ 
+    mp3Url: playbackUrl,
+    trackId,
+    shareKey 
+  });
   
   // Check if we're using the MP3 version
   const usingMp3 = !!mp3Url;
@@ -92,7 +100,7 @@ const TrackPlayer = ({
       
       <Waveform 
         audioUrl={playbackUrl}
-        waveformAnalysisUrl={waveformAnalysisUrl} // Pass the URL specifically for waveform analysis
+        waveformAnalysisUrl={waveformAnalysisUrl}
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}
@@ -111,6 +119,12 @@ const TrackPlayer = ({
         originalFilename={originalFilename}
         trackId={trackId}
       />
+      
+      {inCooldownPeriod && shareKey && (
+        <div className="mt-4 text-xs text-gray-400 text-center">
+          Play count was recently updated for this track
+        </div>
+      )}
     </div>
   );
 };

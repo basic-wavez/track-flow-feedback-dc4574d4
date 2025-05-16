@@ -24,7 +24,8 @@ export function useAudioEvents({
   playClickTimeRef,
   clearBufferingTimeout,
   loadRetries,
-  lastSeekTimeRef
+  lastSeekTimeRef,
+  onTrackEnd
 }: any) {
 
   useEffect(() => {
@@ -42,6 +43,11 @@ export function useAudioEvents({
       clearBufferingTimeout();
       // Always ensure buffering UI is disabled
       setShowBufferingUI(false);
+      
+      // Call the onTrackEnd callback if provided
+      if (typeof onTrackEnd === 'function') {
+        onTrackEnd();
+      }
     };
     
     const handleLoadedMetadata = () => {
