@@ -7,15 +7,8 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { 
-  NavigationMenu,
-  NavigationMenuList,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  navigationMenuTriggerStyle
-} from "@/components/ui/navigation-menu";
-import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ChevronLeft } from "lucide-react";
 import { getTrack } from "@/services/trackService";
 import { TrackData } from "@/types/track";
 import { getFeedbackForTrack, Feedback } from "@/services/feedbackService";
@@ -185,36 +178,12 @@ const FeedbackView = () => {
               <ChevronLeft size={16} />
               <span>Back to Track</span>
             </Button>
-
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <Button 
-                    variant="ghost"
-                    className={navigationMenuTriggerStyle()}
-                    onClick={() => navigate("/")}
-                  >
-                    Home
-                  </Button>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <Button 
-                    variant="ghost"
-                    className={navigationMenuTriggerStyle()}
-                    onClick={() => navigate("/profile")}
-                  >
-                    My Profile
-                  </Button>
-                </NavigationMenuItem>
-              </NavigationMenuList>
-            </NavigationMenu>
           </div>
         </div>
       </div>
 
       <div className="flex-1 py-12 px-4">
-        <div className="max-w-5xl mx-auto space-y-12">
-          {trackData ? (
+        {trackData ? (
             <TrackPlayer 
               trackId={trackId || ''}
               trackName={trackData.title || 'Untitled Track'} 

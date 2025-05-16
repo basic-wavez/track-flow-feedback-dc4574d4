@@ -6,7 +6,6 @@ import TrackFeedbackSection from "@/components/track/TrackFeedbackSection";
 import TrackLoading from "@/components/track/TrackLoading";
 import TrackNotFound from "@/components/track/TrackNotFound";
 import Header from "@/components/layout/Header";
-import Navigation from "@/components/layout/Navigation";
 import Footer from "@/components/layout/Footer";
 import { getTrack } from "@/services/trackService";
 import { useAuth } from "@/context/AuthContext";
@@ -60,7 +59,7 @@ const TrackView = () => {
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <Header />
-      <Navigation />
+      {/* Navigation component is now hidden */}
       
       <main className="flex-1 py-12 px-4">
         <div className="max-w-5xl mx-auto space-y-8">
