@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,8 @@ import TrackFeedbackDisplay from "@/components/track/TrackFeedbackDisplay";
 import ShareLinkManager from "@/components/track/ShareLinkManager";
 
 const TrackView = () => {
-  const params = useParams<{ trackId?: string; shareKey?: string }>();
+  // Get URL information
+  const params = useParams<{ trackId?: string; shareKey?: string; "*"?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -25,19 +27,34 @@ const TrackView = () => {
   const [activeTab, setActiveTab] = useState<string>("feedback");
   const [error, setError] = useState<string | null>(null);
 
-  // Determine if we're on a share link route or direct track route
-  const isShareRoute = location.pathname.includes("/track/share/");
+  // Determine if we're on a share link route by checking the URL pattern
+  const isShareRoute = location.pathname.startsWith('/track/share/');
   
-  // Extract the appropriate parameter based on the route
-  const trackId = params.trackId;
-  const shareKey = isShareRoute ? params.shareKey : undefined;
+  // Extract parameters based on route type
+  let trackId = params.trackId;
+  let shareKey: string | undefined;
+  
+  // Direct extraction from URL for share routes
+  if (isShareRoute) {
+    // The shareKey is the last part of the path for share routes
+    const pathParts = location.pathname.split('/');
+    shareKey = pathParts[pathParts.length - 1];
+    
+    // In case the URL has a trailing slash
+    if (shareKey === '') {
+      shareKey = pathParts[pathParts.length - 2];
+    }
+    
+    console.log("Extracted share key directly from URL path:", shareKey);
+  }
 
   console.log("TrackView Route Info:", { 
     pathname: location.pathname,
     isShareRoute,
-    params,
+    rawParams: params,
     extractedTrackId: trackId,
-    extractedShareKey: shareKey
+    extractedShareKey: shareKey,
+    fullPath: location.pathname
   });
 
   useEffect(() => {
@@ -46,7 +63,7 @@ const TrackView = () => {
       setError(null);
       
       try {
-        console.log("TrackView loading with parsed params:", { trackId, shareKey, isShareRoute });
+        console.log("TrackView loading with params:", { trackId, shareKey, isShareRoute });
         let actualTrackId = trackId;
         
         // If we're on a share route, get the track ID from the share key
@@ -61,7 +78,7 @@ const TrackView = () => {
             await incrementPlayCount(shareKey);
           } else {
             console.error("No track ID found for share key:", shareKey);
-            setError("Invalid share link");
+            setError(`Invalid share link: ${shareKey}`);
             setTrackData(null);
             setIsLoading(false);
             return;
@@ -103,7 +120,7 @@ const TrackView = () => {
     };
 
     loadTrack();
-  }, [trackId, shareKey, user, isShareRoute]);
+  }, [trackId, shareKey, user, isShareRoute, location.pathname]);
 
   if (isLoading) {
     return <TrackLoading />;
