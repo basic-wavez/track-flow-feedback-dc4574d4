@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import AudioUploader from "@/components/AudioUploader";
@@ -8,6 +7,7 @@ import Header from "@/components/layout/Header";
 import Navigation from "@/components/layout/Navigation";
 import Hero from "@/components/home/Hero";
 import HowItWorks from "@/components/home/HowItWorks";
+import Footer from "@/components/layout/Footer";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -126,6 +126,8 @@ const Index = () => {
         
         <HowItWorks />
       </main>
+      
+      <Footer />
       
       <AuthModal 
         isOpen={isAuthModalOpen}
