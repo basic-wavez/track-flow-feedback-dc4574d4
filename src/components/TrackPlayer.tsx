@@ -19,6 +19,7 @@ interface TrackPlayerProps {
   mp3Url?: string;
   shareKey?: string;
   inCooldownPeriod?: boolean;
+  downloadsEnabled?: boolean;
 }
 
 const TrackPlayer = ({ 
@@ -32,7 +33,8 @@ const TrackPlayer = ({
   processingStatus = 'completed',
   mp3Url,
   shareKey,
-  inCooldownPeriod = false
+  inCooldownPeriod = false,
+  downloadsEnabled = false
 }: TrackPlayerProps) => {
   // Local states
   const [serverCooldown, setServerCooldown] = useState(false);
@@ -155,6 +157,7 @@ const TrackPlayer = ({
         originalUrl={originalUrl}
         originalFilename={originalFilename}
         trackId={trackId}
+        downloadsEnabled={downloadsEnabled}
       />
     </div>
   );

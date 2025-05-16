@@ -11,16 +11,18 @@ interface TrackActionsProps {
   isOwner: boolean;
   originalUrl?: string;
   trackId?: string;
-  originalFilename?: string; 
+  originalFilename?: string;
+  downloadsEnabled?: boolean;
 }
 
 const TrackActions = ({ 
   isOwner, 
   originalUrl, 
   trackId,
-  originalFilename = 'audio-file' // Default filename if none provided
+  originalFilename = 'audio-file',
+  downloadsEnabled = false // Default to false if not provided
 }: TrackActionsProps) => {
-  const [downloadEnabled, setDownloadEnabled] = useState(false);
+  const [downloadEnabled, setDownloadEnabled] = useState(downloadsEnabled);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -229,6 +231,7 @@ const TrackActions = ({
       )}
       
       <div className="flex gap-2 ml-auto">
+        {/* Show download button if downloads are enabled and original file exists, regardless of ownership */}
         {downloadEnabled && hasOriginalFile && (
           <Button 
             onClick={handleDownload} 

@@ -10,6 +10,7 @@ export interface TrackData {
   chunk_count?: number;
   mp3_url?: string;
   processing_status?: string;
+  downloads_enabled?: boolean;
 }
 
 export interface TrackUpdateDetails {

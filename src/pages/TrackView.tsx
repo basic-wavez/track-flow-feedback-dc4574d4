@@ -148,6 +148,7 @@ const TrackView = () => {
               shareKey={currentShareKey}
               inCooldownPeriod={inCooldownPeriod}
               processingStatus={trackData.processing_status}
+              downloadsEnabled={trackData.downloads_enabled || false}
             />
           )}
           
