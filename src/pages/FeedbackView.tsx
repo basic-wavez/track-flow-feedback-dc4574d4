@@ -183,7 +183,8 @@ const FeedbackView = () => {
       </div>
 
       <div className="flex-1 py-12 px-4">
-        {trackData ? (
+        <div className="max-w-5xl mx-auto space-y-8">
+          {trackData ? (
             <TrackPlayer 
               trackId={trackId || ''}
               trackName={trackData.title || 'Untitled Track'} 
