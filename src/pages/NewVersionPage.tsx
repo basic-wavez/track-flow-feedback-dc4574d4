@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -204,7 +203,7 @@ const NewVersionPage = () => {
               <div>
                 <div className="text-sm font-medium mb-2">Upload New Version</div>
                 {!file ? (
-                  <DropZone
+                  <DropZone 
                     onFileDrop={handleFileDrop}
                     onFileSelect={handleFileSelect}
                     isDragging={isDragging}
