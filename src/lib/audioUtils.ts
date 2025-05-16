@@ -154,17 +154,21 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
           }
           
           // Use a mix of average and peak for better visualization
+          // Give more weight to the peak for better dynamic range
           const avgAmplitude = sum / blockSize;
-          const weightedAmplitude = (avgAmplitude * 0.7) + (peakInBlock * 0.3);
+          const weightedAmplitude = (avgAmplitude * 0.5) + (peakInBlock * 0.5);
           
           // Normalize relative to the maximum amplitude detected
-          // Apply a cube root curve for more natural representation of audio dynamics
-          // and ensure a minimum visibility while capping at 1.0
+          // Apply a square root curve for better dynamic range (instead of cube root)
+          // This will make quiet parts more quiet and preserve louder sections
           const normalizedValue = maxAmplitude > 0 ? weightedAmplitude / maxAmplitude : 0;
-          const curvedAmplitude = Math.pow(normalizedValue, 0.33); // Cube root for better dynamic range
           
-          // Ensure a range that's visible but not too extreme (0.05 to 0.85)
-          const finalAmplitude = 0.05 + (curvedAmplitude * 0.8);
+          // Use square root curve for less compression (was using cube root before)
+          const curvedAmplitude = Math.pow(normalizedValue, 0.5);
+          
+          // Expand the range to show more dynamics (0.01 to 0.95 instead of 0.05 to 0.85)
+          // Lower minimum makes quiet parts appear much quieter
+          const finalAmplitude = 0.01 + (curvedAmplitude * 0.94);
           
           waveformData.push(finalAmplitude);
         }

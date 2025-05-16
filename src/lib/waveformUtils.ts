@@ -10,7 +10,8 @@ export const generateWaveformWithVariance = (segments: number, variance: number)
   return baseData.map(value => {
     // Add some variance based on the parameter
     const varianceFactor = 1 + (Math.random() * variance - variance / 2);
-    return Math.min(1, Math.max(0.05, value * varianceFactor));
+    // Use a wider range (0.01 to 0.95) for better dynamics
+    return Math.min(0.95, Math.max(0.01, value * varianceFactor));
   });
 };
 
@@ -21,7 +22,9 @@ export const generateWaveformWithVariance = (segments: number, variance: number)
 export const generateWaveformData = (length: number = 100): number[] => {
   const data = [];
   for (let i = 0; i < length; i++) {
-    data.push(Math.random() * 0.5 + 0.25); // Values between 0.25 and 0.75
+    // Generate values with greater range (0.1 to 0.7 instead of 0.25 to 0.75)
+    // This creates more visual interest in the placeholder waveform
+    data.push(Math.random() * 0.6 + 0.1);
   }
   return data;
 };
