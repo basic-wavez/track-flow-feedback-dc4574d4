@@ -13,7 +13,7 @@ const Header = () => {
     <header className="py-6 px-8 flex justify-between items-center border-b border-wip-gray/30">
       <div className="flex items-center">
         <img 
-          src="/lovable-uploads/62cbb9c3-2c1e-4313-9ff1-46780c37af42.png" 
+          src="/lovable-uploads/a6c296c5-9d5c-4fb3-8a8c-0b86297bf2b0.png" 
           alt="WIP Manager Logo" 
           className="h-10 cursor-pointer" 
           onClick={() => navigate("/")}
