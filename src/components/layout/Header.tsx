@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, LogOut, User as UserIcon } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon, LayoutDashboard } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,10 +12,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Navigation from "./Navigation";
 
 const Header = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, isAdmin } = useAuth();
 
   // Extract initials for avatar fallback
   const getInitials = () => {
@@ -35,6 +34,16 @@ const Header = () => {
         </Link>
 
         <div className="flex items-center space-x-4">
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="inline-flex items-center px-3 py-1 text-sm font-medium text-wip-pink/80 hover:text-wip-pink transition-colors"
+            >
+              <LayoutDashboard className="h-4 w-4 mr-1" />
+              Admin
+            </Link>
+          )}
+          
           {loading ? (
             <Loader2 className="animate-spin text-wip-pink h-5 w-5" />
           ) : user ? (
@@ -87,7 +96,6 @@ const Header = () => {
           )}
         </div>
       </div>
-      <Navigation />
     </header>
   );
 };
