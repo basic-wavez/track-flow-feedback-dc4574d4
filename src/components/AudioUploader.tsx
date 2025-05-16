@@ -135,12 +135,19 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     }
   };
 
+  // Shared upload processing logic - Used by both drag-drop and button-click
   const processUpload = async (file: File) => {
     try {
       // Reset error state
       setUploadError(null);
       setProcessingState('Validating file...');
       console.log("AudioUploader - Processing file:", file.name, file.type, file.size);
+      console.log("AudioUploader - File object details:", {
+        constructor: file.constructor.name,
+        type: Object.prototype.toString.call(file),
+        propertyNames: Object.getOwnPropertyNames(file),
+        methodNames: Object.getOwnPropertyNames(Object.getPrototypeOf(file))
+      });
       
       if (!isAllowedAudioFormat(file)) {
         const errorMsg = `Invalid file type: ${file.type}. Please upload an MP3, WAV, FLAC, AIFF, or AAC file.`;
@@ -289,8 +296,9 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
         return;
       }
       
-      // Access the file before the auth check to validate it's accessible
+      // Important: Clone the file to ensure we're working with a fully initialized File object
       const droppedFile = files[0];
+      
       console.log("AudioUploader - Dropped file details:", {
         name: droppedFile.name,
         type: droppedFile.type,
@@ -298,7 +306,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
         lastModified: new Date(droppedFile.lastModified).toISOString()
       });
       
-      // Now proceed with processing the file
+      // Now proceed with processing the file using the same path as button click
       await processUpload(droppedFile);
     } catch (error) {
       console.error("AudioUploader - Error handling file drop:", error);

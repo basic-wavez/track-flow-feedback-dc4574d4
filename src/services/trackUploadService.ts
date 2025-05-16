@@ -17,6 +17,8 @@ export const uploadTrack = async (
 ): Promise<TrackData | null> => {
   try {
     console.log("trackUploadService - Starting upload of:", file.name, file.type, file.size);
+    console.log("trackUploadService - File object type:", Object.prototype.toString.call(file));
+    console.log("trackUploadService - File object properties:", Object.keys(file));
     
     // Validate file size
     validateFileSize(file);
@@ -46,7 +48,7 @@ export const uploadTrack = async (
     // Upload the file to storage using chunking for the compressed version
     console.log("trackUploadService - Starting chunked upload");
     const { compressedUrl, totalChunks } = await uploadFileInChunks(file, uniquePath, 'audio', onProgress);
-    console.log("trackUploadService - Chunked upload complete, URL:", compressedUrl);
+    console.log("trackUploadService - Chunked upload complete, URL:", compressedUrl, "Total chunks:", totalChunks);
     
     // Upload the original file directly to storage for download purposes
     const originalFilePath = `${user.id}/original_${uniqueFileName}`;

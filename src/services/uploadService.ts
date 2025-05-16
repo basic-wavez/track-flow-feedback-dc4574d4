@@ -30,6 +30,8 @@ export const uploadFileInChunks = async (
   onProgress?: (progress: number) => void
 ): Promise<UploadResult> => {
   console.log("uploadService - Starting chunked upload for:", file.name, file.size);
+  console.log("uploadService - File object type check:", Object.prototype.toString.call(file));
+  console.log("uploadService - File object methods:", Object.getOwnPropertyNames(Object.getPrototypeOf(file)));
   
   // Track upload progress
   const progress: UploadProgress = {
@@ -78,67 +80,75 @@ export const uploadFileInChunks = async (
     
     // Create an array buffer from the file
     console.log("uploadService - Reading file as array buffer");
-    const fileBuffer = await file.arrayBuffer();
-    const fileUint8 = new Uint8Array(fileBuffer);
-    
-    // Initialize temporary chunk paths
-    const chunkPaths: string[] = [];
-    
-    // Upload each chunk
-    for (let i = 0; i < totalChunks; i++) {
-      const start = i * CHUNK_SIZE;
-      const end = Math.min(start + CHUNK_SIZE, file.size);
-      const chunkData = fileUint8.slice(start, end);
-      const chunkBlob = new Blob([chunkData]);
+    try {
+      const fileBuffer = await file.arrayBuffer();
+      console.log("uploadService - File buffer created successfully, size:", fileBuffer.byteLength);
+      const fileUint8 = new Uint8Array(fileBuffer);
       
-      const chunkPath = `${uniquePath}_chunk_${i}`;
-      chunkPaths.push(chunkPath);
+      // Initialize temporary chunk paths
+      const chunkPaths: string[] = [];
       
-      progress.currentChunk = i + 1;
-      
-      console.log(`uploadService - Uploading chunk ${i+1}/${totalChunks}`, chunkPath);
-      
-      // Upload the chunk
-      const { data, error: chunkError } = await supabase.storage
-        .from(bucketName)
-        .upload(chunkPath, chunkBlob);
-      
-      if (chunkError) {
-        console.error(`uploadService - Error uploading chunk ${i+1}:`, chunkError);
+      // Upload each chunk
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunkData = fileUint8.slice(start, end);
+        const chunkBlob = new Blob([chunkData]);
         
-        // Clean up already uploaded chunks on error
-        console.log("uploadService - Cleaning up previously uploaded chunks");
-        await Promise.all(
-          chunkPaths.map(path => 
-            supabase.storage.from(bucketName).remove([path])
-          )
-        );
-        throw chunkError;
+        console.log(`uploadService - Processing chunk ${i+1}/${totalChunks}, size: ${chunkBlob.size} bytes, range: ${start}-${end}`);
+        
+        const chunkPath = `${uniquePath}_chunk_${i}`;
+        chunkPaths.push(chunkPath);
+        
+        progress.currentChunk = i + 1;
+        
+        console.log(`uploadService - Uploading chunk ${i+1}/${totalChunks}`, chunkPath);
+        
+        // Upload the chunk
+        const { data, error: chunkError } = await supabase.storage
+          .from(bucketName)
+          .upload(chunkPath, chunkBlob);
+        
+        if (chunkError) {
+          console.error(`uploadService - Error uploading chunk ${i+1}:`, chunkError);
+          
+          // Clean up already uploaded chunks on error
+          console.log("uploadService - Cleaning up previously uploaded chunks");
+          await Promise.all(
+            chunkPaths.map(path => 
+              supabase.storage.from(bucketName).remove([path])
+            )
+          );
+          throw chunkError;
+        }
+        
+        // Update progress
+        const chunkProgress = Math.floor((i + 1) / totalChunks * 100);
+        console.log(`uploadService - Chunk ${i+1} uploaded, progress: ${chunkProgress}%`);
+        
+        if (progress.onProgress) {
+          progress.onProgress(chunkProgress);
+        }
       }
       
-      // Update progress
-      const chunkProgress = Math.floor((i + 1) / totalChunks * 100);
-      console.log(`uploadService - Chunk ${i+1} uploaded, progress: ${chunkProgress}%`);
+      // All chunks uploaded successfully
+      console.log("uploadService - All chunks uploaded successfully:", totalChunks);
       
-      if (progress.onProgress) {
-        progress.onProgress(chunkProgress);
-      }
+      // Get the URL of the first chunk
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(chunkPaths[0]);
+      
+      console.log("uploadService - Upload complete, first chunk URL:", publicUrl);
+      
+      return {
+        compressedUrl: publicUrl,
+        totalChunks: totalChunks
+      };
+    } catch (bufferError) {
+      console.error("uploadService - Error creating array buffer:", bufferError);
+      throw new Error(`Failed to read file data: ${bufferError.message}`);
     }
-    
-    // All chunks uploaded successfully
-    console.log("uploadService - All chunks uploaded successfully");
-    
-    // Get the URL of the first chunk
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucketName)
-      .getPublicUrl(chunkPaths[0]);
-    
-    console.log("uploadService - Upload complete, first chunk URL:", publicUrl);
-    
-    return {
-      compressedUrl: publicUrl,
-      totalChunks: totalChunks
-    };
   } catch (error: any) {
     console.error("uploadService - Chunked upload error:", error);
     
