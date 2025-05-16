@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { formatDistance } from "date-fns";
+import { getUserDetails } from "@/lib/adminHelpers";
 
 interface UserDetailsProps {
   userId: string;
@@ -39,12 +40,11 @@ const AdminUserDetails = ({ userId }: UserDetailsProps) => {
         
         if (profileError) throw profileError;
         
-        // Get user's email and metadata (requires an RPC function that only admins can access)
-        const { data: userData, error: userError } = await supabase
-          .rpc('get_user_details_for_admin', { user_id: userId });
+        // Get user's email and metadata using our custom helper
+        const userData = await getUserDetails(userId);
           
-        if (userError) {
-          console.error("Error fetching user details:", userError);
+        if (!userData) {
+          console.error("Could not fetch user details");
           // Continue without user details if they can't be fetched
         }
         

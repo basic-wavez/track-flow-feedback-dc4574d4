@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -23,6 +22,7 @@ import {
 import { formatDistance } from "date-fns";
 import { Shield, Search, User, X } from "lucide-react";
 import AdminUserDetails from "./AdminUserDetails";
+import { getUserEmails, UserEmailResult } from "@/lib/adminHelpers";
 
 interface UserData {
   id: string;
@@ -48,31 +48,20 @@ const AdminUsersList = () => {
     
     try {
       // Query profiles and join with auth.users info via the profiles.id which references auth.users.id
-      // We need to use RPC here because we can't directly query auth.users
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
         .select('id, username, created_at:id');
         
       if (profileError) throw profileError;
       
-      // Get users with emails from profiles table
-      // In a production environment, you would want to create a secure RPC function
-      // that returns this information only to admins
-      const { data: emails, error: emailError } = await supabase
-        .rpc('get_user_emails_for_admin');
-      
-      if (emailError) {
-        console.error("Error fetching emails:", emailError);
-        // Continue without emails if they can't be fetched
-      }
+      // Get users with emails using our custom helper
+      const emails = await getUserEmails();
       
       // Create an email lookup map
       const emailMap: Record<string, string> = {};
-      if (emails) {
-        emails.forEach((item: { user_id: string, email: string }) => {
-          emailMap[item.user_id] = item.email;
-        });
-      }
+      emails.forEach((item: UserEmailResult) => {
+        emailMap[item.user_id] = item.email;
+      });
       
       // Fetch admin roles
       const { data: adminRoles, error: rolesError } = await supabase
