@@ -8,6 +8,7 @@ import WaveformStatus from './waveform/WaveformStatus';
 
 interface WaveformProps {
   audioUrl?: string;
+  waveformAnalysisUrl?: string; // New prop specifically for waveform analysis
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -22,6 +23,7 @@ interface WaveformProps {
 
 const Waveform = ({ 
   audioUrl, 
+  waveformAnalysisUrl, // Add this new prop
   isPlaying, 
   currentTime, 
   duration, 
@@ -37,7 +39,7 @@ const Waveform = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isWaveformGenerated, setIsWaveformGenerated] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-
+  
   // Generate initial placeholder waveform immediately
   useEffect(() => {
     if (waveformData.length === 0) {
@@ -46,55 +48,45 @@ const Waveform = ({
     }
   }, []);
   
-  // Try to analyze waveform data when audio URL is available and audio is loaded
+  // Always attempt to analyze waveform data when analysis URL is available
   useEffect(() => {
-    if (!audioUrl) return;
+    // Only proceed if we have a URL to analyze
+    if (!waveformAnalysisUrl) return;
     
-    // If we already have analyzed waveform data for this audioUrl, don't regenerate
-    if (isWaveformGenerated && !isMp3Available) return;
+    // Always re-analyze when the analysis URL changes
+    const urlToAnalyze = waveformAnalysisUrl;
     
-    // Determine number of samples for the waveform
-    const segments = isMp3Available 
-      ? 200 // More segments for MP3 for better visualization
-      : Math.max(150, 50 * totalChunks);
+    // Determine number of samples for the waveform - higher for better quality
+    const segments = 200;
     
-    // Only attempt audio analysis if the audio is loaded and URL is available
-    if (audioUrl && audioLoaded) {
-      setIsAnalyzing(true);
-      setAnalysisError(null);
-      
-      analyzeAudio(audioUrl, segments)
-        .then(analyzedData => {
-          if (analyzedData && analyzedData.length > 0) {
-            setWaveformData(analyzedData);
-            setIsWaveformGenerated(true);
-          } else {
-            throw new Error("No waveform data generated from analysis");
-          }
-        })
-        .catch(error => {
-          console.error("Error analyzing audio:", error);
-          setAnalysisError("Failed to analyze audio. Using fallback visualization.");
-          
-          // Fall back to generated data with higher variance for more realistic appearance
-          const fallbackData = generateWaveformWithVariance(segments, 0.4);
-          setWaveformData(fallbackData);
+    console.log('Analyzing waveform from URL:', urlToAnalyze);
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    
+    // Attempt to analyze the audio file
+    analyzeAudio(urlToAnalyze, segments)
+      .then(analyzedData => {
+        if (analyzedData && analyzedData.length > 0) {
+          console.log('Successfully analyzed waveform data:', analyzedData.length, 'segments');
+          setWaveformData(analyzedData);
           setIsWaveformGenerated(true);
-        })
-        .finally(() => {
-          setIsAnalyzing(false);
-        });
-    } else if (!isWaveformGenerated) {
-      // For cases where analysis isn't possible yet, use generated data as placeholder
-      const newWaveformData = generateWaveformWithVariance(
-        segments, 
-        isMp3Available ? 0.4 : 0.2 // Higher variance for better looking waveforms
-      );
-      
-      setWaveformData(newWaveformData);
-      setIsWaveformGenerated(true);
-    }
-  }, [audioUrl, totalChunks, isMp3Available, audioLoaded, isWaveformGenerated]);
+        } else {
+          throw new Error("No waveform data generated from analysis");
+        }
+      })
+      .catch(error => {
+        console.error("Error analyzing audio:", error);
+        setAnalysisError(`Failed to analyze audio: ${error.message}. Using fallback visualization.`);
+        
+        // Fall back to generated data with higher variance for more realistic appearance
+        const fallbackData = generateWaveformWithVariance(segments, 0.4);
+        setWaveformData(fallbackData);
+        setIsWaveformGenerated(true);
+      })
+      .finally(() => {
+        setIsAnalyzing(false);
+      });
+  }, [waveformAnalysisUrl]); // Re-run when analysis URL changes
   
   // Show loading states
   if (isAnalyzing) {

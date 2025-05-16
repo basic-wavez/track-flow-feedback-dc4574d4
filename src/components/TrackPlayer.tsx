@@ -11,6 +11,7 @@ interface TrackPlayerProps {
   trackName: string;
   audioUrl?: string;
   originalUrl?: string;
+  waveformAnalysisUrl?: string; // New prop for waveform analysis
   originalFilename?: string;
   isOwner?: boolean;
   processingStatus?: string;
@@ -22,13 +23,12 @@ const TrackPlayer = ({
   trackName, 
   audioUrl, 
   originalUrl,
+  waveformAnalysisUrl, // Add this new prop
   originalFilename,
   isOwner = false,
   processingStatus = 'completed',
   mp3Url
 }: TrackPlayerProps) => {
-  // Remove isRequestingProcessing state since we're removing the button
-  
   // Determine which URL to use for playback - prefer MP3 if available
   const playbackUrl = mp3Url || audioUrl;
   
@@ -51,11 +51,6 @@ const TrackPlayer = ({
     handleVolumeChange,
   } = useAudioPlayer({ mp3Url: playbackUrl });
   
-  // Remove handleRequestProcessing function
-  
-  // Always hide the process button now
-  const showProcessButton = false;
-  
   // Check if we're using the MP3 version
   const usingMp3 = !!mp3Url;
   const isLoading = playbackState === 'loading';
@@ -75,9 +70,9 @@ const TrackPlayer = ({
         isLoading={isLoading}
         usingMp3={usingMp3}
         processingStatus={processingStatus}
-        showProcessButton={showProcessButton}
+        showProcessButton={false}
         isRequestingProcessing={false}
-        onRequestProcessing={async () => {}} // Empty function since we're not using it
+        onRequestProcessing={async () => {}}
       />
       
       <PlaybackControls 
@@ -95,11 +90,12 @@ const TrackPlayer = ({
       
       <Waveform 
         audioUrl={playbackUrl}
+        waveformAnalysisUrl={waveformAnalysisUrl} // Pass the URL specifically for waveform analysis
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}
         onSeek={handleSeek}
-        totalChunks={1} // No more chunks, always 1
+        totalChunks={1}
         isBuffering={isBuffering}
         showBufferingUI={showBufferingUI}
         isMp3Available={usingMp3}

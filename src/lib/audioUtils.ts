@@ -79,6 +79,7 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
   }
 
   return new Promise((resolve, reject) => {
+    console.log(`Starting audio analysis for ${audioUrl} with ${samplesCount} samples`);
     // Create audio context
     const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContext) {
@@ -99,24 +100,35 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
       console.warn("Audio analysis timed out - using fallback data");
       const fallbackData = generateWaveformData(samplesCount);
       resolve(fallbackData);
-    }, 15000); // 15 second timeout
+    }, 30000); // 30 second timeout - increased for larger files
     
-    // Fetch the audio file
-    fetch(audioUrl)
+    // Fetch the audio file with cache control headers
+    fetch(audioUrl, {
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+      },
+      cache: 'reload' // Force fetch from network
+    })
       .then(response => {
         if (!response.ok) {
-          throw new Error('Failed to fetch audio file');
+          throw new Error(`Failed to fetch audio file: ${response.status} ${response.statusText}`);
         }
+        console.log(`Successfully fetched audio file: ${audioUrl}`);
         return response.arrayBuffer();
       })
       .then(arrayBuffer => {
         clearTimeout(timeoutId); // Clear timeout as we've received data
+        console.log(`Decoding audio data: ${arrayBuffer.byteLength} bytes`);
         return audioContext.decodeAudioData(arrayBuffer);
       })
       .then(audioBuffer => {
+        console.log(`Successfully decoded audio buffer: duration ${audioBuffer.duration}s, ${audioBuffer.numberOfChannels} channels`);
         // Get the audio data from the buffer
         const channelData = audioBuffer.getChannelData(0); // Use first channel
         const blockSize = Math.floor(channelData.length / samplesCount);
+        
+        console.log(`Audio analysis: ${channelData.length} samples, block size ${blockSize}`);
         
         // Process the audio data to create a waveform
         for (let i = 0; i < samplesCount; i++) {
@@ -150,13 +162,14 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 200): Promis
         }
         
         // Cache the generated waveform data
+        console.log(`Caching waveform data for: ${audioUrl}`);
         waveformCache[audioUrl] = waveformData;
         
         resolve(waveformData);
       })
       .catch(error => {
         clearTimeout(timeoutId); // Clear timeout on error
-        console.error("Error analyzing audio:", error);
+        console.error(`Error analyzing audio ${audioUrl}:`, error);
         
         // Fall back to generated data
         console.warn("Using generated waveform data as fallback");
