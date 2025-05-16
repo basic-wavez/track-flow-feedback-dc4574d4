@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,10 +10,10 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { getTrack } from "@/services/trackQueryService";
 import { createTrackVersion } from "@/services/trackUploadService";
+import { useDropZone } from "@/hooks/useDropZone";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Music } from "lucide-react";
+import { ArrowUp, CheckCircle, Music } from "lucide-react";
 import { TrackData } from "@/types/track";
-import DropZone from "@/components/upload/DropZone";
 
 const NewVersionPage = () => {
   const { trackId } = useParams<{ trackId: string }>();
@@ -25,9 +26,25 @@ const NewVersionPage = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [newVersionId, setNewVersionId] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   
+  // Initialize dropzone hook
+  const {
+    getRootProps,
+    getInputProps,
+    isDragActive,
+    acceptedFiles,
+    fileRejections,
+    error: dropzoneError,
+  } = useDropZone({
+    onFileDrop: (file) => {
+      console.log("File dropped:", file.name);
+      // The file is automatically added to acceptedFiles by the hook
+    },
+    isDragging,
+    setIsDragging,
+  });
+
   useEffect(() => {
     const loadOriginalTrack = async () => {
       if (!trackId) return;
@@ -59,27 +76,15 @@ const NewVersionPage = () => {
     loadOriginalTrack();
   }, [trackId, navigate, toast]);
 
-  const handleFileDrop = (droppedFile: File) => {
-    console.log("File dropped:", droppedFile.name);
-    setFile(droppedFile);
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      console.log("File selected:", e.target.files[0].name);
-      setFile(e.target.files[0]);
-    }
-  };
-
   const handleUploadVersion = async () => {
-    if (!originalTrack || !file) return;
+    if (!originalTrack || acceptedFiles.length === 0) return;
     
     setIsUploading(true);
     
     try {
       const result = await createTrackVersion(
         originalTrack.id,
-        file,
+        acceptedFiles[0],
         versionNotes,
         (progress) => setUploadProgress(Math.round(progress))
       );
@@ -202,29 +207,44 @@ const NewVersionPage = () => {
               
               <div>
                 <div className="text-sm font-medium mb-2">Upload New Version</div>
-                {!file ? (
-                  <DropZone 
-                    onFileDrop={handleFileDrop}
-                    onFileSelect={handleFileSelect}
-                    isDragging={isDragging}
-                    setIsDragging={setIsDragging}
-                  />
-                ) : (
-                  <div className="bg-wip-dark border border-green-500/30 rounded-lg p-6 text-center">
-                    <CheckCircle className="h-10 w-10 mx-auto mb-2 text-green-500" />
-                    <p className="text-green-400 font-medium">{file.name}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {(file.size / 1048576).toFixed(2)} MB
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFile(null)}
-                      className="mt-4"
-                    >
-                      Choose Different File
-                    </Button>
+                <div
+                  {...getRootProps()}
+                  className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors ${
+                    isDragActive
+                      ? "border-wip-pink bg-wip-pink/10"
+                      : "border-wip-gray/40 hover:border-wip-pink/60 bg-wip-dark"
+                  } ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
+                >
+                  <input {...getInputProps()} />
+                  {!acceptedFiles.length ? (
+                    <div className="py-4">
+                      <ArrowUp className="h-10 w-10 mx-auto mb-2 text-wip-pink/60" />
+                      <p className="text-gray-300">
+                        Drag and drop your audio file here, or click to select
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Supported formats: WAV, MP3, AIF, AIFF (up to 500MB)
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="py-4">
+                      <CheckCircle className="h-10 w-10 mx-auto mb-2 text-green-500" />
+                      <p className="text-green-400 font-medium">{acceptedFiles[0].name}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {(acceptedFiles[0].size / 1048576).toFixed(2)} MB
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                {fileRejections.length > 0 && (
+                  <div className="mt-2 text-sm text-red-500">
+                    {fileRejections[0].errors[0].message}
                   </div>
+                )}
+                
+                {dropzoneError && (
+                  <div className="mt-2 text-sm text-red-500">{dropzoneError}</div>
                 )}
               </div>
               
@@ -253,7 +273,7 @@ const NewVersionPage = () => {
                 </Button>
                 <Button
                   onClick={handleUploadVersion}
-                  disabled={!file || isUploading}
+                  disabled={acceptedFiles.length === 0 || isUploading}
                   className="relative overflow-hidden"
                 >
                   Create New Version

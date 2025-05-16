@@ -16,17 +16,17 @@ const UploadContent = ({ isDragging, onButtonClick }: UploadContentProps) => {
         {isDragging ? "Drop Your Track Here" : "Drag & Drop Your Track"}
       </h3>
       <p className="text-gray-400 mb-4">
-        Upload your new version
+        Upload your demo to get feedback
       </p>
       <p className="text-sm text-gray-500 mb-2">
-        Supported formats: WAV, MP3, FLAC, AIFF
+        Supported formats: MP3, WAV, FLAC, AIFF, AAC
       </p>
       <p className="text-xs text-gray-500 mb-6">
         Maximum file size: 200MB
       </p>
       <Button 
         onClick={onButtonClick}
-        className="bg-wip-pink hover:bg-wip-pink/90 text-white"
+        className="gradient-bg hover:opacity-90"
         type="button"
         aria-label="Select audio file from device"
       >
