@@ -42,11 +42,11 @@ const AdminRoute = ({ children }: AdminRouteProps) => {
   // Only redirect after loading is complete and auth has been checked
   if (authChecked && (!user || !isAdmin)) {
     console.log("AdminRoute - Redirecting to auth page from:", location.pathname);
-    // Redirect to auth page with the return URL
+    // Redirect to home page with the return URL
     return <Navigate to="/" state={{ from: location }} replace />;
   }
   
-  // Only render children when we have a user or we're still checking auth
+  // Only render children when we have a user and isAdmin
   return <>{children}</>;
 };
 

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { formatDistance } from "date-fns";
-import { Shield, Search, User, X } from "lucide-react";
+import { Shield, Search, User, X, AlertTriangle } from "lucide-react";
 import AdminUserDetails from "./AdminUserDetails";
 import { getUserEmails, UserEmailResult } from "@/lib/adminHelpers";
 
@@ -35,6 +36,7 @@ interface UserData {
 const AdminUsersList = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -45,17 +47,36 @@ const AdminUsersList = () => {
   
   const fetchUsers = async () => {
     setLoading(true);
+    setError(null);
     
     try {
+      console.log("AdminUsersList - Fetching users...");
+      
       // Query profiles and join with auth.users info via the profiles.id which references auth.users.id
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
         .select('id, username, created_at:id');
         
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("AdminUsersList - Profile error:", profileError);
+        throw profileError;
+      }
+      
+      console.log("AdminUsersList - Profiles fetched:", profiles?.length);
       
       // Get users with emails using our custom helper
-      const emails = await getUserEmails();
+      let emails: UserEmailResult[] = [];
+      try {
+        emails = await getUserEmails();
+        console.log("AdminUsersList - Emails fetched:", emails.length);
+      } catch (emailError) {
+        console.error("AdminUsersList - Email fetch error:", emailError);
+        toast({
+          title: "Warning",
+          description: "Could not fetch user emails. Some user information may be incomplete.",
+          variant: "destructive"
+        });
+      }
       
       // Create an email lookup map
       const emailMap: Record<string, string> = {};
@@ -69,7 +90,12 @@ const AdminUsersList = () => {
         .select('user_id')
         .eq('role', 'admin');
       
-      if (rolesError) throw rolesError;
+      if (rolesError) {
+        console.error("AdminUsersList - Roles error:", rolesError);
+        throw rolesError;
+      }
+      
+      console.log("AdminUsersList - Admin roles fetched:", adminRoles?.length);
       
       // Create a set of admin user IDs
       const adminSet = new Set(adminRoles?.map(role => role.user_id) || []);
@@ -83,14 +109,16 @@ const AdminUsersList = () => {
         is_admin: adminSet.has(profile.id)
       })) || [];
       
+      console.log("AdminUsersList - Combined user data:", userData.length);
       setUsers(userData);
     } catch (error: any) {
+      console.error("AdminUsersList - Error fetching users:", error);
+      setError(error.message || "Failed to fetch users");
       toast({
         title: "Error fetching users",
         description: error.message,
         variant: "destructive"
       });
-      console.error("Error fetching users:", error);
     } finally {
       setLoading(false);
     }
@@ -155,6 +183,27 @@ const AdminUsersList = () => {
   const openUserDetails = (userId: string) => {
     setSelectedUserId(userId);
   };
+
+  const handleRetry = () => {
+    fetchUsers();
+  };
+  
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+          <h2 className="text-xl font-semibold">User Management</h2>
+        </div>
+        
+        <div className="bg-red-500/10 border border-red-500/50 rounded-md p-6 text-center">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Error Loading Users</h3>
+          <p className="mb-4">{error}</p>
+          <Button onClick={handleRetry}>Try Again</Button>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-4">

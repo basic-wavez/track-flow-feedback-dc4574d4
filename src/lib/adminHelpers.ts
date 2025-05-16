@@ -35,7 +35,7 @@ export async function getUserEmails() {
     return data as UserEmailResult[];
   } catch (error) {
     console.error("Failed to fetch user emails:", error);
-    return [];
+    throw error; // Re-throw to allow handling at component level
   }
 }
 
@@ -64,6 +64,6 @@ export async function getUserDetails(userId: string) {
     return data as UserDetailsResult;
   } catch (error) {
     console.error("Failed to fetch user details:", error);
-    return null;
+    throw error; // Re-throw to allow handling at component level
   }
 }
