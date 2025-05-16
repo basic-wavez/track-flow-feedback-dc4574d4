@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
@@ -59,6 +58,9 @@ const TrackView = () => {
     return <TrackNotFound />;
   }
 
+  // Use the original filename for display - this keeps hyphens and original capitalization
+  const displayName = trackData.title;
+
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <Header />
@@ -117,7 +119,7 @@ const TrackView = () => {
         <div className="max-w-5xl mx-auto space-y-8">
           <TrackPlayer 
             trackId={trackId}
-            trackName={trackData.title} 
+            trackName={displayName} 
             audioUrl={trackData.mp3_url || trackData.compressed_url}
             originalUrl={trackData.original_url}
             waveformAnalysisUrl={trackData.original_url || trackData.mp3_url || trackData.compressed_url}
@@ -127,10 +129,10 @@ const TrackView = () => {
           
           {isOwner ? (
             <>
-              <TrackFeedbackDisplay trackId={trackId} trackTitle={trackData.title} />
+              <TrackFeedbackDisplay trackId={trackId} trackTitle={displayName} />
             </>
           ) : (
-            <TrackFeedbackSection trackTitle={trackData.title} user={user} />
+            <TrackFeedbackSection trackTitle={displayName} user={user} />
           )}
         </div>
       </main>

@@ -65,6 +65,7 @@ const TrackPlayer = ({
       />
       
       <TrackHeader 
+        trackId={trackId}
         trackName={trackName}
         playbackState={playbackState}
         isLoading={isLoading}
@@ -73,6 +74,7 @@ const TrackPlayer = ({
         showProcessButton={false}
         isRequestingProcessing={false}
         onRequestProcessing={async () => {}}
+        isOwner={isOwner}
       />
       
       <PlaybackControls 
