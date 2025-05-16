@@ -9,7 +9,19 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { getUserTracks, deleteTrack } from "@/services/trackService";
 import { formatDistanceToNow } from "date-fns";
-import { Clock, ExternalLink, Share2, Music, MessageSquare, Settings, Trash2, ChevronRight, ChevronDown, History } from "lucide-react";
+import { 
+  Clock, 
+  ExternalLink, 
+  Share2, 
+  Music, 
+  MessageSquare, 
+  Settings, 
+  Trash2, 
+  ChevronRight, 
+  ChevronDown, 
+  History,
+  FilePlus 
+} from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { TrackData, TrackWithVersions } from "@/types/track";
@@ -363,6 +375,16 @@ const ProfilePage = () => {
                                   >
                                     <Share2 className="h-4 w-4" />
                                     Share
+                                  </Button>
+                                  {/* Add the New Version button here */}
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="flex gap-2 items-center"
+                                    onClick={() => navigate(`/track/${track.id}/version`)}
+                                  >
+                                    <FilePlus className="h-4 w-4" />
+                                    New Version
                                   </Button>
                                   <Button 
                                     variant="outline" 
