@@ -78,8 +78,8 @@ const CookiePolicyPage = () => {
               <li className="mb-2">Chrome: chrome://settings/content/cookies</li>
               <li className="mb-2">Firefox: about:preferences#privacy</li>
               <li className="mb-2">Safari: preferences, then Privacy tab</li>
-              <li className="mb-2">Internet Explorer: Tools > Internet Options > Privacy tab</li>
-              <li className="mb-2">Edge: Settings > Cookies and site permissions</li>
+              <li className="mb-2">Internet Explorer: Tools {'>'}  Internet Options {'>'}  Privacy tab</li>
+              <li className="mb-2">Edge: Settings {'>'}  Cookies and site permissions</li>
             </ul>
             <p className="mb-4">
               In addition, most advertising networks offer you a way to opt out of targeted advertising. You can find more information at:
@@ -115,3 +115,4 @@ const CookiePolicyPage = () => {
 };
 
 export default CookiePolicyPage;
+
