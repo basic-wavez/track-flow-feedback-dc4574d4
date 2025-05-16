@@ -1,3 +1,4 @@
+
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,37 +13,24 @@ interface DropZoneProps {
 const DropZone = ({ onFileDrop, onFileSelect, isDragging, setIsDragging }: DropZoneProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
-  const [dragEvents, setDragEvents] = useState<string[]>([]);
   
-  // Helper function to log drag events (for debugging)
-  const logDragEvent = useCallback((eventName: string, details?: any) => {
-    setDragEvents(prev => {
-      const updated = [...prev, `${eventName} at ${new Date().toISOString()}${details ? ' - ' + JSON.stringify(details) : ''}`];
-      // Keep only the last 5 events
-      return updated.slice(Math.max(updated.length - 5, 0));
-    });
-  }, []);
-
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    logDragEvent('dragOver');
     if (!isDragging) {
       setIsDragging(true);
     }
-  }, [isDragging, logDragEvent, setIsDragging]);
+  }, [isDragging, setIsDragging]);
 
   const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    logDragEvent('dragEnter');
     setIsDragging(true);
-  }, [logDragEvent, setIsDragging]);
+  }, [setIsDragging]);
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    logDragEvent('dragLeave');
     
     // Check if the drag leave event is leaving the drop zone
     // and not just entering a child element
@@ -60,7 +48,7 @@ const DropZone = ({ onFileDrop, onFileSelect, isDragging, setIsDragging }: DropZ
     } else {
       setIsDragging(false);
     }
-  }, [logDragEvent, setIsDragging]);
+  }, [setIsDragging]);
 
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -69,15 +57,6 @@ const DropZone = ({ onFileDrop, onFileSelect, isDragging, setIsDragging }: DropZ
     
     try {
       const files = e.dataTransfer.files;
-      
-      logDragEvent('drop', { 
-        fileCount: files.length, 
-        fileInfo: files.length > 0 ? {
-          name: files[0].name,
-          type: files[0].type,
-          size: files[0].size
-        } : 'No files'
-      });
       
       console.log("DropZone - Drop event detected with files:", files.length);
       
@@ -101,7 +80,7 @@ const DropZone = ({ onFileDrop, onFileSelect, isDragging, setIsDragging }: DropZ
     } catch (error) {
       console.error("DropZone - Error handling file drop:", error);
     }
-  }, [logDragEvent, onFileDrop, setIsDragging]);
+  }, [onFileDrop, setIsDragging]);
 
   // Separate handler specifically for button click
   const handleButtonClick = (e: React.MouseEvent) => {
@@ -159,65 +138,51 @@ const DropZone = ({ onFileDrop, onFileSelect, isDragging, setIsDragging }: DropZ
   }, []);
 
   return (
-    <>
-      <div
-        ref={dropZoneRef}
-        className={`border-2 border-dashed rounded-lg p-12 transition-all cursor-pointer ${
-          isDragging 
-            ? "border-wip-pink bg-wip-pink/10" 
-            : "border-gray-600 hover:border-wip-pink hover:bg-wip-pink/5"
-        }`}
-        onDragOver={handleDragOver}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={handleDropZoneClick}
-        data-testid="dropzone"
-      >
-        <div className="flex flex-col items-center justify-center text-center">
-          <Upload className={`h-16 w-16 mb-4 text-wip-pink ${isDragging ? 'animate-bounce' : 'animate-pulse-glow'}`} />
-          <h3 className="text-xl font-semibold mb-2">
-            {isDragging ? "Drop Your Track Here" : "Drag & Drop Your Track"}
-          </h3>
-          <p className="text-gray-400 mb-4">
-            Upload your demo to get feedback
-          </p>
-          <p className="text-sm text-gray-500 mb-2">
-            Supported formats: MP3, WAV, FLAC, AIFF, AAC
-          </p>
-          <p className="text-xs text-gray-500 mb-6">
-            Maximum file size: 200MB
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/*"
-            className="hidden"
-            onChange={onFileSelect}
-          />
-          <Button 
-            onClick={handleButtonClick}
-            className="gradient-bg hover:opacity-90"
-            type="button"
-            aria-label="Select audio file from device"
-          >
-            Select Audio File
-          </Button>
-        </div>
+    <div
+      ref={dropZoneRef}
+      className={`border-2 border-dashed rounded-lg p-12 transition-all cursor-pointer ${
+        isDragging 
+          ? "border-wip-pink bg-wip-pink/10" 
+          : "border-gray-600 hover:border-wip-pink hover:bg-wip-pink/5"
+      }`}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onClick={handleDropZoneClick}
+      data-testid="dropzone"
+    >
+      <div className="flex flex-col items-center justify-center text-center">
+        <Upload className={`h-16 w-16 mb-4 text-wip-pink ${isDragging ? 'animate-bounce' : 'animate-pulse-glow'}`} />
+        <h3 className="text-xl font-semibold mb-2">
+          {isDragging ? "Drop Your Track Here" : "Drag & Drop Your Track"}
+        </h3>
+        <p className="text-gray-400 mb-4">
+          Upload your demo to get feedback
+        </p>
+        <p className="text-sm text-gray-500 mb-2">
+          Supported formats: MP3, WAV, FLAC, AIFF, AAC
+        </p>
+        <p className="text-xs text-gray-500 mb-6">
+          Maximum file size: 200MB
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="audio/*"
+          className="hidden"
+          onChange={onFileSelect}
+        />
+        <Button 
+          onClick={handleButtonClick}
+          className="gradient-bg hover:opacity-90"
+          type="button"
+          aria-label="Select audio file from device"
+        >
+          Select Audio File
+        </Button>
       </div>
-      
-      {/* Debug Info - only visible during development */}
-      {process.env.NODE_ENV === 'development' && dragEvents.length > 0 && (
-        <div className="mt-4 p-4 bg-gray-800 rounded text-xs">
-          <h4 className="font-semibold mb-2">Drag Event Log:</h4>
-          <ul>
-            {dragEvents.map((event, i) => (
-              <li key={i}>{event}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </>
+    </div>
   );
 };
 
