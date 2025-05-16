@@ -1,6 +1,6 @@
 
 import { Link } from 'react-router-dom';
-import { HelpCircle, Home, Info } from 'lucide-react';
+import { Bug, HelpCircle, Home, Info, MessageSquare } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -26,13 +26,16 @@ const Footer = () => {
           <div className="flex flex-col items-center md:items-start">
             <h3 className="text-sm font-semibold text-gray-300 mb-3">Support</h3>
             <div className="flex flex-col gap-2">
-              <Link to="/faq" className="text-sm text-gray-400 hover:text-wip-pink transition-colors">
+              <Link to="/faq" className="text-sm text-gray-400 hover:text-wip-pink transition-colors flex items-center gap-2">
+                <HelpCircle className="h-4 w-4" />
                 FAQ
               </Link>
-              <Link to="/contact" className="text-sm text-gray-400 hover:text-wip-pink transition-colors">
+              <Link to="/contact" className="text-sm text-gray-400 hover:text-wip-pink transition-colors flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
                 Contact Us
               </Link>
-              <Link to="/bug-report" className="text-sm text-gray-400 hover:text-wip-pink transition-colors">
+              <Link to="/bug-report" className="text-sm text-gray-400 hover:text-wip-pink transition-colors flex items-center gap-2">
+                <Bug className="h-4 w-4" />
                 Report a Bug
               </Link>
             </div>
@@ -58,7 +61,7 @@ const Footer = () => {
         <div className="flex justify-center md:justify-between items-center pt-4 border-t border-wip-gray/30">
           <p className="text-sm text-gray-400">© 2025 Demo Manager by Basic Wavez</p>
           <div className="hidden md:flex gap-4">
-            <Link to="/" className="text-sm text-gray-400 hover:text-wip-pink transition-colors">
+            <Link to="/faq" className="text-sm text-gray-400 hover:text-wip-pink transition-colors">
               <HelpCircle className="h-4 w-4" />
             </Link>
           </div>
