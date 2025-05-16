@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { createShareLink, getShareLinks, deleteShareLink } from "@/services/trackService";
+import { createShareLink, getShareLinks, deleteShareLink } from "@/services/trackShareService";
 
 interface ShareLink {
   id: string;
