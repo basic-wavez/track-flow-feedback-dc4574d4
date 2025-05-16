@@ -1,5 +1,5 @@
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -21,12 +21,22 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
   const [progress, setProgress] = useState(0);
   const [showQualityWarning, setShowQualityWarning] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, refreshSession } = useAuth();
   
-  // Maximum file size: 200MB (updated from 80MB)
+  // Maximum file size: 200MB
   const MAX_FILE_SIZE = 200 * 1024 * 1024;
+
+  // Add an effect to log authentication state when component mounts and when auth state changes
+  useEffect(() => {
+    console.log("AudioUploader - Auth state:", { 
+      isAuthenticated: !!user, 
+      userId: user?.id,
+      email: user?.email
+    });
+  }, [user]);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -42,6 +52,30 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     e.preventDefault();
     setIsDragging(false);
   }, []);
+
+  const checkAuthBeforeUpload = async () => {
+    setCheckingAuth(true);
+    
+    try {
+      // Refresh the session to ensure we have the latest auth state
+      await refreshSession();
+      
+      // If after refresh we still don't have a user, trigger auth modal
+      if (!user) {
+        console.log("AudioUploader - User not authenticated, showing auth modal");
+        onAuthRequired();
+        return false;
+      }
+      
+      console.log("AudioUploader - User is authenticated, proceeding with upload");
+      return true;
+    } catch (error) {
+      console.error("AudioUploader - Error checking authentication:", error);
+      return false;
+    } finally {
+      setCheckingAuth(false);
+    }
+  };
 
   const processUpload = async (file: File) => {
     try {
@@ -73,6 +107,13 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
         return; // Don't proceed until user confirms
       }
 
+      // Check authentication before proceeding with upload
+      const isAuthenticated = await checkAuthBeforeUpload();
+      if (!isAuthenticated) {
+        setUploading(false);
+        return;
+      }
+
       await uploadFile(file);
     } catch (error) {
       setUploading(false);
@@ -84,11 +125,11 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     try {
       setProgress(10);
       
-      // If user is not logged in, require authentication
-      if (!user) {
+      // Double-check authentication is valid
+      const isAuthenticated = await checkAuthBeforeUpload();
+      if (!isAuthenticated) {
         setUploading(false);
         setProgress(0);
-        onAuthRequired();
         return;
       }
       
@@ -130,7 +171,7 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     }
   };
 
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
     
@@ -151,10 +192,14 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
     }
   };
 
-  const handleContinueAfterWarning = () => {
+  const handleContinueAfterWarning = async () => {
     setShowQualityWarning(false);
     if (file) {
-      uploadFile(file);
+      // Check authentication before continuing
+      const isAuthenticated = await checkAuthBeforeUpload();
+      if (isAuthenticated) {
+        uploadFile(file);
+      }
     }
   };
   
@@ -259,7 +304,8 @@ const AudioUploader = ({ onUploadComplete, onAuthRequired }: AudioUploaderProps)
           </p>
           <Progress value={progress} className="h-2 mb-4" />
           <p className="text-sm text-gray-500">
-            {progress < 30 ? "Preparing upload..." : 
+            {checkingAuth ? "Verifying authentication..." :
+             progress < 30 ? "Preparing upload..." : 
              progress < 50 ? "Creating upload..." :
              progress < 90 ? "Uploading to server..." : 
              "Almost done..."}

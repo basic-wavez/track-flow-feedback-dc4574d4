@@ -1,35 +1,57 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import AudioUploader from "@/components/AudioUploader";
 import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
 import {
   NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
   NavigationMenuList,
-  NavigationMenuTrigger,
+  NavigationMenuItem,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshSession } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [uploadedTrackId, setUploadedTrackId] = useState("");
   const [uploadedTrackName, setUploadedTrackName] = useState("");
   const [shouldNavigate, setShouldNavigate] = useState(false);
+  
+  // Add effect to log authentication state when component mounts
+  useEffect(() => {
+    console.log("Index - Initial auth state:", { 
+      isAuthenticated: !!user, 
+      userId: user?.id,
+      email: user?.email
+    });
+    
+    // Ensure we have the latest auth state
+    refreshSession().catch(error => {
+      console.error("Index - Error refreshing session:", error);
+    });
+  }, []);
+  
+  // Monitor auth state changes
+  useEffect(() => {
+    console.log("Index - Auth state updated:", { 
+      isAuthenticated: !!user, 
+      userId: user?.id,
+      email: user?.email,
+      isAuthModalOpen
+    });
+  }, [user, isAuthModalOpen]);
   
   useEffect(() => {
     // Handle navigation in an effect to ensure it happens only once
     if (shouldNavigate && uploadedTrackId) {
       // Use a timeout to ensure all state updates are processed
       const timer = setTimeout(() => {
+        console.log("Index - Navigating to track page:", uploadedTrackId);
         navigate(`/track/${uploadedTrackId}`, { 
           replace: true // Using replace to prevent back navigation
         });
@@ -39,7 +61,9 @@ const Index = () => {
     }
   }, [shouldNavigate, uploadedTrackId, navigate]);
   
-  const handleUploadComplete = (trackId: string, trackName: string) => {
+  const handleUploadComplete = useCallback((trackId: string, trackName: string) => {
+    console.log("Index - Upload complete:", { trackId, trackName, isAuthenticated: !!user });
+    
     setUploadedTrackId(trackId);
     setUploadedTrackName(trackName);
     
@@ -47,16 +71,31 @@ const Index = () => {
     if (user) {
       setShouldNavigate(true);
     }
-  };
+  }, [user]);
   
-  const handleAuthRequired = () => {
+  const handleAuthRequired = useCallback(async () => {
+    // Double-check current auth state before opening modal
+    await refreshSession();
+    
+    console.log("Index - Auth required check:", { 
+      isAuthenticated: !!user, 
+      willOpenModal: !user 
+    });
+    
     // Only open auth modal if user is not logged in
     if (!user) {
       setIsAuthModalOpen(true);
+    } else {
+      // If we already have authentication and a track ID, navigate
+      if (uploadedTrackId) {
+        setShouldNavigate(true);
+      }
     }
-  };
+  }, [user, uploadedTrackId, refreshSession]);
   
-  const handleAuthSuccess = () => {
+  const handleAuthSuccess = useCallback(() => {
+    console.log("Index - Auth success:", { hasTrackId: !!uploadedTrackId });
+    
     // Close the auth modal
     setIsAuthModalOpen(false);
     
@@ -64,7 +103,7 @@ const Index = () => {
     if (uploadedTrackId) {
       setShouldNavigate(true);
     }
-  };
+  }, [uploadedTrackId]);
 
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">

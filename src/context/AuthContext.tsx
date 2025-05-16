@@ -11,6 +11,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -57,6 +58,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Add a session refresh function that components can call when needed
+  const refreshSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("AuthProvider - Manual session refresh:", {
+        hasSession: !!session,
+        user: session?.user?.email
+      });
+      
+      setSession(session);
+      setUser(session?.user ?? null);
+      return Promise.resolve();
+    } catch (error) {
+      console.error("AuthProvider - Error refreshing session:", error);
+      return Promise.reject(error);
+    }
+  };
 
   const signUp = async (email: string, password: string, username: string) => {
     try {
@@ -147,6 +166,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signUp,
     signIn,
     signOut,
+    refreshSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
