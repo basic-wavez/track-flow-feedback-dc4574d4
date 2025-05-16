@@ -33,7 +33,7 @@ const TrackFeedbackSection = ({ trackTitle, user }: TrackFeedbackSectionProps) =
           Thank You for Your Feedback!
         </h2>
         <p className="text-gray-400 mb-6">
-          Your insights help artists improve their craft. The producer will be notified of your feedback.
+          The producer will be notified of your feedback.
         </p>
         <Button 
           onClick={() => navigate("/")}
