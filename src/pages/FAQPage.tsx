@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -46,11 +45,6 @@ const FAQPage = () => {
       category: "usage"
     },
     {
-      question: "Is there a limit to how many demos I can upload?",
-      answer: "Free accounts have a limit of 3 active demos. Premium accounts have higher or unlimited upload capabilities depending on your subscription tier.",
-      category: "pricing"
-    },
-    {
       question: "How do I provide feedback on someone's track?",
       answer: "When viewing a shared track, you'll see a feedback form below the player. You can enter your comments and submit them. The track owner will receive a notification of your feedback.",
       category: "usage"
@@ -64,11 +58,6 @@ const FAQPage = () => {
       question: "How does the versioning system work?",
       answer: "Each track can have multiple versions. When you upload a new version, it's added to the track's version history. Listeners can switch between versions to hear how the track has evolved and provide feedback on specific versions.",
       category: "technical"
-    },
-    {
-      question: "Can I download analytics for my tracks?",
-      answer: "Premium users can export analytics data including play counts, feedback metrics, and listener engagement statistics in CSV format for further analysis.",
-      category: "premium"
     },
   ];
   
