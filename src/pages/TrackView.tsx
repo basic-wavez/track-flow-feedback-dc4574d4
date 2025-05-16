@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,8 @@ import TrackLoading from "@/components/track/TrackLoading";
 import TrackNotFound from "@/components/track/TrackNotFound";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { getTrack, incrementPlayCount, getTrackIdByShareKey } from "@/services/trackService";
+import { getTrack } from "@/services/trackQueryService";
+import { incrementPlayCount, getTrackIdByShareKey } from "@/services/trackShareService";
 import { useAuth } from "@/context/AuthContext";
 import { TrackData } from "@/types/track";
 import TrackFeedbackDisplay from "@/components/track/TrackFeedbackDisplay";
@@ -23,31 +23,52 @@ const TrackView = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("feedback");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadTrack = async () => {
       setIsLoading(true);
+      setError(null);
       
       try {
+        console.log("TrackView loading with params:", { trackId, shareKey });
         let actualTrackId = trackId;
         
         // If we have a share key, get the track ID from it
-        if (shareKey && !trackId) {
+        if (shareKey) {
+          console.log("Loading track by share key:", shareKey);
           actualTrackId = await getTrackIdByShareKey(shareKey);
+          console.log("Resolved trackId from shareKey:", actualTrackId);
           
           if (actualTrackId) {
             // Increment play count for shared link
+            console.log("Incrementing play count for share key:", shareKey);
             await incrementPlayCount(shareKey);
+          } else {
+            console.error("No track ID found for share key:", shareKey);
+            setError("Invalid share link");
           }
         }
 
         if (!actualTrackId) {
+          console.error("No track ID available after processing parameters");
           setTrackData(null);
           setIsLoading(false);
           return;
         }
 
+        console.log("Fetching track data for ID:", actualTrackId);
         const track = await getTrack(actualTrackId);
+        
+        if (!track) {
+          console.error("Track not found for ID:", actualTrackId);
+          setError("Track not found");
+          setTrackData(null);
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log("Track data loaded:", track.id);
         setTrackData(track);
         
         if (track && user) {
@@ -56,6 +77,7 @@ const TrackView = () => {
       } catch (error) {
         console.error("Error loading track:", error);
         setTrackData(null);
+        setError("Error loading track");
       } finally {
         setIsLoading(false);
       }
@@ -69,7 +91,7 @@ const TrackView = () => {
   }
 
   if (!trackData) {
-    return <TrackNotFound />;
+    return <TrackNotFound error={error} />;
   }
 
   // Use the original filename for display - this keeps hyphens and original capitalization

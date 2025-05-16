@@ -25,10 +25,9 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
-            {/* Made TrackView publicly accessible */}
-            <Route path="/track/:trackId" element={<TrackView />} />
-            {/* Add new route for shared links */}
+            {/* Move the share route before the regular track route to ensure it matches first */}
             <Route path="/track/share/:shareKey" element={<TrackView />} />
+            <Route path="/track/:trackId" element={<TrackView />} />
             <Route 
               path="/feedback/:trackId" 
               element={

@@ -89,12 +89,42 @@ export const getShareLinks = async (trackId: string): Promise<ShareLink[]> => {
 };
 
 /**
+ * Gets a track ID by share key
+ * @param shareKey The unique share key
+ * @returns The track ID or null if not found
+ */
+export const getTrackIdByShareKey = async (shareKey: string): Promise<string | null> => {
+  try {
+    console.log('Looking up track ID by share key:', shareKey);
+    
+    const { data, error } = await supabase
+      .from('share_links')
+      .select('track_id')
+      .eq('share_key', shareKey)
+      .single();
+    
+    if (error || !data) {
+      console.error('Error fetching track by share key:', error);
+      return null;
+    }
+    
+    console.log('Found track ID:', data.track_id);
+    return data.track_id;
+  } catch (error) {
+    console.error('Error in getTrackIdByShareKey:', error);
+    return null;
+  }
+};
+
+/**
  * Increments the play count for a share link
  * @param shareKey The unique share key
  * @returns Whether the operation was successful
  */
 export const incrementPlayCount = async (shareKey: string): Promise<boolean> => {
   try {
+    console.log('Incrementing play count for share key:', shareKey);
+    
     const { data: link, error: fetchError } = await supabase
       .from('share_links')
       .select('id, play_count')
@@ -119,6 +149,7 @@ export const incrementPlayCount = async (shareKey: string): Promise<boolean> => 
       return false;
     }
     
+    console.log('Successfully incremented play count');
     return true;
   } catch (error) {
     console.error('Error in incrementPlayCount:', error);
@@ -147,30 +178,5 @@ export const deleteShareLink = async (linkId: string): Promise<boolean> => {
   } catch (error) {
     console.error('Error in deleteShareLink:', error);
     return false;
-  }
-};
-
-/**
- * Gets a track ID by share key
- * @param shareKey The unique share key
- * @returns The track ID or null if not found
- */
-export const getTrackIdByShareKey = async (shareKey: string): Promise<string | null> => {
-  try {
-    const { data, error } = await supabase
-      .from('share_links')
-      .select('track_id')
-      .eq('share_key', shareKey)
-      .single();
-    
-    if (error || !data) {
-      console.error('Error fetching track by share key:', error);
-      return null;
-    }
-    
-    return data.track_id;
-  } catch (error) {
-    console.error('Error in getTrackIdByShareKey:', error);
-    return null;
   }
 };
