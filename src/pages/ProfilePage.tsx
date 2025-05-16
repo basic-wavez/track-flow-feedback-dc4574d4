@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { getUserTracks } from "@/services/trackService";
 import { formatDistanceToNow } from "date-fns";
-import { Clock, ExternalLink, Share2 } from "lucide-react";
+import { Clock, ExternalLink, Share2, Music, MessageSquare } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { TrackData } from "@/types/track";
@@ -353,9 +352,9 @@ const ProfilePage = () => {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => handleViewFeedback(item.trackId)}
+                                onClick={() => handleOpenTrack(item.trackId)}
                               >
-                                View Details
+                                Open
                               </Button>
                             </TableCell>
                           </TableRow>
