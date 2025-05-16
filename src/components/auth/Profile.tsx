@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 
 const Profile = () => {
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { toast } = useToast();
@@ -32,20 +32,15 @@ const Profile = () => {
   };
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="text-sm">
-        {user?.email}
-      </div>
-      <Button 
-        variant="outline" 
-        size="sm" 
-        className="border-wip-pink text-wip-pink hover:bg-wip-pink/10"
-        onClick={handleSignOut}
-        disabled={isSigningOut}
-      >
-        {isSigningOut ? "Signing out..." : "Sign out"}
-      </Button>
-    </div>
+    <Button 
+      variant="outline" 
+      size="sm" 
+      className="border-wip-pink text-wip-pink hover:bg-wip-pink/10"
+      onClick={handleSignOut}
+      disabled={isSigningOut}
+    >
+      {isSigningOut ? "Signing out..." : "Sign out"}
+    </Button>
   );
 };
 

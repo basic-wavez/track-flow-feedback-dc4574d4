@@ -4,10 +4,42 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { User } from "lucide-react";
 import Profile from "@/components/auth/Profile";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Header = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [username, setUsername] = useState<string | null>(null);
+
+  // Fetch username when user loads or changes
+  useEffect(() => {
+    const fetchUsername = async () => {
+      if (!user) {
+        setUsername(null);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .single();
+          
+        if (error) {
+          console.error("Error fetching username:", error);
+          return;
+        }
+        
+        setUsername(data?.username || 'User');
+      } catch (error) {
+        console.error("Failed to fetch username:", error);
+      }
+    };
+    
+    fetchUsername();
+  }, [user]);
 
   return (
     <header className="py-6 px-8 flex justify-between items-center border-b border-wip-gray/30">
@@ -29,7 +61,7 @@ const Header = () => {
             onClick={() => navigate("/profile")}
           >
             <User size={16} />
-            <span>My Profile</span>
+            <span>{username || 'My Profile'}</span>
           </Button>
         )}
         
