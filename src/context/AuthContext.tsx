@@ -13,6 +13,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
   isAuthenticated: boolean;
+  isAdmin: boolean;
+  checkAdminRole: () => Promise<boolean>;
   updateUsername: (username: string) => Promise<void>;
   updatePassword: (newPassword: string, currentPassword: string) => Promise<void>;
 }
@@ -24,6 +26,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,6 +45,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         setIsAuthenticated(!!session?.user); // Update explicit auth state
+        
+        // Check if the user is an admin
+        if (session?.user) {
+          setTimeout(() => {
+            checkAdminRole().then(isAdmin => {
+              setIsAdmin(isAdmin);
+            });
+          }, 0);
+        } else {
+          setIsAdmin(false);
+        }
       }
     );
 
@@ -56,7 +70,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session?.user); // Update explicit auth state
-      setLoading(false);
+      
+      // Check if the user is an admin
+      if (session?.user) {
+        checkAdminRole().then(isAdmin => {
+          setIsAdmin(isAdmin);
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
+      }
     });
 
     return () => {
@@ -64,6 +87,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Check if the user has admin role
+  const checkAdminRole = async (): Promise<boolean> => {
+    if (!user) return false;
+    
+    try {
+      const { data, error } = await supabase.rpc('has_role', {
+        _user_id: user.id,
+        _role: 'admin'
+      });
+      
+      if (error) {
+        console.error("Error checking admin role:", error);
+        return false;
+      }
+      
+      return data === true;
+    } catch (error) {
+      console.error("Error checking admin role:", error);
+      return false;
+    }
+  };
 
   // Add a session refresh function that components can call when needed
   const refreshSession = async () => {
@@ -77,6 +122,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session?.user); // Update explicit auth state
+      
+      // Check if the user is an admin
+      if (session?.user) {
+        const adminStatus = await checkAdminRole();
+        setIsAdmin(adminStatus);
+      }
+      
       return Promise.resolve();
     } catch (error) {
       console.error("AuthProvider - Error refreshing session:", error);
@@ -242,6 +294,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signOut,
     refreshSession,
     isAuthenticated,
+    isAdmin,
+    checkAdminRole,
     updateUsername,
     updatePassword,
   };

@@ -5,6 +5,7 @@ import AuthPage from './pages/AuthPage';
 import NotFound from './pages/NotFound';
 import { Toaster } from './components/ui/toaster';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import AdminRoute from './components/auth/AdminRoute';
 import ProfilePage from './pages/ProfilePage';
 import TrackView from './pages/TrackView';
 import { AuthProvider } from './context/AuthContext';
@@ -18,6 +19,7 @@ import ContactPage from './pages/ContactPage';
 import FAQPage from './pages/FAQPage';
 import BugReportPage from './pages/BugReportPage';
 import CookieConsent from './components/CookieConsent';
+import AdminDashboard from './pages/admin/AdminDashboard';
 
 // Create a client
 const queryClient = new QueryClient();
@@ -37,6 +39,9 @@ function App() {
             {/* Protected routes */}
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/track/:trackId/version" element={<ProtectedRoute><NewVersionPage /></ProtectedRoute>} />
+            
+            {/* Admin routes */}
+            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             
             {/* Legal & Information pages */}
             <Route path="/terms" element={<TermsOfServicePage />} />

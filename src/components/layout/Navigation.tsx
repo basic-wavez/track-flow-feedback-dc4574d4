@@ -1,10 +1,10 @@
 
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { Bug, HelpCircle, Info, MessageSquare } from "lucide-react";
+import { Bug, HelpCircle, Info, MessageSquare, LayoutDashboard } from "lucide-react";
 
 const Navigation = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return (
     <nav className="bg-wip-dark border-b border-wip-gray/30">
@@ -63,6 +63,16 @@ const Navigation = () => {
                 className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-300 hover:text-wip-pink border-b-2 border-transparent hover:border-wip-pink transition-colors"
               >
                 My Demos
+              </Link>
+            )}
+            
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-wip-pink border-b-2 border-wip-pink hover:text-wip-pink/80 transition-colors"
+              >
+                <LayoutDashboard className="h-4 w-4 mr-1" />
+                Admin
               </Link>
             )}
           </div>
