@@ -54,22 +54,34 @@ export async function getUserDetails(userId: string) {
       throw new Error("No user details found");
     }
     
-    // Validate the created_at date
-    if (data.created_at) {
-      try {
-        // Check if it's a valid date
-        new Date(data.created_at).toISOString();
-      } catch (e) {
-        // If not valid, assign current date
-        console.error("Invalid created_at date, using current date instead");
-        data.created_at = new Date().toISOString();
+    // Cast the data to an object and access properties safely
+    const userDetails = data as Record<string, any>;
+    
+    // Validate and ensure the created_at date
+    let safeCreatedAt = new Date().toISOString(); // Default value
+    
+    if (userDetails && typeof userDetails === 'object') {
+      if (userDetails.created_at) {
+        try {
+          // Check if it's a valid date
+          new Date(userDetails.created_at).toISOString();
+          safeCreatedAt = userDetails.created_at;
+        } catch (e) {
+          console.error("Invalid created_at date, using current date instead");
+        }
       }
-    } else {
-      data.created_at = new Date().toISOString();
     }
     
+    // Create a properly typed result object
+    const result: UserDetailsResult = {
+      email: userDetails.email || "Email unavailable",
+      created_at: safeCreatedAt,
+      last_sign_in_at: userDetails.last_sign_in_at || null,
+      email_confirmed_at: userDetails.email_confirmed_at || null
+    };
+    
     console.log("adminHelpers - Successfully fetched user details");
-    return data as unknown as UserDetailsResult;
+    return result;
   } catch (error: any) {
     console.error("Failed to fetch user details:", error);
     // Return a placeholder object instead of re-throwing
