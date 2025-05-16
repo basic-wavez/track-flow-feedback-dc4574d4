@@ -92,6 +92,7 @@ export type Database = {
       share_links: {
         Row: {
           created_at: string | null
+          download_count: number
           id: string
           last_played_at: string | null
           name: string
@@ -102,6 +103,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          download_count?: number
           id?: string
           last_played_at?: string | null
           name: string
@@ -112,6 +114,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          download_count?: number
           id?: string
           last_played_at?: string | null
           name?: string

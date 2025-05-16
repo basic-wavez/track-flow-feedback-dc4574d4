@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 interface ShareLink {
@@ -7,7 +8,7 @@ interface ShareLink {
   share_key: string;
   created_at: string;
   play_count: number;
-  download_count?: number; // Make this optional
+  download_count: number; // This is now a real column in the database
   last_played_at: string | null;
 }
 
@@ -56,11 +57,7 @@ export const createShareLink = async (trackId: string, name: string): Promise<Sh
       return null;
     }
     
-    // Add default download_count of 0
-    return {
-      ...data,
-      download_count: 0
-    } as ShareLink;
+    return data as ShareLink;
   } catch (error) {
     console.error('Error in createShareLink:', error);
     throw error;
@@ -85,11 +82,7 @@ export const getShareLinks = async (trackId: string): Promise<ShareLink[]> => {
       return [];
     }
     
-    // Add default download_count to each link
-    return data.map(link => ({
-      ...link,
-      download_count: 0  // Since the column doesn't exist, we default to 0
-    })) as ShareLink[];
+    return data as ShareLink[];
   } catch (error) {
     console.error('Error in getShareLinks:', error);
     return [];
@@ -170,12 +163,32 @@ export const incrementDownloadCount = async (shareKey: string): Promise<boolean>
   try {
     console.log('Incrementing download count for share key:', shareKey);
     
-    // Since download_count column doesn't exist in the database yet,
-    // we'll just log the action and return success for now
-    console.log('Successfully simulated incrementing download count for share key:', shareKey);
+    // Fetch the current link data
+    const { data: link, error: fetchError } = await supabase
+      .from('share_links')
+      .select('id, download_count')
+      .eq('share_key', shareKey)
+      .single();
     
-    // For UI purposes, we'll simulate success
-    // In production, this would need the database column to be added
+    if (fetchError || !link) {
+      console.error('Error fetching share link:', fetchError);
+      return false;
+    }
+    
+    // Update the download count
+    const { error: updateError } = await supabase
+      .from('share_links')
+      .update({
+        download_count: link.download_count + 1
+      })
+      .eq('id', link.id);
+    
+    if (updateError) {
+      console.error('Error updating download count:', updateError);
+      return false;
+    }
+    
+    console.log('Successfully incremented download count to', link.download_count + 1);
     return true;
   } catch (error) {
     console.error('Error in incrementDownloadCount:', error);
