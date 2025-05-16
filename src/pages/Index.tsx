@@ -4,15 +4,10 @@ import { useNavigate } from "react-router-dom";
 import AudioUploader from "@/components/AudioUploader";
 import AuthModal from "@/components/auth/AuthModal";
 import { useAuth } from "@/context/AuthContext";
-import { Button } from "@/components/ui/button";
 import Header from "@/components/layout/Header";
-import {
-  NavigationMenu,
-  NavigationMenuList,
-  NavigationMenuItem,
-  navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
-import { cn } from "@/lib/utils";
+import Navigation from "@/components/layout/Navigation";
+import Hero from "@/components/home/Hero";
+import HowItWorks from "@/components/home/HowItWorks";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -119,93 +114,17 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <Header />
-      
-      <nav className="border-b border-wip-gray/30 bg-wip-darker">
-        <div className="max-w-7xl mx-auto px-4">
-          <NavigationMenu className="py-2">
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <Button 
-                  className={cn(navigationMenuTriggerStyle(), "bg-transparent hover:bg-wip-gray/10 text-wip-pink")} 
-                  variant="ghost"
-                  onClick={() => navigate("/")}
-                >
-                  Home
-                </Button>
-              </NavigationMenuItem>
-              
-              {user && (
-                <NavigationMenuItem>
-                  <Button 
-                    className={cn(navigationMenuTriggerStyle(), "bg-transparent hover:bg-wip-gray/10 text-wip-pink")} 
-                    variant="ghost"
-                    onClick={() => navigate("/profile")}
-                  >
-                    My Profile
-                  </Button>
-                </NavigationMenuItem>
-              )}
-            </NavigationMenuList>
-          </NavigationMenu>
-        </div>
-      </nav>
+      <Navigation />
       
       <main className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-3xl mx-auto text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4 text-wip-pink">
-            Share your demo
-          </h2>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            Upload your music, get detailed feedback from other producers, and perfect your tracks.
-          </p>
-        </div>
+        <Hero />
         
         <AudioUploader 
           onUploadComplete={handleUploadComplete}
           onAuthRequired={handleAuthRequired}
         />
         
-        <div className="mt-16 px-6 py-8 w-full max-w-3xl mx-auto border border-wip-gray/30 rounded-lg bg-wip-gray/5">
-          <h3 className="text-xl font-semibold mb-4">How It Works</h3>
-          
-          <ol className="space-y-6">
-            <li className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-wip-pink flex items-center justify-center font-bold text-black">
-                1
-              </div>
-              <div>
-                <h4 className="font-medium">Upload Your Track</h4>
-                <p className="text-gray-400">
-                  Drag and drop your audio file (WAV, FLAC, AIFF, or MP3).
-                </p>
-              </div>
-            </li>
-            
-            <li className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-wip-pink flex items-center justify-center font-bold text-black">
-                2
-              </div>
-              <div>
-                <h4 className="font-medium">Share with Others</h4>
-                <p className="text-gray-400">
-                  Generate a link to share your track with other producers.
-                </p>
-              </div>
-            </li>
-            
-            <li className="flex gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-wip-pink flex items-center justify-center font-bold text-black">
-                3
-              </div>
-              <div>
-                <h4 className="font-medium">Get Detailed Feedback</h4>
-                <p className="text-gray-400">
-                  Receive ratings on mixing, melody, sound design, and more, along with written feedback.
-                </p>
-              </div>
-            </li>
-          </ol>
-        </div>
+        <HowItWorks />
       </main>
       
       <AuthModal 
