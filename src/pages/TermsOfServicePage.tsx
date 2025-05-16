@@ -81,7 +81,7 @@ const TermsOfServicePage = () => {
           <section className="mb-8">
             <h2 className="text-xl font-semibold mb-4">7. Governing Law</h2>
             <p className="mb-4">
-              These Terms shall be governed and construed in accordance with the laws of the United States, without regard to its conflict of law provisions.
+              These Terms shall be governed and construed in accordance with the laws of the United Kingdom, without regard to its conflict of law provisions.
             </p>
             <p className="mb-4">
               Our failure to enforce any right or provision of these Terms will not be considered a waiver of those rights.
