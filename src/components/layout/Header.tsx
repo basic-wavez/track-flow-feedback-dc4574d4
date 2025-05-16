@@ -29,8 +29,8 @@ const Header = () => {
           to="/"
           className="text-xl font-bold text-white flex items-center space-x-2"
         >
-          <span className="text-wip-pink">WIP</span>
-          <span>Music</span>
+          <span className="text-wip-pink">Demo</span>
+          <span>Manager</span>
         </Link>
 
         <div className="flex items-center space-x-4">
