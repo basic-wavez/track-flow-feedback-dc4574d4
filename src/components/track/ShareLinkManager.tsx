@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Share2, Copy, Trash2, Plus, ExternalLink, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -34,6 +33,7 @@ interface ShareLink {
   share_key: string;
   created_at: string;
   play_count: number;
+  download_count: number;
   last_played_at: string | null;
 }
 
@@ -238,6 +238,7 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
             <TableRow>
               <TableHead>Link Name</TableHead>
               <TableHead>Play Count</TableHead>
+              <TableHead>Download Count</TableHead>
               <TableHead>Last Played</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -250,6 +251,11 @@ const ShareLinkManager = ({ trackId, trackTitle }: ShareLinkManagerProps) => {
                 <TableCell>
                   <Badge variant={link.play_count > 0 ? "warning" : "outline"}>
                     {link.play_count} {link.play_count === 1 ? 'play' : 'plays'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={link.download_count > 0 ? "secondary" : "outline"}>
+                    {link.download_count || 0} {link.download_count === 1 ? 'download' : 'downloads'}
                   </Badge>
                 </TableCell>
                 <TableCell>

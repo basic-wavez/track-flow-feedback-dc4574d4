@@ -7,6 +7,7 @@ interface ShareLink {
   share_key: string;
   created_at: string;
   play_count: number;
+  download_count: number;
   last_played_at: string | null;
 }
 
@@ -45,7 +46,8 @@ export const createShareLink = async (trackId: string, name: string): Promise<Sh
       .insert({
         track_id: trackId,
         name: name,
-        user_id: user.id
+        user_id: user.id,
+        download_count: 0 // Initialize download count to 0
       })
       .select('*')
       .single();
@@ -148,6 +150,46 @@ export const isInServerCooldown = async (shareKey: string): Promise<boolean> => 
     return timeSinceLastPlay < SERVER_COOLDOWN_PERIOD_MS;
   } catch (error) {
     console.error('Error in isInServerCooldown:', error);
+    return false;
+  }
+};
+
+/**
+ * Increments the download count for a share link
+ * @param shareKey The unique share key
+ * @returns Whether the operation was successful
+ */
+export const incrementDownloadCount = async (shareKey: string): Promise<boolean> => {
+  try {
+    console.log('Incrementing download count for share key:', shareKey);
+    
+    const { data: link, error: fetchError } = await supabase
+      .from('share_links')
+      .select('id, download_count')
+      .eq('share_key', shareKey)
+      .single();
+    
+    if (fetchError || !link) {
+      console.error('Error fetching share link:', fetchError);
+      return false;
+    }
+    
+    const { error: updateError } = await supabase
+      .from('share_links')
+      .update({
+        download_count: (link.download_count || 0) + 1
+      })
+      .eq('id', link.id);
+    
+    if (updateError) {
+      console.error('Error updating download count:', updateError);
+      return false;
+    }
+    
+    console.log('Successfully incremented download count to', (link.download_count || 0) + 1);
+    return true;
+  } catch (error) {
+    console.error('Error in incrementDownloadCount:', error);
     return false;
   }
 };

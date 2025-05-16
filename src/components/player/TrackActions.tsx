@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -6,6 +5,7 @@ import { Download, Share, Loader, Upload } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { updateTrackDetails } from "@/services/trackService";
 import { retryOriginalFileUpload } from "@/services/trackRecoveryService";
+import { incrementDownloadCount } from "@/services/trackShareService";
 
 interface TrackActionsProps {
   isOwner: boolean;
@@ -13,6 +13,7 @@ interface TrackActionsProps {
   trackId?: string;
   originalFilename?: string;
   downloadsEnabled?: boolean;
+  shareKey?: string;
 }
 
 const TrackActions = ({ 
@@ -20,7 +21,8 @@ const TrackActions = ({
   originalUrl, 
   trackId,
   originalFilename = 'audio-file',
-  downloadsEnabled = false // Default to false if not provided
+  downloadsEnabled = false, // Default to false if not provided
+  shareKey
 }: TrackActionsProps) => {
   const [downloadEnabled, setDownloadEnabled] = useState(downloadsEnabled);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -67,6 +69,16 @@ const TrackActions = ({
     setIsDownloading(true);
     
     try {
+      // Track download if we have a share key
+      if (shareKey) {
+        try {
+          await incrementDownloadCount(shareKey);
+        } catch (error) {
+          console.error("Error incrementing download count:", error);
+          // Continue with download even if tracking fails
+        }
+      }
+      
       // Use fetch to get the file data first
       const response = await fetch(originalUrl);
       

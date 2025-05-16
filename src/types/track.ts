@@ -11,6 +11,7 @@ export interface TrackData {
   mp3_url?: string;
   processing_status?: string;
   downloads_enabled?: boolean;
+  download_count?: number;
 }
 
 export interface TrackUpdateDetails {

@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import Waveform from "./Waveform";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
@@ -158,6 +157,7 @@ const TrackPlayer = ({
         originalFilename={originalFilename}
         trackId={trackId}
         downloadsEnabled={downloadsEnabled}
+        shareKey={shareKey}
       />
     </div>
   );
