@@ -9,11 +9,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { getUserTracks } from "@/services/trackService";
 import { formatDistanceToNow } from "date-fns";
-import { Clock, ExternalLink, Share2, Music, MessageSquare } from "lucide-react";
+import { Clock, ExternalLink, Share2, Music, MessageSquare, Settings } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { TrackData } from "@/types/track";
 import { supabase } from "@/integrations/supabase/client";
+import AccountSettings from "@/components/auth/AccountSettings";
 
 interface FeedbackSummary {
   id: string;
@@ -216,6 +217,10 @@ const ProfilePage = () => {
                   {feedback.length}
                 </Badge>
               </TabsTrigger>
+              <TabsTrigger value="account" className="flex gap-2 items-center">
+                <Settings className="h-4 w-4" />
+                <span>Account Settings</span>
+              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="tracks">
@@ -369,6 +374,10 @@ const ProfilePage = () => {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+            
+            <TabsContent value="account">
+              <AccountSettings />
             </TabsContent>
           </Tabs>
         </div>
