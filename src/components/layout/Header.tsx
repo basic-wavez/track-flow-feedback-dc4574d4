@@ -45,7 +45,7 @@ const Header = () => {
         <div className="flex items-center space-x-4">
           {user && (
             <Link
-              to="/my-demos"
+              to="/profile"
               className="inline-flex items-center px-3 py-1 text-sm font-medium text-white hover:text-wip-pink transition-colors"
             >
               <Music className="h-4 w-4 mr-1" />
