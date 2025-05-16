@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, LogOut, User as UserIcon, LayoutDashboard } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon, LayoutDashboard, FileVideo } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +34,16 @@ const Header = () => {
         </Link>
 
         <div className="flex items-center space-x-4">
+          {user && (
+            <Link
+              to="/my-demos"
+              className="inline-flex items-center px-3 py-1 text-sm font-medium text-white hover:text-wip-pink transition-colors"
+            >
+              <FileVideo className="h-4 w-4 mr-1" />
+              My Demos
+            </Link>
+          )}
+          
           {isAdmin && (
             <Link
               to="/admin"
