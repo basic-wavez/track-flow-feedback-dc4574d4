@@ -146,6 +146,8 @@ export type Database = {
           id: string
           is_latest_version: boolean
           mp3_url: string | null
+          opus_processing_status: string | null
+          opus_url: string | null
           original_filename: string
           original_url: string | null
           parent_track_id: string | null
@@ -166,6 +168,8 @@ export type Database = {
           id?: string
           is_latest_version?: boolean
           mp3_url?: string | null
+          opus_processing_status?: string | null
+          opus_url?: string | null
           original_filename: string
           original_url?: string | null
           parent_track_id?: string | null
@@ -186,6 +190,8 @@ export type Database = {
           id?: string
           is_latest_version?: boolean
           mp3_url?: string | null
+          opus_processing_status?: string | null
+          opus_url?: string | null
           original_filename?: string
           original_url?: string | null
           parent_track_id?: string | null

@@ -17,6 +17,8 @@ interface TrackPlayerProps {
   isOwner?: boolean;
   processingStatus?: string;
   mp3Url?: string;
+  opusUrl?: string;
+  opusProcessingStatus?: string;
   shareKey?: string;
   inCooldownPeriod?: boolean;
   downloadsEnabled?: boolean;
@@ -33,6 +35,8 @@ const TrackPlayer = ({
   isOwner = false,
   processingStatus = 'completed',
   mp3Url,
+  opusUrl,
+  opusProcessingStatus = 'pending',
   shareKey,
   inCooldownPeriod = false,
   downloadsEnabled = false,
@@ -42,8 +46,8 @@ const TrackPlayer = ({
   const [serverCooldown, setServerCooldown] = useState(false);
   const [playedRecently, setPlayedRecently] = useState(false);
   
-  // Determine which URL to use for playback - prefer MP3 if available
-  const playbackUrl = mp3Url || audioUrl;
+  // Determine which URL to use for playback - prefer Opus if available, then MP3, then original
+  const playbackUrl = opusUrl || mp3Url || audioUrl;
 
   // Determine which URL to use for waveform analysis - ALWAYS prefer MP3 if available
   const waveformUrl = mp3Url || audioUrl;
@@ -102,13 +106,22 @@ const TrackPlayer = ({
   
   // Check if we're using the MP3 version
   const usingMp3 = !!mp3Url;
+  
+  // Check if we're using the Opus version
+  const usingOpus = !!opusUrl;
+  
+  // Show format indicator
+  const formatIndicator = usingOpus ? 'Opus' : usingMp3 ? 'MP3' : 'Original';
+  
   const isLoading = playbackState === 'loading';
   
   // Determine combined cooldown state
   const isCooldown = inCooldownPeriod || serverCooldown;
   
-  // Determine whether to display MP3 processing message
-  const showMp3ProcessingMessage = !mp3Url && processingStatus === 'pending';
+  // Determine whether to display processing message
+  const showProcessingMessage = 
+    (!mp3Url && processingStatus === 'pending') || 
+    (!opusUrl && opusProcessingStatus === 'pending');
   
   // Log which URLs we're using to help with debugging
   useEffect(() => {
@@ -116,9 +129,10 @@ const TrackPlayer = ({
       playbackUrl,
       waveformUrl,
       originalUrl,
-      mp3Url
+      mp3Url,
+      opusUrl
     });
-  }, [playbackUrl, waveformUrl, originalUrl, mp3Url]);
+  }, [playbackUrl, waveformUrl, originalUrl, mp3Url, opusUrl]);
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
@@ -156,15 +170,25 @@ const TrackPlayer = ({
         onToggleMute={toggleMute}
       />
       
-      {showMp3ProcessingMessage && (
+      {showProcessingMessage && (
         <div className="text-yellow-400 text-sm mb-2 bg-yellow-900/20 p-2 rounded">
-          MP3 version is still processing. Waveform and playback may be limited until processing completes.
+          {!mp3Url && processingStatus === 'pending' ? (
+            "MP3 version is still processing. Waveform and playback may be limited until processing completes."
+          ) : (
+            "Opus version is still processing. Higher quality playback will be available soon."
+          )}
         </div>
       )}
       
+      <div className="flex justify-end mb-2">
+        <span className="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
+          {formatIndicator}
+        </span>
+      </div>
+      
       <Waveform 
         audioUrl={playbackUrl}
-        waveformAnalysisUrl={waveformUrl} // Always pass MP3 URL for waveform analysis
+        waveformAnalysisUrl={waveformUrl}
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}
@@ -173,6 +197,7 @@ const TrackPlayer = ({
         isBuffering={isBuffering}
         showBufferingUI={showBufferingUI}
         isMp3Available={usingMp3}
+        isOpusAvailable={usingOpus}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
       />

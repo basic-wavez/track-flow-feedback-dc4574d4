@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 interface RequestBody {
   trackId: string;
+  format?: string; // Optional parameter to specify format: 'mp3', 'opus', or 'all'
 }
 
 const SUPABASE_URL = "https://qzykfyavenplpxpdnfxh.supabase.co";
@@ -54,7 +55,7 @@ serve(async (req: Request) => {
     }
 
     // Parse request body
-    const { trackId } = await req.json() as RequestBody;
+    const { trackId, format = 'all' } = await req.json() as RequestBody;
     
     if (!trackId) {
       return new Response(JSON.stringify({ error: "Track ID is required" }), {
@@ -63,10 +64,20 @@ serve(async (req: Request) => {
       });
     }
     
-    // Update track status to "queued"
+    // Update track statuses based on the requested format
+    const updateData: any = {};
+    
+    if (format === 'all' || format === 'mp3') {
+      updateData.processing_status = 'queued';
+    }
+    
+    if (format === 'all' || format === 'opus') {
+      updateData.opus_processing_status = 'queued';
+    }
+    
     const { error: updateError } = await supabase
       .from("tracks")
-      .update({ processing_status: "queued" })
+      .update(updateData)
       .eq("id", trackId);
     
     if (updateError) {
@@ -105,9 +116,12 @@ serve(async (req: Request) => {
 
     // Start processing in the background to avoid timeout
     // @ts-ignore: EdgeRuntime exists in Supabase Edge Functions
-    EdgeRuntime.waitUntil(processAudio(supabase, trackId));
+    EdgeRuntime.waitUntil(processAudio(supabase, trackId, format));
 
-    return new Response(JSON.stringify({ success: true, message: "Audio processing started" }), {
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: `Audio processing started for format(s): ${format}` 
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -121,14 +135,24 @@ serve(async (req: Request) => {
   }
 });
 
-async function processAudio(supabase: any, trackId: string) {
+async function processAudio(supabase: any, trackId: string, format: string = 'all') {
   try {
-    console.log(`Starting audio processing for track: ${trackId}`);
+    console.log(`Starting audio processing for track: ${trackId}, formats: ${format}`);
     
-    // Update status to processing
+    // Update status to processing based on requested format
+    const updateData: any = {};
+    
+    if (format === 'all' || format === 'mp3') {
+      updateData.processing_status = 'processing';
+    }
+    
+    if (format === 'all' || format === 'opus') {
+      updateData.opus_processing_status = 'processing';
+    }
+    
     await supabase
       .from("tracks")
-      .update({ processing_status: "processing" })
+      .update(updateData)
       .eq("id", trackId);
     
     // Get track details to find the audio file
@@ -140,7 +164,7 @@ async function processAudio(supabase: any, trackId: string) {
     
     if (trackError || !track) {
       console.error("Error fetching track:", trackError);
-      await updateTrackStatusToFailed(supabase, trackId);
+      await updateTrackStatusToFailed(supabase, trackId, format);
       return;
     }
 
@@ -170,13 +194,13 @@ async function processAudio(supabase: any, trackId: string) {
       console.log(`Extracted file path: ${filePath} from URL: ${audioUrl}`);
     } catch (error) {
       console.error("Error parsing URL:", error);
-      await updateTrackStatusToFailed(supabase, trackId);
+      await updateTrackStatusToFailed(supabase, trackId, format);
       return;
     }
     
     if (!filePath) {
       console.error("Could not determine file path");
-      await updateTrackStatusToFailed(supabase, trackId);
+      await updateTrackStatusToFailed(supabase, trackId, format);
       return;
     }
     
@@ -188,53 +212,96 @@ async function processAudio(supabase: any, trackId: string) {
       
     if (downloadError || !fileData) {
       console.error("Error downloading audio file:", downloadError);
-      await updateTrackStatusToFailed(supabase, trackId);
+      await updateTrackStatusToFailed(supabase, trackId, format);
       return;
     }
     
     console.log(`Successfully downloaded audio file for track ${trackId}, size: ${fileData.size} bytes`);
 
-    // Process with Cloudinary - with retries
+    // Process with Cloudinary - with retries for each format
     let mp3Url = null;
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        mp3Url = await uploadToCloudinary(fileData, track);
-        if (mp3Url) break;
-        
-        console.log(`Attempt ${attempt} failed, retrying...`);
-      } catch (error) {
-        console.error(`Upload attempt ${attempt} failed:`, error);
-        if (attempt === MAX_RETRIES) {
-          console.error("All retry attempts failed");
-          await updateTrackStatusToFailed(supabase, trackId);
-          return;
+    let opusUrl = null;
+    
+    // Process MP3 if requested
+    if (format === 'all' || format === 'mp3') {
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          mp3Url = await uploadToCloudinary(fileData, track, 'mp3');
+          if (mp3Url) break;
+          
+          console.log(`MP3 attempt ${attempt} failed, retrying...`);
+        } catch (error) {
+          console.error(`MP3 upload attempt ${attempt} failed:`, error);
+          if (attempt === MAX_RETRIES) {
+            console.error("All MP3 retry attempts failed");
+            await updateTrackStatusToFailed(supabase, trackId, 'mp3');
+          }
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
         }
-        // Wait before retrying (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
       }
     }
     
-    if (mp3Url) {
-      // Update track with successful processing
+    // Process Opus if requested
+    if (format === 'all' || format === 'opus') {
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          opusUrl = await uploadToCloudinary(fileData, track, 'opus');
+          if (opusUrl) break;
+          
+          console.log(`Opus attempt ${attempt} failed, retrying...`);
+        } catch (error) {
+          console.error(`Opus upload attempt ${attempt} failed:`, error);
+          if (attempt === MAX_RETRIES) {
+            console.error("All Opus retry attempts failed");
+            await updateTrackStatusToFailed(supabase, trackId, 'opus');
+          }
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+        }
+      }
+    }
+    
+    // Update track with successful processing results
+    const finalUpdateData: any = {};
+    
+    if (format === 'all' || format === 'mp3') {
+      if (mp3Url) {
+        finalUpdateData.mp3_url = mp3Url;
+        finalUpdateData.processing_status = 'completed';
+        console.log(`MP3 processing completed for track: ${trackId}`);
+      } else if (format === 'mp3') {
+        // Only set to failed if specifically requesting MP3 and it failed
+        finalUpdateData.processing_status = 'failed';
+      }
+    }
+    
+    if (format === 'all' || format === 'opus') {
+      if (opusUrl) {
+        finalUpdateData.opus_url = opusUrl;
+        finalUpdateData.opus_processing_status = 'completed';
+        console.log(`Opus processing completed for track: ${trackId}`);
+      } else if (format === 'opus') {
+        // Only set to failed if specifically requesting Opus and it failed
+        finalUpdateData.opus_processing_status = 'failed';
+      }
+    }
+    
+    if (Object.keys(finalUpdateData).length > 0) {
       await supabase
         .from("tracks")
-        .update({
-          mp3_url: mp3Url,
-          processing_status: "completed"
-        })
+        .update(finalUpdateData)
         .eq("id", trackId);
-      
-      console.log(`Processing completed for track: ${trackId}`);
-    } else {
-      await updateTrackStatusToFailed(supabase, trackId);
     }
+    
+    console.log(`Processing completed for track: ${trackId}, formats: ${format}`);
   } catch (error) {
     console.error(`Error processing audio for track ${trackId}:`, error);
-    await updateTrackStatusToFailed(supabase, trackId);
+    await updateTrackStatusToFailed(supabase, trackId, format);
   }
 }
 
-async function uploadToCloudinary(fileData: Blob, track: any): Promise<string | null> {
+async function uploadToCloudinary(fileData: Blob, track: any, format: string = 'mp3'): Promise<string | null> {
   try {
     // Create a FormData object for the Cloudinary upload
     const formData = new FormData();
@@ -248,10 +315,25 @@ async function uploadToCloudinary(fileData: Blob, track: any): Promise<string | 
     
     // Set some metadata to identify the upload
     formData.append('resource_type', 'auto');  // Let Cloudinary determine resource type
-    formData.append('public_id', `audio-${track.id}`); // Set public ID for the file
+    
+    // Set different public IDs for different formats
+    const publicId = format === 'opus' 
+      ? `audio-opus-${track.id}` 
+      : `audio-${track.id}`;
+    
+    formData.append('public_id', publicId);
+    
+    // Set transformation params based on format
+    if (format === 'opus') {
+      // For Opus format - use audio codec opus with bitrate 96k
+      formData.append('transformation', 'audio_codec:opus,audio_bitrate:96k');
+    } else {
+      // For MP3 format - use audio codec mp3 with quality 70%
+      formData.append('transformation', 'audio_codec:mp3,audio_quality:70');
+    }
     
     // Upload to Cloudinary using the upload preset
-    console.log(`Uploading to Cloudinary using preset ${CLOUDINARY_UPLOAD_PRESET}...`);
+    console.log(`Uploading to Cloudinary using preset ${CLOUDINARY_UPLOAD_PRESET} for format ${format}...`);
     const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
       method: 'POST',
       body: formData
@@ -268,30 +350,41 @@ async function uploadToCloudinary(fileData: Blob, track: any): Promise<string | 
     
     // Get the URL from the response
     if (data.secure_url) {
-      console.log(`Successfully uploaded to Cloudinary: ${data.secure_url}`);
+      console.log(`Successfully uploaded ${format} to Cloudinary: ${data.secure_url}`);
       
-      // If we need to ensure it's an MP3 URL (if format wasn't handled in the upload)
-      const mp3Url = data.format === 'mp3'
+      // Ensure we have the correct file extension
+      const expectedExt = format === 'opus' ? 'opus' : 'mp3';
+      const url = data.format === expectedExt
         ? data.secure_url
-        : `${data.secure_url.split('.').slice(0, -1).join('.')}.mp3`;
+        : `${data.secure_url.split('.').slice(0, -1).join('.')}.${expectedExt}`;
         
-      return mp3Url;
+      return url;
     } else {
       console.error("Cloudinary response missing secure_url:", data);
       return null;
     }
     
   } catch (error) {
-    console.error("Error uploading to Cloudinary:", error);
+    console.error(`Error uploading ${format} to Cloudinary:`, error);
     return null;
   }
 }
 
-async function updateTrackStatusToFailed(supabase: any, trackId: string) {
+async function updateTrackStatusToFailed(supabase: any, trackId: string, format: string = 'all') {
   try {
+    const updateData: any = {};
+    
+    if (format === 'all' || format === 'mp3') {
+      updateData.processing_status = 'failed';
+    }
+    
+    if (format === 'all' || format === 'opus') {
+      updateData.opus_processing_status = 'failed';
+    }
+    
     await supabase
       .from("tracks")
-      .update({ processing_status: "failed" })
+      .update(updateData)
       .eq("id", trackId);
   } catch (error) {
     console.error(`Error updating track ${trackId} status to failed:`, error);

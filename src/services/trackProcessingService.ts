@@ -1,112 +1,141 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
-import { getTrack } from "./trackQueryService";
+import { toast } from "sonner";
 
 /**
- * Requests MP3 processing for a track
+ * Request MP3 processing for a track
+ * @param trackId The ID of the track to process
+ * @returns A promise that resolves when the request is complete
  */
-export const requestMp3Processing = async (trackId: string): Promise<boolean> => {
+export async function requestMp3Processing(trackId: string): Promise<boolean> {
   try {
-    // Get the current session using the proper method
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData?.session?.access_token || '';
-
+    // Call the edge function to trigger MP3 processing
     const response = await fetch(`https://qzykfyavenplpxpdnfxh.supabase.co/functions/v1/process-audio`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
       },
-      body: JSON.stringify({ trackId })
+      body: JSON.stringify({
+        trackId,
+        format: 'mp3'
+      })
     });
 
+    const data = await response.json();
+    
+    console.log("MP3 processing response:", data);
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error("MP3 processing request failed:", response.status, errorData);
-      throw new Error(errorData.error || `Processing request failed with status ${response.status}`);
+      throw new Error(data.error || "Failed to start processing");
     }
-
+    
+    toast.success("MP3 processing started");
     return true;
-  } catch (error: any) {
-    console.error("Processing request error:", error);
-    toast({
-      title: "Processing Request Failed",
-      description: error.message || "There was an error requesting MP3 processing",
-      variant: "destructive",
-    });
+  } catch (error) {
+    console.error("Error requesting MP3 processing:", error);
+    toast.error("Failed to start MP3 processing");
     return false;
   }
-};
+}
 
 /**
- * Manually request MP3 processing for an existing track
+ * Request Opus processing for a track
+ * @param trackId The ID of the track to process
+ * @returns A promise that resolves when the request is complete
  */
-export const requestTrackProcessing = async (trackId: string): Promise<boolean> => {
+export async function requestOpusProcessing(trackId: string): Promise<boolean> {
   try {
-    // Check if track exists and is eligible for processing
-    const track = await getTrack(trackId);
-    
-    if (!track) {
-      throw new Error("Track not found");
-    }
-    
-    // Don't reprocess if already completed
-    if (track.processing_status === 'completed' && track.mp3_url) {
-      toast({
-        title: "Already Processed",
-        description: "This track has already been processed successfully.",
-      });
-      return true;
-    }
-    
-    // Reset status if it was previously failed
-    if (track.processing_status === 'failed') {
-      await supabase
-        .from('tracks')
-        .update({ processing_status: 'pending' })
-        .eq('id', trackId);
-    }
-    
-    // Request processing
-    const success = await requestMp3Processing(trackId);
-    
-    if (success) {
-      toast({
-        title: "Processing Requested",
-        description: "Your track will be processed into an MP3 for improved streaming."
-      });
-    }
-    
-    return success;
-  } catch (error: any) {
-    toast({
-      title: "Processing Request Failed",
-      description: error.message || "Failed to request MP3 processing",
-      variant: "destructive",
+    // Call the edge function to trigger Opus processing
+    const response = await fetch(`https://qzykfyavenplpxpdnfxh.supabase.co/functions/v1/process-audio`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+      },
+      body: JSON.stringify({
+        trackId,
+        format: 'opus'
+      })
     });
+
+    const data = await response.json();
+    
+    console.log("Opus processing response:", data);
+    
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to start processing");
+    }
+    
+    toast.success("Opus processing started");
+    return true;
+  } catch (error) {
+    console.error("Error requesting Opus processing:", error);
+    toast.error("Failed to start Opus processing");
     return false;
   }
-};
+}
 
 /**
- * Get the processing status of a track
+ * Request processing for all formats (MP3 and Opus) for a track
+ * @param trackId The ID of the track to process
+ * @returns A promise that resolves when the request is complete
  */
-export const getTrackProcessingStatus = async (trackId: string): Promise<string> => {
+export async function requestTrackProcessing(trackId: string): Promise<boolean> {
+  try {
+    // Call the edge function to trigger processing for all formats
+    const response = await fetch(`https://qzykfyavenplpxpdnfxh.supabase.co/functions/v1/process-audio`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+      },
+      body: JSON.stringify({
+        trackId,
+        format: 'all'
+      })
+    });
+
+    const data = await response.json();
+    
+    console.log("Track processing response:", data);
+    
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to start processing");
+    }
+    
+    toast.success("Audio processing started");
+    return true;
+  } catch (error) {
+    console.error("Error requesting track processing:", error);
+    toast.error("Failed to start audio processing");
+    return false;
+  }
+}
+
+/**
+ * Get the processing status for a track
+ * @param trackId The ID of the track to check
+ * @returns A promise that resolves to the processing status
+ */
+export async function getTrackProcessingStatus(trackId: string) {
   try {
     const { data, error } = await supabase
       .from('tracks')
-      .select('processing_status')
+      .select('processing_status, opus_processing_status')
       .eq('id', trackId)
       .single();
-      
+    
     if (error) {
       throw error;
     }
     
-    return data?.processing_status || 'pending';
-  } catch (error: any) {
-    console.error("Error fetching processing status:", error);
-    return 'unknown';
+    return {
+      mp3Status: data?.processing_status || 'unknown',
+      opusStatus: data?.opus_processing_status || 'unknown'
+    };
+  } catch (error) {
+    console.error("Error checking processing status:", error);
+    return { mp3Status: 'unknown', opusStatus: 'unknown' };
   }
-};
+}

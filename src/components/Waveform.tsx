@@ -17,6 +17,7 @@ interface WaveformProps {
   isBuffering?: boolean;
   showBufferingUI?: boolean;
   isMp3Available?: boolean;
+  isOpusAvailable?: boolean;
   isGeneratingWaveform?: boolean;
   audioLoaded?: boolean;
 }
@@ -32,6 +33,7 @@ const Waveform = ({
   isBuffering = false,
   showBufferingUI = false,
   isMp3Available = false,
+  isOpusAvailable = false,
   isGeneratingWaveform = false,
   audioLoaded = false
 }: WaveformProps) => {
@@ -118,6 +120,13 @@ const Waveform = ({
   }
   
   const isAudioDurationValid = isFinite(duration) && duration > 0;
+
+  // Determine the audio quality level for display
+  const getAudioQuality = () => {
+    if (isOpusAvailable) return 'High quality (Opus)';
+    if (isMp3Available) return 'Good quality (MP3)';
+    return 'Original format';
+  };
   
   return (
     <div className="w-full h-32 relative">
@@ -127,7 +136,7 @@ const Waveform = ({
         duration={duration}
         isPlaying={isPlaying}
         isBuffering={isBuffering}
-        isMp3Available={isMp3Available}
+        isMp3Available={isMp3Available || isOpusAvailable}
         onSeek={onSeek}
       />
       
@@ -138,6 +147,7 @@ const Waveform = ({
         analysisError={analysisError}
         isAudioLoading={!isAudioDurationValid && !analysisError}
         currentTime={currentTime}
+        audioQuality={getAudioQuality()}
       />
     </div>
   );

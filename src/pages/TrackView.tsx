@@ -205,6 +205,8 @@ const TrackView = () => {
               originalFilename={trackData.original_filename}
               isOwner={isOwner}
               mp3Url={trackData.mp3_url}
+              opusUrl={trackData.opus_url}
+              opusProcessingStatus={trackData.opus_processing_status}
               shareKey={currentShareKey}
               inCooldownPeriod={inCooldownPeriod}
               processingStatus={trackData.processing_status}

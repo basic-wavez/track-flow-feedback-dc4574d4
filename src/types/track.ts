@@ -9,7 +9,9 @@ export interface TrackData {
   created_at?: string;
   chunk_count?: number;
   mp3_url?: string;
+  opus_url?: string;
   processing_status?: string;
+  opus_processing_status?: string;
   downloads_enabled?: boolean;
   download_count?: number;
   // Version-related fields
