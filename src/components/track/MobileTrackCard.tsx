@@ -62,7 +62,7 @@ const MobileTrackCard = ({
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="flex gap-2 cursor-pointer"
-                onClick={() => navigate(`/track/${track.id}/version`)}
+                onClick={() => navigate(`/track/${track.versions.find(v => v.is_latest_version)?.id || track.id}/version`)}
               >
                 <FilePlus className="h-4 w-4" />
                 <span>New Version</span>

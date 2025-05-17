@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -403,7 +402,7 @@ const ProfilePage = () => {
                                         variant="outline" 
                                         size="sm"
                                         className="flex gap-2 items-center"
-                                        onClick={() => navigate(`/track/${track.id}/version`)}
+                                        onClick={() => navigate(`/track/${track.versions.find(v => v.is_latest_version)?.id || track.id}/version`)}
                                       >
                                         <FilePlus className="h-4 w-4" />
                                         New Version
