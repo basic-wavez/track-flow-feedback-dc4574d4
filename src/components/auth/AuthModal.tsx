@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Separator } from "@/components/ui/separator";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { signUp, signIn } = useAuth();
+  const { signUp, signIn, signInWithGoogle } = useAuth();
   const isMobile = useIsMobile();
 
   // Clear form fields when modal is opened/closed or tab is switched
@@ -65,6 +66,17 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
       console.error("Auth error:", error);
       // Keep the modal open on error
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      // For Google OAuth, we'll set a flag in localStorage to handle the redirect callback
+      localStorage.setItem('authRedirectAction', 'onSuccess');
+      await signInWithGoogle();
+      // No need to handle onSuccess here since we're redirecting to Google
+    } catch (error) {
+      console.error("Google sign-in error:", error);
     }
   };
 
@@ -119,6 +131,31 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
                 >
                   {loading ? "Logging in..." : "Login"}
                 </Button>
+                
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={handleGoogleSignIn}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M21.64 12.32c0-.78-.07-1.53-.2-2.25H12v4.25h5.42c-.23 1.17-.93 2.17-1.97 2.85v2.37h3.18c1.86-1.7 2.94-4.2 2.94-7.22z" fill="#4285F4"/>
+                    <path d="M12 22c2.66 0 4.9-.87 6.54-2.35l-3.19-2.47c-.88.59-2.01.94-3.35.94-2.57 0-4.75-1.74-5.52-4.07H3.27v2.55C4.91 19.53 8.22 22 12 22z" fill="#34A853"/>
+                    <path d="M6.48 14.08c-.2-.58-.31-1.21-.31-1.85s.11-1.27.31-1.85V7.83H3.27C2.48 9.1 2 10.5 2 12c0 1.5.48 2.9 1.27 4.17l3.21-2.09z" fill="#FBBC05"/>
+                    <path d="M12 5.98c1.45 0 2.75.5 3.77 1.48l2.83-2.83C16.9 3.06 14.66 2 12 2 8.22 2 4.91 4.47 3.27 8.17l3.21 2.09c.77-2.33 2.95-4.07 5.52-4.07z" fill="#EA4335"/>
+                  </svg>
+                  Sign in with Google
+                </Button>
               </form>
             </TabsContent>
             
@@ -168,6 +205,31 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
                   disabled={loading}
                 >
                   {loading ? "Creating account..." : "Create Account"}
+                </Button>
+                
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={handleGoogleSignIn}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M21.64 12.32c0-.78-.07-1.53-.2-2.25H12v4.25h5.42c-.23 1.17-.93 2.17-1.97 2.85v2.37h3.18c1.86-1.7 2.94-4.2 2.94-7.22z" fill="#4285F4"/>
+                    <path d="M12 22c2.66 0 4.9-.87 6.54-2.35l-3.19-2.47c-.88.59-2.01.94-3.35.94-2.57 0-4.75-1.74-5.52-4.07H3.27v2.55C4.91 19.53 8.22 22 12 22z" fill="#34A853"/>
+                    <path d="M6.48 14.08c-.2-.58-.31-1.21-.31-1.85s.11-1.27.31-1.85V7.83H3.27C2.48 9.1 2 10.5 2 12c0 1.5.48 2.9 1.27 4.17l3.21-2.09z" fill="#FBBC05"/>
+                    <path d="M12 5.98c1.45 0 2.75.5 3.77 1.48l2.83-2.83C16.9 3.06 14.66 2 12 2 8.22 2 4.91 4.47 3.27 8.17l3.21 2.09c.77-2.33 2.95-4.07 5.52-4.07z" fill="#EA4335"/>
+                  </svg>
+                  Sign up with Google
                 </Button>
               </form>
             </TabsContent>

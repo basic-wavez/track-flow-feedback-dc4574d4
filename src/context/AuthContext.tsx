@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +16,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>; // New Google sign-in method
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
   isAuthenticated: boolean;
@@ -316,6 +316,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // New Google sign-in method
+  const signInWithGoogle = async () => {
+    try {
+      console.log("AuthProvider - Attempting Google signin");
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth`,
+        },
+      });
+      
+      if (error) throw error;
+      
+      // No toast needed here as we're redirecting to Google
+      // The auth state listener will handle the success toast when user returns
+      
+    } catch (error: any) {
+      console.error("AuthProvider - Google signin error:", error.message);
+      toast({
+        title: "Error signing in with Google",
+        description: error.message,
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     try {
       console.log("AuthProvider - Attempting signout");
@@ -351,6 +378,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loading,
     signUp,
     signIn,
+    signInWithGoogle, // Add the new method to context
     signOut,
     refreshSession,
     isAuthenticated,
