@@ -5,7 +5,7 @@ import { isAllowedAudioFormat, extractTrackName } from "@/lib/audioUtils";
 import { uploadTrack } from "@/services/trackService";
 import { handleError } from "@/utils/errorHandler";
 
-// Maximum file size: 200MB
+// Maximum file size: 200MB - matching uploadService.ts
 const MAX_FILE_SIZE = 200 * 1024 * 1024;
 
 interface UseAudioUploadProps {

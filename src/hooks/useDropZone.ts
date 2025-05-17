@@ -20,6 +20,9 @@ interface UseDropZoneProps {
   isDragging?: boolean;
 }
 
+// Maximum file size: 200MB - matching our other files
+const MAX_FILE_SIZE = 200 * 1024 * 1024;
+
 export const useDropZone = ({ onFileDrop, setIsDragging, isDragging = false }: UseDropZoneProps) => {
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const [acceptedFiles, setAcceptedFiles] = useState<File[]>([]);
@@ -79,15 +82,13 @@ export const useDropZone = ({ onFileDrop, setIsDragging, isDragging = false }: U
       }
     }
     
-    // Check file size if specified
-    if (options?.maxFileSizeMB) {
-      const maxSizeBytes = options.maxFileSizeMB * 1024 * 1024;
-      if (file.size > maxSizeBytes) {
-        return { 
-          valid: false, 
-          error: `File too large. Maximum size is ${options.maxFileSizeMB}MB.` 
-        };
-      }
+    // Check file size against our 200MB limit
+    const maxSizeBytes = (options?.maxFileSizeMB || 200) * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      return { 
+        valid: false, 
+        error: `File too large. Maximum size is ${options?.maxFileSizeMB || 200}MB.` 
+      };
     }
     
     return { valid: true };
