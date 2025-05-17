@@ -276,35 +276,33 @@ export const getUserTracks = async (): Promise<TrackWithVersions[]> => {
 };
 
 /**
- * Gets all versions of a specific track
+ * Gets all versions of a specific track by finding and traversing the entire version family tree
  */
 export const getTrackVersions = async (trackId: string): Promise<TrackData[]> => {
   try {
+    console.log("trackQueryService - Getting track versions for:", trackId);
+    
     // First get the track to determine if it's a parent or child
     const track = await getTrack(trackId);
     if (!track) {
+      console.error("trackQueryService - Track not found for ID:", trackId);
       return [];
     }
     
-    let parentId = track.parent_track_id || track.id;
+    // Step 1: Find the root parent track (the earliest ancestor)
+    const rootParentId = await findRootParentId(track.parent_track_id, track.id);
+    console.log("trackQueryService - Root parent track ID:", rootParentId);
     
-    // If this is a child track, use its parent_track_id
-    if (track.parent_track_id) {
-      parentId = track.parent_track_id;
-    }
+    // Step 2: Get ALL related tracks in the version family tree
+    const allFamilyTracks = await getAllFamilyTracks(rootParentId);
+    console.log("trackQueryService - Found family versions:", allFamilyTracks.length);
     
-    // Get all versions of this track (parent and all children)
-    const { data, error } = await supabase
-      .from('tracks')
-      .select('*')
-      .or(`id.eq.${parentId},parent_track_id.eq.${parentId}`)
-      .order('version_number', { ascending: false });
-      
-    if (error) {
-      throw error;
-    }
+    // Log all related tracks for debugging
+    console.log("trackQueryService - All related tracks:", 
+      allFamilyTracks.map(t => ({ id: t.id, version: t.version_number })));
     
-    return data || [];
+    // Sort by version number (highest first)
+    return allFamilyTracks.sort((a, b) => b.version_number - a.version_number);
   } catch (error: any) {
     console.error("Error loading track versions:", error);
     toast({
@@ -315,3 +313,131 @@ export const getTrackVersions = async (trackId: string): Promise<TrackData[]> =>
     return [];
   }
 };
+
+/**
+ * Helper function to find the root parent of a track
+ */
+async function findRootParentId(parentTrackId?: string | null, fallbackId?: string): Promise<string> {
+  // If no parent, return fallback (current track becomes root)
+  if (!parentTrackId) {
+    return fallbackId || '';
+  }
+  
+  let currentParentId = parentTrackId;
+  let foundRootParent = false;
+  
+  // Traverse up the parent chain to find the root parent
+  while (!foundRootParent) {
+    const { data: parentTrack, error: parentError } = await supabase
+      .from('tracks')
+      .select('parent_track_id')
+      .eq('id', currentParentId)
+      .single();
+      
+    if (parentError || !parentTrack) {
+      // If we can't get the parent, use the current ID as root
+      foundRootParent = true;
+    } else if (!parentTrack.parent_track_id) {
+      // If this track has no parent, it's the root
+      foundRootParent = true;
+    } else {
+      // Move up the chain
+      currentParentId = parentTrack.parent_track_id;
+    }
+  }
+  
+  return currentParentId;
+}
+
+/**
+ * Improved helper function to get ALL tracks in the version family tree
+ * regardless of parent-child relationships or branching structure
+ */
+async function getAllFamilyTracks(rootParentId: string): Promise<TrackData[]> {
+  if (!rootParentId) return [];
+  
+  const result: TrackData[] = [];
+  const processedTrackIds = new Set<string>();
+  
+  // Get the root track itself first
+  const { data: rootTrack, error: rootError } = await supabase
+    .from('tracks')
+    .select('*')
+    .eq('id', rootParentId)
+    .single();
+    
+  if (!rootError && rootTrack) {
+    result.push(rootTrack);
+    processedTrackIds.add(rootTrack.id);
+  }
+  
+  // Recursively get all descendants in the family tree
+  await getAllRelatedTracks(rootParentId, result, processedTrackIds);
+  
+  return result;
+}
+
+/**
+ * Improved recursive function to fetch ALL tracks in the family tree
+ * Handles any branching structure of versions
+ */
+async function getAllRelatedTracks(
+  trackId: string,
+  results: TrackData[],
+  processedIds: Set<string>
+): Promise<void> {
+  // Get direct children
+  const { data: children, error } = await supabase
+    .from('tracks')
+    .select('*')
+    .eq('parent_track_id', trackId);
+    
+  if (error || !children) {
+    return;
+  }
+  
+  // Process each child
+  for (const child of children) {
+    // Skip if already processed (prevents infinite loops)
+    if (processedIds.has(child.id)) {
+      continue;
+    }
+    
+    // Add child to results and mark as processed
+    results.push(child);
+    processedIds.add(child.id);
+    
+    // Recursively get descendants of this child
+    await getAllRelatedTracks(child.id, results, processedIds);
+  }
+  
+  // Find any other tracks that might have this track's parent as their parent
+  // This handles "sibling" versions (multiple branches from the same parent)
+  const { data: parentTrack, error: parentError } = await supabase
+    .from('tracks')
+    .select('parent_track_id')
+    .eq('id', trackId)
+    .single();
+    
+  if (!parentError && parentTrack && parentTrack.parent_track_id) {
+    const { data: siblings, error: siblingsError } = await supabase
+      .from('tracks')
+      .select('*')
+      .eq('parent_track_id', parentTrack.parent_track_id)
+      .neq('id', trackId); // Exclude the current track
+      
+    if (!siblingsError && siblings) {
+      for (const sibling of siblings) {
+        if (processedIds.has(sibling.id)) {
+          continue;
+        }
+        
+        results.push(sibling);
+        processedIds.add(sibling.id);
+        
+        // Also get all descendants of the siblings
+        await getAllRelatedTracks(sibling.id, results, processedIds);
+      }
+    }
+  }
+}

@@ -28,7 +28,12 @@ const TrackVersionsDrawer = ({
   children,
 }: TrackVersionsDrawerProps) => {
   const navigate = useNavigate();
+  // Always sort versions by version number (highest first)
   const sortedVersions = [...versions].sort((a, b) => b.version_number - a.version_number);
+  // Log versions for debugging
+  console.log("TrackVersionsDrawer - Received versions:", versions.map(v => ({ id: v.id, version: v.version_number })));
+  console.log("TrackVersionsDrawer - Sorted versions:", sortedVersions.map(v => ({ id: v.id, version: v.version_number })));
+  
   const latestVersion = sortedVersions.find(v => v.is_latest_version) || sortedVersions[0];
   
   const handleCreateNewVersion = () => {

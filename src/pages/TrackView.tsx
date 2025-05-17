@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,15 +8,14 @@ import TrackLoading from "@/components/track/TrackLoading";
 import TrackNotFound from "@/components/track/TrackNotFound";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { getTrack } from "@/services/trackQueryService";
+import { getTrack, getTrackVersions } from "@/services/trackQueryService";
 import { getTrackIdByShareKey } from "@/services/trackShareService";
 import { useAuth } from "@/context/AuthContext";
-import { TrackData } from "@/types/track";
+import { TrackData, TrackVersion } from "@/types/track";
 import TrackFeedbackDisplay from "@/components/track/TrackFeedbackDisplay";
 import ShareLinkManager from "@/components/track/ShareLinkManager";
 import { isInCooldownPeriod } from "@/services/playCountService";
-import { Badge } from "@/components/ui/badge";
-import { FilePlus, History } from "lucide-react";
+import TrackVersionsDrawer from "@/components/track/TrackVersionsDrawer";
 import VersionControls from "@/components/track/VersionControls";
 
 const TrackView = () => {
@@ -31,6 +31,7 @@ const TrackView = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentShareKey, setCurrentShareKey] = useState<string | undefined>(undefined);
   const [resolvedTrackId, setResolvedTrackId] = useState<string | undefined>(params.trackId);
+  const [trackVersions, setTrackVersions] = useState<TrackVersion[]>([]);
 
   // Determine if we're on a share link route by checking the URL pattern
   const isShareRoute = location.pathname.startsWith('/track/share/');
@@ -107,6 +108,24 @@ const TrackView = () => {
         if (track && user) {
           setIsOwner(track.user_id === user.id);
         }
+        
+        // Load track versions using our improved function
+        if (track) {
+          console.log("Loading versions for track:", track.id);
+          const versions = await getTrackVersions(track.id);
+          console.log("Loaded versions:", versions.length, versions.map(v => ({ id: v.id, version: v.version_number })));
+          
+          // Convert TrackData[] to TrackVersion[]
+          const versionsArray: TrackVersion[] = versions.map(v => ({
+            id: v.id,
+            version_number: v.version_number,
+            version_notes: v.version_notes,
+            is_latest_version: v.is_latest_version,
+            created_at: v.created_at
+          }));
+          
+          setTrackVersions(versionsArray);
+        }
       } catch (error) {
         console.error("Error loading track:", error);
         setTrackData(null);
@@ -137,19 +156,45 @@ const TrackView = () => {
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
       <Header />
-      {/* Navigation component is now hidden */}
       
       <main className="flex-1 py-12 px-4">
         <div className="max-w-5xl mx-auto space-y-8">
           
-          {/* Use VersionControls component for better organization */}
-          <VersionControls 
-            trackId={trackData.id}
-            title={displayName}
-            versionNumber={versionNumber}
-            isOwner={isOwner}
-            hasParentTrack={!!trackData.parent_track_id}
-          />
+          {/* Version controls with version drawer integration */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold gradient-text">{displayName}</h1>
+            </div>
+            
+            {isOwner && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex gap-2 items-center"
+                  onClick={() => navigate(`/track/${trackData.id}/version`)}
+                >
+                  <ArrowUpCircle className="h-4 w-4" />
+                  New Version
+                </Button>
+                
+                <TrackVersionsDrawer
+                  trackId={trackData.id}
+                  trackTitle={displayName}
+                  versions={trackVersions}
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex gap-2 items-center"
+                  >
+                    <History className="h-4 w-4" />
+                    Version History
+                  </Button>
+                </TrackVersionsDrawer>
+              </div>
+            )}
+          </div>
           
           {trackData && (
             <TrackPlayer 
