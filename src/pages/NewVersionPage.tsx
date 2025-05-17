@@ -53,13 +53,16 @@ const NewVersionPage = () => {
     
     console.log("File button click handler triggered");
     
-    // Use the ref to directly access the file input
-    if (fileInputRef.current) {
-      console.log("Clicking file input through ref");
-      fileInputRef.current.click();
-    } else {
-      console.log("File input ref is not available");
-    }
+    // Use a small timeout to ensure the click event is fully processed
+    // before trying to open the file dialog
+    setTimeout(() => {
+      if (fileInputRef.current) {
+        console.log("Clicking file input through ref after timeout");
+        fileInputRef.current.click();
+      } else {
+        console.log("File input ref is not available after timeout");
+      }
+    }, 50);
   };
 
   useEffect(() => {
