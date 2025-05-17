@@ -2,7 +2,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, LogOut, User as UserIcon, LayoutDashboard, Music } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon, LayoutDashboard, Music, Menu } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,9 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useIsMobile } from "@/hooks/use-mobile";
+import MobileNav from "./MobileNav";
 
 const Header = () => {
   const { user, loading, signOut, isAdmin, profile } = useAuth();
+  const isMobile = useIsMobile();
 
   // Get display name for user button
   const getDisplayName = () => {
@@ -43,7 +46,7 @@ const Header = () => {
         </Link>
 
         <div className="flex items-center space-x-4">
-          {user && (
+          {!isMobile && user && (
             <Link
               to="/profile"
               className="inline-flex items-center px-3 py-1 text-sm font-medium text-white hover:text-wip-pink transition-colors"
@@ -53,7 +56,7 @@ const Header = () => {
             </Link>
           )}
           
-          {isAdmin && (
+          {!isMobile && isAdmin && (
             <Link
               to="/admin"
               className="inline-flex items-center px-3 py-1 text-sm font-medium text-wip-pink/80 hover:text-wip-pink transition-colors"
@@ -66,49 +69,55 @@ const Header = () => {
           {loading ? (
             <Loader2 className="animate-spin text-wip-pink h-5 w-5" />
           ) : user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild className="outline-none">
-                <Button 
-                  variant="outline" 
-                  className="h-9 px-3 text-sm"
-                  size="sm"
+            <>
+              {isMobile && <MobileNav />}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild className="outline-none">
+                  <Button 
+                    variant="outline" 
+                    className="h-9 px-3 text-sm"
+                    size="sm"
+                  >
+                    {getDisplayName()}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                  align="end" 
+                  className="bg-wip-dark border border-wip-gray/30"
                 >
-                  {getDisplayName()}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent 
-                align="end" 
-                className="bg-wip-dark border border-wip-gray/30"
-              >
-                <DropdownMenuLabel className="text-white">
-                  {user?.email}
-                  {profile?.username && <div className="text-xs text-gray-400">@{profile.username}</div>}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-wip-gray/30" />
-                <DropdownMenuItem 
-                  className="cursor-pointer text-white hover:bg-wip-gray/10"
-                  asChild
-                >
-                  <Link to="/profile" className="flex items-center">
-                    <UserIcon className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => signOut()} 
-                  className="cursor-pointer text-white hover:bg-wip-gray/10"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuLabel className="text-white">
+                    {user?.email}
+                    {profile?.username && <div className="text-xs text-gray-400">@{profile.username}</div>}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-wip-gray/30" />
+                  <DropdownMenuItem 
+                    className="cursor-pointer text-white hover:bg-wip-gray/10"
+                    asChild
+                  >
+                    <Link to="/profile" className="flex items-center">
+                      <UserIcon className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => signOut()} 
+                    className="cursor-pointer text-white hover:bg-wip-gray/10"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
-            <Link to="/auth">
-              <Button variant="outline" size="sm">
-                Sign In
-              </Button>
-            </Link>
+            <>
+              {isMobile && <MobileNav />}
+              <Link to="/auth">
+                <Button variant="outline" size="sm">
+                  Sign In
+                </Button>
+              </Link>
+            </>
           )}
         </div>
       </div>

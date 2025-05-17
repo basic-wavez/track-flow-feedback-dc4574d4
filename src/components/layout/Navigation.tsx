@@ -2,10 +2,17 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Bug, HelpCircle, Info, MessageSquare, LayoutDashboard } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Navigation = () => {
   const { user, isAdmin } = useAuth();
   const location = useLocation();
+  const isMobile = useIsMobile();
+
+  // Don't render Navigation on mobile screens
+  if (isMobile) {
+    return null;
+  }
 
   return (
     <nav className="bg-wip-dark border-b border-wip-gray/30">
