@@ -164,104 +164,93 @@ export const getUserTracks = async (): Promise<TrackWithVersions[]> => {
       }
     }
 
-    // Process tracks to create parent-child relationships
-    const tracksMap: Record<string, TrackData> = {};
-    const parentTracks: Record<string, TrackData> = {};
+    // Find all root tracks (tracks without parents)
+    const rootTracks = (data || []).filter(track => !track.parent_track_id);
     
-    // First pass: organize tracks into maps
+    // Create a map of all tracks by ID for quick lookup
+    const tracksById: Record<string, TrackData> = {};
     (data || []).forEach(track => {
-      tracksMap[track.id] = track;
-      
-      // If track has no parent or is itself a parent, add to parentTracks
-      if (!track.parent_track_id) {
-        parentTracks[track.id] = track;
-      }
+      tracksById[track.id] = track;
     });
     
-    // Second pass: group child tracks with their parents
+    // Group all tracks by their root parent
+    const tracksByRootParent: Record<string, TrackData[]> = {};
+    
+    // First, for each track, find its root parent
+    for (const track of (data || [])) {
+      // If it's a root track, use its own ID as the root parent ID
+      if (!track.parent_track_id) {
+        if (!tracksByRootParent[track.id]) {
+          tracksByRootParent[track.id] = [];
+        }
+        tracksByRootParent[track.id].push(track);
+        continue;
+      }
+      
+      // Otherwise, find the root parent
+      const rootParentId = await findRootParentId(track.parent_track_id);
+      if (!tracksByRootParent[rootParentId]) {
+        tracksByRootParent[rootParentId] = [];
+      }
+      tracksByRootParent[rootParentId].push(track);
+    }
+    
+    // Now create the TrackWithVersions objects
     const groupedTracks: TrackWithVersions[] = [];
     
-    // Process parent tracks first
-    Object.values(parentTracks).forEach(parentTrack => {
-      const versions: TrackVersion[] = [
-        {
-          id: parentTrack.id,
-          version_number: parentTrack.version_number,
-          version_notes: parentTrack.version_notes,
-          is_latest_version: parentTrack.is_latest_version,
-          created_at: parentTrack.created_at
-        }
-      ];
+    // Process each root parent
+    for (const rootParentId of Object.keys(tracksByRootParent)) {
+      // Get the root track
+      const rootTrack = tracksById[rootParentId];
       
-      // Find all versions of this track
-      (data || []).forEach(track => {
-        if (track.parent_track_id === parentTrack.id) {
-          versions.push({
-            id: track.id,
-            version_number: track.version_number,
-            version_notes: track.version_notes,
-            is_latest_version: track.is_latest_version,
-            created_at: track.created_at
-          });
-        }
-      });
+      // Skip if we somehow don't have the root track
+      if (!rootTrack) continue;
       
-      // Sort versions by version number
+      // Get all versions of this track family
+      const versions: TrackVersion[] = tracksByRootParent[rootParentId].map(track => ({
+        id: track.id,
+        version_number: track.version_number,
+        version_notes: track.version_notes,
+        is_latest_version: track.is_latest_version,
+        created_at: track.created_at
+      }));
+      
+      // Sort versions by version number (highest first)
       versions.sort((a, b) => b.version_number - a.version_number);
       
+      // Find the latest version
+      const latestVersion = versions.find(v => v.is_latest_version) || versions[0];
+      
+      // Create the TrackWithVersions object
       groupedTracks.push({
-        id: parentTrack.id,
-        title: parentTrack.title,
-        original_filename: parentTrack.original_filename,
+        id: rootTrack.id,
+        title: rootTrack.title,
+        original_filename: rootTrack.original_filename,
         parent_track_id: null,
-        created_at: parentTrack.created_at,
-        downloads_enabled: parentTrack.downloads_enabled,
-        processing_status: parentTrack.processing_status,
+        created_at: latestVersion.created_at || rootTrack.created_at,
+        downloads_enabled: rootTrack.downloads_enabled,
+        processing_status: rootTrack.processing_status,
         versions,
-        feedbackCount: feedbackCounts[parentTrack.id] || 0,
+        feedbackCount: feedbackCounts[rootTrack.id] || 0,
         showVersions: false
       });
-    });
-    
-    // Now handle tracks that are new versions of other tracks
-    (data || []).forEach(track => {
-      if (track.parent_track_id) {
-        // Skip if the parent is already in our data set
-        if (tracksMap[track.parent_track_id]) {
-          return;
-        }
-        
-        // This is a child track whose parent we don't have in our data
-        // Create a standalone entry for it
-        groupedTracks.push({
-          id: track.id,
-          title: track.title,
-          original_filename: track.original_filename,
-          parent_track_id: track.parent_track_id,
-          created_at: track.created_at,
-          downloads_enabled: track.downloads_enabled,
-          processing_status: track.processing_status,
-          versions: [
-            {
-              id: track.id,
-              version_number: track.version_number,
-              version_notes: track.version_notes,
-              is_latest_version: track.is_latest_version,
-              created_at: track.created_at
-            }
-          ],
-          feedbackCount: feedbackCounts[track.id] || 0,
-          showVersions: false
-        });
-      }
-    });
+    }
     
     // Sort grouped tracks by created_at of the most recent version
     groupedTracks.sort((a, b) => {
-      const aDate = new Date(a.versions[0].created_at || "").getTime();
-      const bDate = new Date(b.versions[0].created_at || "").getTime();
+      const aDate = new Date(a.versions[0]?.created_at || a.created_at || "").getTime();
+      const bDate = new Date(b.versions[0]?.created_at || b.created_at || "").getTime();
       return bDate - aDate; // Most recent first
     });
+    
+    console.log("getUserTracks - Returning grouped tracks:", 
+      groupedTracks.map(t => ({
+        id: t.id,
+        title: t.title,
+        versionCount: t.versions.length,
+        versions: t.versions.map(v => v.version_number)
+      }))
+    );
     
     return groupedTracks;
   } catch (error: any) {
@@ -276,7 +265,7 @@ export const getUserTracks = async (): Promise<TrackWithVersions[]> => {
 };
 
 /**
- * Gets all versions of a specific track by finding and traversing the entire version family tree
+ * Gets all versions of a specific track by finding the root parent and all related tracks
  */
 export const getTrackVersions = async (trackId: string): Promise<TrackData[]> => {
   try {
@@ -289,20 +278,19 @@ export const getTrackVersions = async (trackId: string): Promise<TrackData[]> =>
       return [];
     }
     
-    // Step 1: Find the root parent track (the earliest ancestor)
+    // Find the root parent track (the earliest ancestor)
     const rootParentId = await findRootParentId(track.parent_track_id, track.id);
     console.log("trackQueryService - Root parent track ID:", rootParentId);
     
-    // Step 2: Get ALL related tracks in the version family tree
-    const allFamilyTracks = await getAllFamilyTracks(rootParentId);
-    console.log("trackQueryService - Found family versions:", allFamilyTracks.length);
-    
-    // Log all related tracks for debugging
-    console.log("trackQueryService - All related tracks:", 
-      allFamilyTracks.map(t => ({ id: t.id, version: t.version_number })));
+    // Get all family tracks using our simplified approach
+    const familyTracks = await getAllFamilyTracks(rootParentId);
+    console.log("trackQueryService - Found family versions:", 
+      familyTracks.length,
+      familyTracks.map(t => ({id: t.id, version: t.version_number}))
+    );
     
     // Sort by version number (highest first)
-    return allFamilyTracks.sort((a, b) => b.version_number - a.version_number);
+    return familyTracks.sort((a, b) => b.version_number - a.version_number);
   } catch (error: any) {
     console.error("Error loading track versions:", error);
     toast({
@@ -350,94 +338,86 @@ async function findRootParentId(parentTrackId?: string | null, fallbackId?: stri
 }
 
 /**
- * Improved helper function to get ALL tracks in the version family tree
- * regardless of parent-child relationships or branching structure
+ * Simplified function to get ALL tracks in the family tree
  */
 async function getAllFamilyTracks(rootParentId: string): Promise<TrackData[]> {
   if (!rootParentId) return [];
   
-  const result: TrackData[] = [];
-  const processedTrackIds = new Set<string>();
-  
-  // Get the root track itself first
-  const { data: rootTrack, error: rootError } = await supabase
-    .from('tracks')
-    .select('*')
-    .eq('id', rootParentId)
-    .single();
+  try {
+    // First get the root track itself
+    const { data: rootTrack, error: rootError } = await supabase
+      .from('tracks')
+      .select('*')
+      .eq('id', rootParentId)
+      .single();
+      
+    if (rootError || !rootTrack) {
+      console.error("getAllFamilyTracks - Error getting root track:", rootError);
+      return [];
+    }
     
-  if (!rootError && rootTrack) {
-    result.push(rootTrack);
-    processedTrackIds.add(rootTrack.id);
+    // Initialize the result with the root track
+    const result: TrackData[] = [rootTrack];
+    
+    // Get all tracks that have this as the root parent (direct children first)
+    const { data: directChildren, error: childrenError } = await supabase
+      .from('tracks')
+      .select('*')
+      .eq('parent_track_id', rootParentId);
+      
+    if (childrenError) {
+      console.error("getAllFamilyTracks - Error getting direct children:", childrenError);
+      return result; // Return just the root if we can't get children
+    }
+    
+    // Add direct children to the result
+    if (directChildren && directChildren.length > 0) {
+      result.push(...directChildren);
+      
+      // Recursively get descendants of each direct child
+      for (const child of directChildren) {
+        const descendants = await getDescendantTracks(child.id);
+        result.push(...descendants);
+      }
+    }
+    
+    console.log(`getAllFamilyTracks - Found ${result.length} tracks in the family`);
+    return result;
+  } catch (error) {
+    console.error("getAllFamilyTracks - Error:", error);
+    return [];
   }
-  
-  // Recursively get all descendants in the family tree
-  await getAllRelatedTracks(rootParentId, result, processedTrackIds);
-  
-  return result;
 }
 
 /**
- * Improved recursive function to fetch ALL tracks in the family tree
- * Handles any branching structure of versions
+ * Get all descendant tracks of a given parent track
  */
-async function getAllRelatedTracks(
-  trackId: string,
-  results: TrackData[],
-  processedIds: Set<string>
-): Promise<void> {
-  // Get direct children
-  const { data: children, error } = await supabase
-    .from('tracks')
-    .select('*')
-    .eq('parent_track_id', trackId);
-    
-  if (error || !children) {
-    return;
-  }
+async function getDescendantTracks(parentId: string): Promise<TrackData[]> {
+  const result: TrackData[] = [];
   
-  // Process each child
-  for (const child of children) {
-    // Skip if already processed (prevents infinite loops)
-    if (processedIds.has(child.id)) {
-      continue;
-    }
-    
-    // Add child to results and mark as processed
-    results.push(child);
-    processedIds.add(child.id);
-    
-    // Recursively get descendants of this child
-    await getAllRelatedTracks(child.id, results, processedIds);
-  }
-  
-  // Find any other tracks that might have this track's parent as their parent
-  // This handles "sibling" versions (multiple branches from the same parent)
-  const { data: parentTrack, error: parentError } = await supabase
-    .from('tracks')
-    .select('parent_track_id')
-    .eq('id', trackId)
-    .single();
-    
-  if (!parentError && parentTrack && parentTrack.parent_track_id) {
-    const { data: siblings, error: siblingsError } = await supabase
+  try {
+    // Get direct children of this parent
+    const { data: children, error } = await supabase
       .from('tracks')
       .select('*')
-      .eq('parent_track_id', parentTrack.parent_track_id)
-      .neq('id', trackId); // Exclude the current track
+      .eq('parent_track_id', parentId);
       
-    if (!siblingsError && siblings) {
-      for (const sibling of siblings) {
-        if (processedIds.has(sibling.id)) {
-          continue;
-        }
-        
-        results.push(sibling);
-        processedIds.add(sibling.id);
-        
-        // Also get all descendants of the siblings
-        await getAllRelatedTracks(sibling.id, results, processedIds);
-      }
+    if (error || !children || children.length === 0) {
+      return result;
     }
+    
+    // Add children to result
+    result.push(...children);
+    
+    // Recursively get descendants of each child
+    for (const child of children) {
+      const descendants = await getDescendantTracks(child.id);
+      result.push(...descendants);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error(`getDescendantTracks - Error getting descendants for ${parentId}:`, error);
+    return result;
   }
 }
