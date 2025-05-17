@@ -2,7 +2,7 @@
 // Re-export all track-related services for backwards compatibility
 export {
   uploadTrack
-} from './trackUploadService';
+} from './trackCreationService';
 
 export {
   getTrack,
@@ -20,12 +20,12 @@ export {
   getTrackProcessingStatus
 } from './trackProcessingService';
 
-// Add the new track deletion service
+// Add the track deletion service
 export {
   deleteTrack
 } from './trackDeletionService';
 
-// Add the new share links service
+// Add the share links service
 export {
   createShareLink,
   getShareLinks,
@@ -33,3 +33,8 @@ export {
   deleteShareLink,
   getTrackIdByShareKey
 } from './trackShareService';
+
+// Add the track version service
+export {
+  createTrackVersion
+} from './trackVersionService';
