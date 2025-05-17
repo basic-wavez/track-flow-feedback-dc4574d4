@@ -14,7 +14,8 @@ import {
   LayoutDashboard, 
   Menu, 
   MessageSquare, 
-  Music 
+  Music, 
+  User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -96,16 +97,29 @@ const MobileNav = () => {
           </div>
           
           {user && (
-            <Link
-              to="/profile"
-              className={`flex items-center px-2 py-3 text-base font-medium rounded-md ${
-                isActivePath('/profile') ? 'text-wip-pink bg-wip-gray/10' : 'text-gray-300 hover:text-wip-pink'
-              }`}
-              onClick={() => setOpen(false)}
-            >
-              <Music className="h-5 w-5 mr-3" />
-              My Demos
-            </Link>
+            <>
+              <Link
+                to="/profile"
+                className={`flex items-center px-2 py-3 text-base font-medium rounded-md ${
+                  isActivePath('/profile') ? 'text-wip-pink bg-wip-gray/10' : 'text-gray-300 hover:text-wip-pink'
+                }`}
+                onClick={() => setOpen(false)}
+              >
+                <User className="h-5 w-5 mr-3" />
+                My Profile
+              </Link>
+              
+              <Link
+                to="/profile"
+                className={`flex items-center px-2 py-3 text-base font-medium rounded-md ${
+                  isActivePath('/profile') ? 'text-wip-pink bg-wip-gray/10' : 'text-gray-300 hover:text-wip-pink'
+                }`}
+                onClick={() => setOpen(false)}
+              >
+                <Music className="h-5 w-5 mr-3" />
+                My Demos
+              </Link>
+            </>
           )}
           
           {isAdmin && (
