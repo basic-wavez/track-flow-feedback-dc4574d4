@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import Waveform from "./Waveform";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
@@ -123,6 +124,7 @@ const TrackPlayer = ({
         isRequestingProcessing={false}
         onRequestProcessing={async () => {}}
         isOwner={isOwner}
+        versionNumber={versionNumber} // Pass the versionNumber prop to TrackHeader
       />
       
       <PlaybackControls 

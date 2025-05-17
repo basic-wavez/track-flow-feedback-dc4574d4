@@ -193,6 +193,7 @@ const FeedbackView = () => {
               waveformAnalysisUrl={trackData.original_url || trackData.mp3_url || trackData.compressed_url}
               originalFilename={trackData.original_filename}
               isOwner={true}
+              versionNumber={trackData.version_number || 1}
             />
           ) : (
             <div className="h-60 bg-wip-darker rounded-lg flex items-center justify-center">

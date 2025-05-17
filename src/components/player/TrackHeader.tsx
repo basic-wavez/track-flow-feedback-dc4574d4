@@ -19,6 +19,7 @@ interface TrackHeaderProps {
   isRequestingProcessing: boolean;
   onRequestProcessing: () => Promise<void>;
   isOwner?: boolean;
+  versionNumber?: number; // Added version number prop
 }
 
 const TrackHeader = ({
@@ -31,7 +32,8 @@ const TrackHeader = ({
   showProcessButton,
   isRequestingProcessing,
   onRequestProcessing,
-  isOwner = false
+  isOwner = false,
+  versionNumber = 1 // Default to version 1
 }: TrackHeaderProps) => {
   const [statusMode, setStatusMode] = useState<"wip" | "demo">("wip");
   const [isRenaming, setIsRenaming] = useState(false);
@@ -104,6 +106,12 @@ const TrackHeader = ({
             >
               <Pencil className="h-4 w-4 text-wip-pink" />
             </Button>
+          )}
+          {/* Version number badge */}
+          {versionNumber && (
+            <Badge variant="outline" className="ml-1 bg-wip-darker text-wip-pink border-wip-pink">
+              v{versionNumber}
+            </Badge>
           )}
           <div className="flex items-center gap-2 mt-1">
             <p className="text-gray-400 text-sm">
