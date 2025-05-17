@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { analyzeAudio } from '@/lib/audioUtils';
 import { generateWaveformWithVariance } from '@/lib/waveformUtils';
@@ -20,6 +19,7 @@ interface WaveformProps {
   isOpusAvailable?: boolean;
   isGeneratingWaveform?: boolean;
   audioLoaded?: boolean;
+  audioQuality?: string; // Added audioQuality prop
 }
 
 const Waveform = ({ 
@@ -35,7 +35,8 @@ const Waveform = ({
   isMp3Available = false,
   isOpusAvailable = false,
   isGeneratingWaveform = false,
-  audioLoaded = false
+  audioLoaded = false,
+  audioQuality // Added audioQuality prop
 }: WaveformProps) => {
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -147,7 +148,7 @@ const Waveform = ({
         analysisError={analysisError}
         isAudioLoading={!isAudioDurationValid && !analysisError}
         currentTime={currentTime}
-        audioQuality={getAudioQuality()}
+        audioQuality={audioQuality}
       />
     </div>
   );

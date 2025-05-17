@@ -12,6 +12,7 @@ interface RequestBody {
 const SUPABASE_URL = "https://qzykfyavenplpxpdnfxh.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const FFMPEG_SERVICE_URL = Deno.env.get("FFMPEG_SERVICE_URL") || "";
+const AWS_LAMBDA_API_KEY = Deno.env.get("AWS_LAMBDA_API_KEY") || "";
 
 // Define CORS headers for cross-origin requests
 const corsHeaders = {
@@ -171,11 +172,12 @@ async function callFFmpegService(signedUrl: string, trackId: string, format: str
   error?: string;
 }> {
   try {
-    // Call the FFmpeg service with the signed URL
+    // Call the FFmpeg service with the signed URL and include the API key in headers
     const response = await fetch(FFMPEG_SERVICE_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'x-api-key': AWS_LAMBDA_API_KEY // Add API key for authentication
       },
       body: JSON.stringify({
         trackId,
