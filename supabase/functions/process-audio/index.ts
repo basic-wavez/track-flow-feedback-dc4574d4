@@ -128,9 +128,17 @@ serve(async (req: Request) => {
       });
     }
 
+    // Ensure the URL is properly formatted with full URL
+    let fullUrl = originalUrl;
+    if (!originalUrl.startsWith('http')) {
+      // If it's just a path, construct the full URL
+      fullUrl = `${SUPABASE_URL}/storage/v1/object/public/${originalUrl}`;
+      console.log(`Constructed full URL from path: ${fullUrl}`);
+    }
+
     // Start processing in the background to avoid timeout - now using the FFmpeg function
     // @ts-ignore: EdgeRuntime exists in Supabase Edge Functions
-    EdgeRuntime.waitUntil(processAudioWithFFmpeg(supabase, trackId, format, originalUrl));
+    EdgeRuntime.waitUntil(processAudioWithFFmpeg(supabase, trackId, format, fullUrl));
 
     return new Response(JSON.stringify({ 
       success: true, 

@@ -1,4 +1,3 @@
-
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
@@ -129,96 +128,66 @@ async function processAudioWithFFmpeg(supabase: any, trackId: string, format: st
       .update(updateData)
       .eq("id", trackId);
     
-    // Extract the file path from the original URL correctly
-    // Parse the URL to get proper components
+    // IMPROVED URL PARSING: More robust extraction of bucket name and file path from Supabase storage URL
+    let bucketName = '';
     let filePath = '';
+    let success = false;
+    
+    console.log(`Parsing storage URL: ${originalUrl}`);
+
     try {
-      // Try to parse the URL structure
-      const url = new URL(originalUrl);
+      // Regular expression to match Supabase storage URLs and extract bucket and path
+      // This pattern looks for the 'public/{bucket}/{path}' pattern in the URL
+      const storageUrlPattern = /\/storage\/v1\/object\/public\/([^\/]+)\/(.+)$/;
+      const match = originalUrl.match(storageUrlPattern);
       
-      // Get the pathname from the URL
-      const pathname = url.pathname;
-      
-      // Look for 'object/public/' in the pathname and extract everything after
-      if (pathname.includes('/object/public/')) {
-        // Extract the bucket name and file path
-        const parts = pathname.split('/object/public/');
-        if (parts.length > 1) {
-          // This should be "{bucket_name}/{file_path}"
-          filePath = parts[1];
-          console.log(`Extracted file path: ${filePath}`);
-        }
+      if (match && match.length === 3) {
+        bucketName = match[1]; // First capture group is the bucket name
+        filePath = match[2];   // Second capture group is the file path
+        success = true;
+        console.log(`Successfully extracted using regex pattern - bucket: ${bucketName}, path: ${filePath}`);
       } 
-      // Alternative: Look for a simpler '/storage/v1/object/public/' path pattern
-      else if (pathname.includes('/storage/v1/object/public/')) {
-        const parts = pathname.split('/storage/v1/object/public/');
-        if (parts.length > 1) {
-          filePath = parts[1];
-          console.log(`Extracted file path (alternative method): ${filePath}`);
-        }
-      } 
-      // If we couldn't extract using common patterns, try a more general approach
+      // If regex pattern didn't match, try URL parsing as fallback
       else {
-        // Extract last segment from path that should contain bucket/path
-        const pathSegments = pathname.split('/').filter(Boolean);
-        if (pathSegments.length >= 2) {
-          // Assuming the format is like "/storage/.../bucket_name/file_path"
-          // Get the bucket name from the second to last segment
-          const bucketIndex = pathSegments.findIndex(segment => 
-            segment === 'audio' || segment === 'processed_audio'
-          );
-          
-          if (bucketIndex >= 0 && bucketIndex < pathSegments.length - 1) {
-            // Combine the bucket name and all following segments as the file path
-            const bucket = pathSegments[bucketIndex];
-            const filePathSegments = pathSegments.slice(bucketIndex + 1);
-            filePath = `${bucket}/${filePathSegments.join('/')}`;
-            console.log(`Extracted file path (general method): ${filePath}`);
-          }
+        const url = new URL(originalUrl);
+        const pathSegments = url.pathname.split('/');
+        
+        // Look for the 'public' segment which indicates the start of the bucket/path pattern
+        const publicIndex = pathSegments.findIndex(segment => segment === 'public');
+        
+        if (publicIndex >= 0 && publicIndex < pathSegments.length - 2) {
+          bucketName = pathSegments[publicIndex + 1];
+          filePath = pathSegments.slice(publicIndex + 2).join('/');
+          success = true;
+          console.log(`Successfully extracted using URL parsing - bucket: ${bucketName}, path: ${filePath}`);
         }
       }
-    } catch (error) {
-      console.error("Error parsing URL:", error);
-    }
-    
-    // If we couldn't extract the path properly, try a direct fallback method
-    if (!filePath) {
-      // Fallback to simple string operations if URL parsing fails
-      const urlParts = originalUrl.split('/');
-      const fileName = urlParts[urlParts.length - 1];
-      const userId = urlParts[urlParts.length - 2];
       
-      if (fileName && userId) {
-        filePath = `audio/${userId}/${fileName}`;
-        console.log(`Using fallback file path: ${filePath}`);
-      } else {
-        console.error("Failed to extract file path from URL using any method:", originalUrl);
+      if (!success) {
+        console.error(`Failed to extract bucket and path from URL: ${originalUrl}`);
         await updateTrackStatusToFailed(supabase, trackId, format);
         return;
       }
-    }
-    
-    // Create signed URL for FFmpeg service to download the original file
-    console.log(`Creating signed URL for file path: ${filePath}`);
-    
-    // Get the bucket name from the first part of the file path
-    const bucketName = filePath.split('/')[0];
-    // Get everything after the bucket name as the actual file path
-    const actualFilePath = filePath.substring(bucketName.length + 1);
-    
-    console.log(`Using bucket: ${bucketName}, file path: ${actualFilePath}`);
-    
-    const { data: { signedURL }, error: signedUrlError } = await supabase.storage
-      .from(bucketName)
-      .createSignedUrl(actualFilePath, 60 * 10); // 10 minute expiry
-    
-    if (!signedURL || signedUrlError) {
-      console.error("Failed to create signed URL for original audio", signedUrlError);
+    } catch (error) {
+      console.error(`Error parsing URL ${originalUrl}:`, error);
       await updateTrackStatusToFailed(supabase, trackId, format);
       return;
     }
     
-    console.log(`Successfully created signed URL for file`);
+    console.log(`Creating signed URL for bucket: ${bucketName}, file path: ${filePath}`);
+    
+    // Create signed URL for FFmpeg service to download the original file
+    const { data: { signedURL }, error: signedUrlError } = await supabase.storage
+      .from(bucketName)
+      .createSignedUrl(filePath, 60 * 10); // 10 minute expiry
+    
+    if (!signedURL || signedUrlError) {
+      console.error("Failed to create signed URL for original audio:", signedUrlError);
+      await updateTrackStatusToFailed(supabase, trackId, format);
+      return;
+    }
+    
+    console.log(`Successfully created signed URL with length: ${signedURL.length}`);
     
     // Call the FFmpeg service to process the audio with improved error handling and logging
     const processResults = await callFFmpegService(signedURL, trackId, format);
