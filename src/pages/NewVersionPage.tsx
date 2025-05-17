@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,14 +26,15 @@ const NewVersionPage = () => {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [newVersionId, setNewVersionId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Create a separate file input ref specifically for the button
+  const buttonFileInputRef = useRef<HTMLInputElement>(null);
   
   // Initialize dropzone hook
   const {
     getRootProps,
     getInputProps,
     isDragActive,
-    acceptedFiles,
     fileRejections,
     error: dropzoneError,
   } = useDropZone({
@@ -46,24 +46,32 @@ const NewVersionPage = () => {
     setIsDragging,
   });
 
-  // Handler for the button click inside dropzone
-  const handleFileButtonClick = (e: React.MouseEvent) => {
+  // Handler for the direct file selection button - completely separate from dropzone
+  const handleSelectFileClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log("File button click handler triggered");
+    console.log("Direct file select button clicked");
     
-    // Use a small timeout to ensure the click event is fully processed
-    // before trying to open the file dialog
-    setTimeout(() => {
-      if (fileInputRef.current) {
-        console.log("Clicking file input through ref after timeout");
-        fileInputRef.current.click();
-      } else {
-        console.log("File input ref is not available after timeout");
-      }
-    }, 50);
+    if (buttonFileInputRef.current) {
+      console.log("Opening file dialog directly");
+      buttonFileInputRef.current.click();
+    }
   };
+  
+  // Handle file selection from the direct button
+  const handleDirectFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      console.log("File selected directly:", file.name);
+      
+      // Add the file to acceptedFiles state manually
+      setAcceptedFiles([file]);
+    }
+  };
+  
+  // Create a separate state for accepted files to handle both dropzone and direct selection
+  const [acceptedFiles, setAcceptedFiles] = useState<File[]>([]);
 
   useEffect(() => {
     const loadOriginalTrack = async () => {
@@ -235,18 +243,27 @@ const NewVersionPage = () => {
                       : "border-wip-gray/40 hover:border-wip-pink/60 bg-wip-dark"
                   } ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
                 >
-                  <input {...getInputProps()} ref={fileInputRef} />
+                  <input {...getInputProps()} />
                   {!acceptedFiles.length ? (
                     <div className="py-4">
                       <div className="mb-4">
+                        {/* Separate button with direct file input control */}
                         <Button 
-                          onClick={handleFileButtonClick}
+                          onClick={handleSelectFileClick}
                           className="gradient-bg hover:opacity-90"
                           type="button"
                           aria-label="Select audio file from device"
                         >
                           Select Audio File
                         </Button>
+                        {/* Separate hidden file input for direct button control */}
+                        <input
+                          type="file"
+                          ref={buttonFileInputRef}
+                          className="hidden"
+                          accept="audio/*"
+                          onChange={handleDirectFileChange}
+                        />
                       </div>
                       <ArrowUp className="h-10 w-10 mx-auto mb-2 text-wip-pink/60" />
                       <p className="text-gray-300">
