@@ -245,6 +245,7 @@ async function callFFmpegService(signedUrl: string, trackId: string, format: str
       try {
         console.log(`FFmpeg API call attempt ${2-retries} for track ${trackId}`);
         
+        // KEY CHANGE: Now passing originalUrl instead of signedUrl as parameter name
         response = await fetch(FFMPEG_SERVICE_URL, {
           method: 'POST',
           headers: {
@@ -254,7 +255,7 @@ async function callFFmpegService(signedUrl: string, trackId: string, format: str
           body: JSON.stringify({
             trackId,
             format,
-            signedUrl
+            originalUrl: signedUrl // Changed from signedUrl to originalUrl to match Lambda expectation
           })
         });
         
