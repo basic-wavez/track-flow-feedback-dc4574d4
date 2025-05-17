@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { ArrowUpCircle, History } from "lucide-react"; // Added proper import for icons
 import TrackPlayer from "@/components/TrackPlayer";
 import TrackFeedbackSection from "@/components/track/TrackFeedbackSection";
 import TrackLoading from "@/components/track/TrackLoading";
@@ -248,7 +249,7 @@ const TrackView = () => {
               trackTitle={trackData.title} 
               trackVersion={versionNumber}
               user={user} 
-              trackId={resolvedTrackId} // Pass the resolved track ID explicitly
+              trackId={resolvedTrackId} 
             />
           )}
         </div>
