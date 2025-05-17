@@ -57,12 +57,26 @@ serve(async (req: Request) => {
       });
     }
 
+    // Validate FFMPEG_SERVICE_URL and AWS_LAMBDA_API_KEY
     if (!FFMPEG_SERVICE_URL) {
+      console.error("Missing FFMPEG_SERVICE_URL environment variable");
       return new Response(JSON.stringify({ error: "FFMPEG_SERVICE_URL is not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    
+    if (!AWS_LAMBDA_API_KEY) {
+      console.error("Missing AWS_LAMBDA_API_KEY environment variable");
+      return new Response(JSON.stringify({ error: "AWS_LAMBDA_API_KEY is not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`Received request to process track ${trackId} in format ${format}`);
+    console.log(`FFMPEG_SERVICE_URL is configured with length: ${FFMPEG_SERVICE_URL.length}`);
+    console.log(`AWS_LAMBDA_API_KEY is configured with length: ${AWS_LAMBDA_API_KEY.length}`);
 
     // Process the audio file using FFmpeg service
     // @ts-ignore: EdgeRuntime exists in Supabase Edge Functions
@@ -206,7 +220,7 @@ async function processAudioWithFFmpeg(supabase: any, trackId: string, format: st
     
     console.log(`Successfully created signed URL for file`);
     
-    // Call the FFmpeg service to process the audio
+    // Call the FFmpeg service to process the audio with improved error handling and logging
     const processResults = await callFFmpegService(signedURL, trackId, format);
     
     if (!processResults.success) {
@@ -251,30 +265,96 @@ async function callFFmpegService(signedUrl: string, trackId: string, format: str
   error?: string;
 }> {
   try {
-    // Call the FFmpeg service with the signed URL and include the API key in headers
-    const response = await fetch(FFMPEG_SERVICE_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': AWS_LAMBDA_API_KEY // Add API key for authentication
-      },
-      body: JSON.stringify({
-        trackId,
-        format,
-        signedUrl
-      })
-    });
+    console.log(`Calling FFmpeg service at ${FFMPEG_SERVICE_URL} for track ${trackId}`);
     
-    if (!response.ok) {
-      const errorText = await response.text();
+    // First attempt: Call the FFmpeg service with the signed URL and include the API key in headers
+    let retries = 2;
+    let response;
+    let lastError;
+    
+    while (retries >= 0) {
+      try {
+        console.log(`FFmpeg API call attempt ${2-retries} for track ${trackId}`);
+        
+        response = await fetch(FFMPEG_SERVICE_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': AWS_LAMBDA_API_KEY
+          },
+          body: JSON.stringify({
+            trackId,
+            format,
+            signedUrl
+          })
+        });
+        
+        // If the request was successful, break out of the retry loop
+        if (response.ok) {
+          break;
+        }
+        
+        // If we got a non-OK response, log it and retry
+        const errorText = await response.text();
+        console.error(`FFmpeg service responded with status ${response.status}: ${errorText}`);
+        lastError = `Status ${response.status}: ${errorText}`;
+        
+        // Decrease retry count
+        retries--;
+        
+        // If we have retries left, wait before trying again
+        if (retries >= 0) {
+          console.log(`Retrying FFmpeg API call in 2 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (error) {
+        console.error(`Network error calling FFmpeg service: ${error.message}`);
+        lastError = error.message;
+        
+        // Decrease retry count
+        retries--;
+        
+        // If we have retries left, wait before trying again
+        if (retries >= 0) {
+          console.log(`Retrying FFmpeg API call in 2 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+    
+    // If we exhausted retries and still have no successful response
+    if (!response || !response.ok) {
+      console.error(`All FFmpeg service call attempts failed for track ${trackId}`);
       return {
         success: false,
-        error: `FFmpeg service responded with status ${response.status}: ${errorText}`
+        error: lastError || `FFmpeg service call failed after multiple attempts`
       };
     }
     
-    return await response.json();
+    console.log(`FFmpeg service responded successfully for track ${trackId}`);
+    const responseData = await response.json();
+    console.log(`FFmpeg service response data:`, responseData);
+    
+    // Check if the response has the expected structure
+    if (responseData && typeof responseData === 'object') {
+      const result = {
+        success: true,
+        mp3Url: responseData.mp3Url,
+        opusUrl: responseData.opusUrl
+      };
+      
+      // Log the result for debugging
+      console.log(`FFmpeg processing result:`, result);
+      return result;
+    } else {
+      console.error(`FFmpeg service returned unexpected response format:`, responseData);
+      return {
+        success: false,
+        error: `Unexpected response format from FFmpeg service`
+      };
+    }
   } catch (error) {
+    console.error(`Error in callFFmpegService:`, error);
     return {
       success: false,
       error: `Error calling FFmpeg service: ${error.message}`
