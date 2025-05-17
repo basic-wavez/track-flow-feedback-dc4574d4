@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -243,7 +244,7 @@ const NewVersionPage = () => {
                       : "border-wip-gray/40 hover:border-wip-pink/60 bg-wip-dark"
                   } ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
                 >
-                  <input {...getInputProps()} />
+                  <input {...getInputProps()} className="hidden" />
                   {!acceptedFiles.length ? (
                     <div className="py-4">
                       <div className="mb-4">
