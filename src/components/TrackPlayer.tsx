@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import Waveform from "./Waveform";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
@@ -110,8 +109,15 @@ const TrackPlayer = ({
   // Check if we're using the Opus version
   const usingOpus = !!opusUrl;
   
+  // Determine audio quality based on format
+  const getAudioQuality = () => {
+    if (usingOpus) return "Opus (96kbps)";
+    if (usingMp3) return "MP3 (320kbps)";
+    return "Original";
+  };
+  
   // Show format indicator
-  const formatIndicator = usingOpus ? 'Opus' : usingMp3 ? 'MP3' : 'Original';
+  const formatIndicator = getAudioQuality();
   
   const isLoading = playbackState === 'loading';
   
@@ -200,6 +206,7 @@ const TrackPlayer = ({
         isOpusAvailable={usingOpus}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
+        audioQuality={formatIndicator}
       />
       
       <TrackActions 

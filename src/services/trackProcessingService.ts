@@ -104,7 +104,7 @@ export async function requestTrackProcessing(trackId: string): Promise<boolean> 
       throw new Error(data.error || "Failed to start processing");
     }
     
-    toast.success("Audio processing started");
+    toast.success("Audio processing started with FFmpeg");
     return true;
   } catch (error) {
     console.error("Error requesting track processing:", error);

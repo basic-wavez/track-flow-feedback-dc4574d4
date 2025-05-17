@@ -1,4 +1,3 @@
-
 export interface TrackData {
   id: string;
   title: string;
@@ -19,6 +18,10 @@ export interface TrackData {
   parent_track_id?: string;
   is_latest_version: boolean;
   version_notes?: string;
+  // Audio quality info
+  audio_format?: string;
+  audio_bitrate?: number;
+  audio_duration?: number;
 }
 
 export interface TrackUpdateDetails {
