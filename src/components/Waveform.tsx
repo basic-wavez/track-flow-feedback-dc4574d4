@@ -39,6 +39,7 @@ const Waveform = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isWaveformGenerated, setIsWaveformGenerated] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisAttempted, setAnalysisAttempted] = useState(false);
   
   // Generate initial placeholder waveform immediately with more segments for detail
   useEffect(() => {
@@ -49,10 +50,13 @@ const Waveform = ({
     }
   }, []);
   
-  // Always attempt to analyze waveform data when analysis URL is available
+  // Attempt to analyze waveform data when analysis URL is available
   useEffect(() => {
-    // Only proceed if we have a URL to analyze
-    if (!waveformAnalysisUrl) return;
+    // Only proceed if we have a URL to analyze and haven't attempted analysis yet
+    if (!waveformAnalysisUrl || analysisAttempted) return;
+    
+    // Store the fact that we've attempted analysis
+    setAnalysisAttempted(true);
     
     // Always re-analyze when the analysis URL changes
     const urlToAnalyze = waveformAnalysisUrl;
@@ -87,7 +91,14 @@ const Waveform = ({
       .finally(() => {
         setIsAnalyzing(false);
       });
-  }, [waveformAnalysisUrl]); // Re-run when analysis URL changes
+  }, [waveformAnalysisUrl, analysisAttempted]);
+  
+  // Reset analysis attempted flag when the URL changes significantly
+  useEffect(() => {
+    if (waveformAnalysisUrl) {
+      setAnalysisAttempted(false);
+    }
+  }, [waveformAnalysisUrl]);
   
   // Show loading states
   if (isAnalyzing) {

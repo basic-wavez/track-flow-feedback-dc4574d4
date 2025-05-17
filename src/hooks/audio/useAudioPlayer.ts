@@ -25,7 +25,7 @@ export function useAudioPlayer({
   // Create audio element reference
   const audioRef = useRef<HTMLAudioElement>(null);
   
-  // Determine the audio URL to use
+  // Determine the audio URL to use - prefer MP3 if available
   const audioUrl = mp3Url || defaultAudioUrl;
   
   // State for the audio player
@@ -69,6 +69,13 @@ export function useAudioPlayer({
         .catch(error => {
           console.error('Error playing audio:', error);
           setPlaybackState('error');
+          
+          // Show more details about the error
+          if (error.name === 'NotSupportedError') {
+            console.error('Browser does not support this audio format');
+          } else if (error.name === 'NotAllowedError') {
+            console.error('Auto-play prevented - user interaction needed');
+          }
         });
     } else {
       // Pausing playback

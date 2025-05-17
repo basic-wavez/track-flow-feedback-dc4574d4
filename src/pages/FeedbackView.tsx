@@ -31,7 +31,6 @@ const FeedbackView = () => {
   const [djSetPercentage, setDjSetPercentage] = useState(0);
   const [listeningPercentage, setListeningPercentage] = useState(0);
 
-  // Fetch track data
   useEffect(() => {
     const fetchTrackData = async () => {
       if (!trackId) return;
@@ -52,7 +51,6 @@ const FeedbackView = () => {
     fetchTrackData();
   }, [trackId]);
 
-  // Fetch feedback data
   useEffect(() => {
     const fetchFeedback = async () => {
       if (!trackId) return;
@@ -190,7 +188,7 @@ const FeedbackView = () => {
               trackName={trackData.title || 'Untitled Track'} 
               audioUrl={trackData.mp3_url || trackData.compressed_url}
               originalUrl={trackData.original_url}
-              waveformAnalysisUrl={trackData.original_url || trackData.mp3_url || trackData.compressed_url}
+              waveformAnalysisUrl={trackData.mp3_url || trackData.compressed_url}
               originalFilename={trackData.original_filename}
               isOwner={true}
               versionNumber={trackData.version_number || 1}

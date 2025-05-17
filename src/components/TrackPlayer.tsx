@@ -20,7 +20,7 @@ interface TrackPlayerProps {
   shareKey?: string;
   inCooldownPeriod?: boolean;
   downloadsEnabled?: boolean;
-  versionNumber?: number;  // Added versionNumber prop
+  versionNumber?: number;
 }
 
 const TrackPlayer = ({ 
@@ -36,7 +36,7 @@ const TrackPlayer = ({
   shareKey,
   inCooldownPeriod = false,
   downloadsEnabled = false,
-  versionNumber = 1  // Set default value to 1
+  versionNumber = 1
 }: TrackPlayerProps) => {
   // Local states
   const [serverCooldown, setServerCooldown] = useState(false);
@@ -103,6 +103,12 @@ const TrackPlayer = ({
   
   // Determine combined cooldown state
   const isCooldown = inCooldownPeriod || serverCooldown;
+  
+  // Determine whether to display MP3 processing message
+  const showMp3ProcessingMessage = !mp3Url && processingStatus === 'pending';
+  
+  // Calculate a reliable waveform URL - always prioritize MP3
+  const reliableWaveformUrl = mp3Url || audioUrl;
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
@@ -124,7 +130,7 @@ const TrackPlayer = ({
         isRequestingProcessing={false}
         onRequestProcessing={async () => {}}
         isOwner={isOwner}
-        versionNumber={versionNumber} // Pass the versionNumber prop to TrackHeader
+        versionNumber={versionNumber}
       />
       
       <PlaybackControls 
@@ -140,9 +146,15 @@ const TrackPlayer = ({
         onToggleMute={toggleMute}
       />
       
+      {showMp3ProcessingMessage && (
+        <div className="text-yellow-400 text-sm mb-2 bg-yellow-900/20 p-2 rounded">
+          MP3 version is still processing. Waveform and playback may be limited until processing completes.
+        </div>
+      )}
+      
       <Waveform 
-        audioUrl={playbackUrl}
-        waveformAnalysisUrl={waveformAnalysisUrl}
+        audioUrl={reliableWaveformUrl}
+        waveformAnalysisUrl={reliableWaveformUrl}
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}

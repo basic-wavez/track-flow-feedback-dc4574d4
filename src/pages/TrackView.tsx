@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,7 @@ import TrackVersionsDrawer from "@/components/track/TrackVersionsDrawer";
 import VersionControls from "@/components/track/VersionControls";
 
 const TrackView = () => {
-  // Get URL information
+  // ... keep existing code (initialization of state, params, location, navigate, auth hooks)
   const params = useParams<{ trackId?: string; shareKey?: string; "*"?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
@@ -38,6 +37,7 @@ const TrackView = () => {
   const isShareRoute = location.pathname.startsWith('/track/share/');
 
   useEffect(() => {
+    // ... keep existing code (loadTrack function remains the same)
     const loadTrack = async () => {
       setIsLoading(true);
       setError(null);
@@ -203,7 +203,7 @@ const TrackView = () => {
               trackName={trackData.title} 
               audioUrl={trackData.mp3_url || trackData.compressed_url}
               originalUrl={trackData.original_url}
-              waveformAnalysisUrl={trackData.original_url || trackData.mp3_url || trackData.compressed_url}
+              waveformAnalysisUrl={trackData.mp3_url || trackData.compressed_url}
               originalFilename={trackData.original_filename}
               isOwner={isOwner}
               mp3Url={trackData.mp3_url}
@@ -215,6 +215,7 @@ const TrackView = () => {
             />
           )}
           
+          {/* ... keep existing code (feedback and share sections) */}
           {isOwner ? (
             <div>
               <div className="flex mb-6 space-x-4 border-b">
