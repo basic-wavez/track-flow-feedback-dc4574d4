@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,6 +43,18 @@ const NewVersionPage = () => {
     isDragging,
     setIsDragging,
   });
+
+  // Handler for the button click inside dropzone
+  const handleFileButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Find the file input and trigger its click event
+    const fileInput = document.querySelector('input[type="file"]');
+    if (fileInput) {
+      fileInput.click();
+    }
+  };
 
   useEffect(() => {
     const loadOriginalTrack = async () => {
@@ -218,9 +229,19 @@ const NewVersionPage = () => {
                   <input {...getInputProps()} />
                   {!acceptedFiles.length ? (
                     <div className="py-4">
+                      <div className="mb-4">
+                        <Button 
+                          onClick={handleFileButtonClick}
+                          className="gradient-bg hover:opacity-90"
+                          type="button"
+                          aria-label="Select audio file from device"
+                        >
+                          Select Audio File
+                        </Button>
+                      </div>
                       <ArrowUp className="h-10 w-10 mx-auto mb-2 text-wip-pink/60" />
                       <p className="text-gray-300">
-                        Drag and drop your audio file here, or click to select
+                        Drag and drop your audio file here, or click the button above
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         Supported formats: WAV, MP3, AIF, AIFF (up to 500MB)
