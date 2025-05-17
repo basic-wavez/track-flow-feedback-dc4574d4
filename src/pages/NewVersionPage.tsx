@@ -52,7 +52,8 @@ const NewVersionPage = () => {
     // Find the file input and trigger its click event
     const fileInput = document.querySelector('input[type="file"]');
     if (fileInput) {
-      fileInput.click();
+      // Cast to HTMLInputElement before calling click()
+      (fileInput as HTMLInputElement).click();
     }
   };
 
