@@ -15,7 +15,8 @@ export const uploadTrack = async (
   title?: string,
   onProgress?: (progress: number) => void,
   parentTrackId?: string,
-  versionNotes?: string
+  versionNotes?: string,
+  explicitVersionNumber?: number
 ): Promise<TrackData | null> => {
   try {
     console.log("trackCreationService - Starting upload of:", file.name, file.type, file.size);
@@ -51,9 +52,9 @@ export const uploadTrack = async (
     console.log("trackCreationService - Upload complete, URL:", publicUrl);
     
     // If this is a new version of an existing track, update the old version to not be latest
-    let versionNumber = 1;
+    let versionNumber = explicitVersionNumber || 1;
     
-    if (parentTrackId) {
+    if (parentTrackId && !explicitVersionNumber) {
       console.log("trackCreationService - This is a new version of track:", parentTrackId);
       
       // Get the parent track to determine its version
