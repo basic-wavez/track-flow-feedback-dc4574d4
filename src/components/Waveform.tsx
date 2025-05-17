@@ -40,6 +40,7 @@ const Waveform = ({
   const [isWaveformGenerated, setIsWaveformGenerated] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [analysisAttempted, setAnalysisAttempted] = useState(false);
+  const [analysisUrl, setAnalysisUrl] = useState<string | null>(null);
   
   // Generate initial placeholder waveform immediately with more segments for detail
   useEffect(() => {
@@ -50,26 +51,31 @@ const Waveform = ({
     }
   }, []);
   
+  // Log which URL we're using for analysis to help with debugging
+  useEffect(() => {
+    if (waveformAnalysisUrl) {
+      console.log('Waveform analysis URL set to:', waveformAnalysisUrl);
+      setAnalysisUrl(waveformAnalysisUrl);
+    }
+  }, [waveformAnalysisUrl]);
+  
   // Attempt to analyze waveform data when analysis URL is available
   useEffect(() => {
     // Only proceed if we have a URL to analyze and haven't attempted analysis yet
-    if (!waveformAnalysisUrl || analysisAttempted) return;
+    if (!analysisUrl || analysisAttempted) return;
     
     // Store the fact that we've attempted analysis
     setAnalysisAttempted(true);
     
-    // Always re-analyze when the analysis URL changes
-    const urlToAnalyze = waveformAnalysisUrl;
-    
     // Use higher segment count for more detailed visualization
     const segments = 250;
     
-    console.log('Analyzing waveform from URL:', urlToAnalyze);
+    console.log('Starting waveform analysis from URL:', analysisUrl);
     setIsAnalyzing(true);
     setAnalysisError(null);
     
     // Attempt to analyze the audio file with enhanced dynamics
-    analyzeAudio(urlToAnalyze, segments)
+    analyzeAudio(analysisUrl, segments)
       .then(analyzedData => {
         if (analyzedData && analyzedData.length > 0) {
           console.log('Successfully analyzed waveform data:', analyzedData.length, 'segments');
@@ -91,14 +97,16 @@ const Waveform = ({
       .finally(() => {
         setIsAnalyzing(false);
       });
-  }, [waveformAnalysisUrl, analysisAttempted]);
+  }, [analysisUrl, analysisAttempted]);
   
   // Reset analysis attempted flag when the URL changes significantly
   useEffect(() => {
-    if (waveformAnalysisUrl) {
+    if (waveformAnalysisUrl && waveformAnalysisUrl !== analysisUrl) {
+      console.log('Waveform analysis URL changed, resetting analysis state');
       setAnalysisAttempted(false);
+      setAnalysisUrl(waveformAnalysisUrl);
     }
-  }, [waveformAnalysisUrl]);
+  }, [waveformAnalysisUrl, analysisUrl]);
   
   // Show loading states
   if (isAnalyzing) {

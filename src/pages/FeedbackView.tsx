@@ -192,6 +192,7 @@ const FeedbackView = () => {
               originalFilename={trackData.original_filename}
               isOwner={true}
               versionNumber={trackData.version_number || 1}
+              mp3Url={trackData.mp3_url}
             />
           ) : (
             <div className="h-60 bg-wip-darker rounded-lg flex items-center justify-center">

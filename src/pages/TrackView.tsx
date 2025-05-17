@@ -19,7 +19,6 @@ import TrackVersionsDrawer from "@/components/track/TrackVersionsDrawer";
 import VersionControls from "@/components/track/VersionControls";
 
 const TrackView = () => {
-  // ... keep existing code (initialization of state, params, location, navigate, auth hooks)
   const params = useParams<{ trackId?: string; shareKey?: string; "*"?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
@@ -37,7 +36,6 @@ const TrackView = () => {
   const isShareRoute = location.pathname.startsWith('/track/share/');
 
   useEffect(() => {
-    // ... keep existing code (loadTrack function remains the same)
     const loadTrack = async () => {
       setIsLoading(true);
       setError(null);
@@ -215,7 +213,6 @@ const TrackView = () => {
             />
           )}
           
-          {/* ... keep existing code (feedback and share sections) */}
           {isOwner ? (
             <div>
               <div className="flex mb-6 space-x-4 border-b">

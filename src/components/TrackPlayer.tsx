@@ -44,6 +44,9 @@ const TrackPlayer = ({
   
   // Determine which URL to use for playback - prefer MP3 if available
   const playbackUrl = mp3Url || audioUrl;
+
+  // Determine which URL to use for waveform analysis - ALWAYS prefer MP3 if available
+  const waveformUrl = mp3Url || audioUrl;
   
   // Check server cooldown on load
   useEffect(() => {
@@ -107,8 +110,15 @@ const TrackPlayer = ({
   // Determine whether to display MP3 processing message
   const showMp3ProcessingMessage = !mp3Url && processingStatus === 'pending';
   
-  // Calculate a reliable waveform URL - always prioritize MP3
-  const reliableWaveformUrl = mp3Url || audioUrl;
+  // Log which URLs we're using to help with debugging
+  useEffect(() => {
+    console.log('TrackPlayer URLs:', {
+      playbackUrl,
+      waveformUrl,
+      originalUrl,
+      mp3Url
+    });
+  }, [playbackUrl, waveformUrl, originalUrl, mp3Url]);
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
@@ -153,8 +163,8 @@ const TrackPlayer = ({
       )}
       
       <Waveform 
-        audioUrl={reliableWaveformUrl}
-        waveformAnalysisUrl={reliableWaveformUrl}
+        audioUrl={playbackUrl}
+        waveformAnalysisUrl={waveformUrl} // Always pass MP3 URL for waveform analysis
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}

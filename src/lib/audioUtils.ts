@@ -1,3 +1,4 @@
+
 /**
  * Utility functions for handling audio files
  */
@@ -86,6 +87,14 @@ const generateCacheKey = (audioUrl: string): string => {
 };
 
 /**
+ * Helper to detect if a URL is likely to be an MP3
+ * This helps ensure we prioritize MP3 for waveform analysis
+ */
+const isLikelyMp3 = (url: string): boolean => {
+  return url.toLowerCase().includes('.mp3') || url.includes('mp3_url');
+};
+
+/**
  * Save waveform data to localStorage
  */
 const saveWaveformToStorage = (key: string, data: number[]): void => {
@@ -155,6 +164,10 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 250): Promis
     return storedData;
   }
 
+  // Log whether we're analyzing an MP3 or not
+  const isMp3 = isLikelyMp3(audioUrl);
+  console.log(`Analyzing audio ${isMp3 ? 'MP3' : 'non-MP3'} from URL:`, audioUrl);
+  
   return new Promise((resolve, reject) => {
     console.log(`Starting audio analysis for ${audioUrl} with ${samplesCount} samples`);
     // Create audio context
@@ -197,7 +210,23 @@ export const analyzeAudio = async (audioUrl: string, samplesCount = 250): Promis
       .then(arrayBuffer => {
         clearTimeout(timeoutId); // Clear timeout as we've received data
         console.log(`Decoding audio data: ${arrayBuffer.byteLength} bytes`);
-        return audioContext.decodeAudioData(arrayBuffer);
+        
+        // Check if we actually got data
+        if (arrayBuffer.byteLength === 0) {
+          throw new Error('Received empty audio file');
+        }
+        
+        return audioContext.decodeAudioData(arrayBuffer)
+          .catch(decodeError => {
+            console.error('Browser failed to decode audio data:', decodeError);
+            
+            // If this isn't an MP3 and decode failed, we'll throw an error
+            if (!isMp3) {
+              throw new Error(`Browser couldn't decode this audio format. Try using an MP3 version.`);
+            } else {
+              throw decodeError; // Re-throw for MP3s
+            }
+          });
       })
       .then(audioBuffer => {
         console.log(`Successfully decoded audio buffer: duration ${audioBuffer.duration}s, ${audioBuffer.numberOfChannels} channels`);
