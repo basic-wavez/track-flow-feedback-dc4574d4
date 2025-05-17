@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ const NewVersionPage = () => {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [newVersionId, setNewVersionId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Initialize dropzone hook
   const {
@@ -49,11 +51,14 @@ const NewVersionPage = () => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Find the file input and trigger its click event
-    const fileInput = document.querySelector('input[type="file"]');
-    if (fileInput) {
-      // Cast to HTMLInputElement before calling click()
-      (fileInput as HTMLInputElement).click();
+    console.log("File button click handler triggered");
+    
+    // Use the ref to directly access the file input
+    if (fileInputRef.current) {
+      console.log("Clicking file input through ref");
+      fileInputRef.current.click();
+    } else {
+      console.log("File input ref is not available");
     }
   };
 
@@ -227,7 +232,7 @@ const NewVersionPage = () => {
                       : "border-wip-gray/40 hover:border-wip-pink/60 bg-wip-dark"
                   } ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
                 >
-                  <input {...getInputProps()} />
+                  <input {...getInputProps()} ref={fileInputRef} />
                   {!acceptedFiles.length ? (
                     <div className="py-4">
                       <div className="mb-4">
