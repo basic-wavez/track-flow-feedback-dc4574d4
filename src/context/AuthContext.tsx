@@ -1,8 +1,9 @@
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { getDocumentVisibilityState } from "@/utils/trackDataCache";
 
 interface Profile {
   id: string;
@@ -34,25 +35,51 @@ interface AuthProviderProps {
   preventRefreshOnVisibilityChange?: boolean;
 }
 
-// Tracking the last visibility state to prevent duplicate refreshes
-let lastVisibleTimestamp = Date.now();
-let isRefreshingSession = false;
+// Constants for auth state management
 const AUTH_REFRESH_DEBOUNCE_MS = 2000; // Minimum time between auth refreshes
+const AUTH_REFRESH_COOLDOWN_MS = 5000; // Cooldown period after a session refresh
 
+/**
+ * Authentication Context Provider
+ */
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = false }: AuthProviderProps) => {
+  // Auth state
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  
+  // Track session refresh state with refs to avoid re-renders
+  const isRefreshingSessionRef = useRef(false);
+  const lastVisibleTimestampRef = useRef(Date.now());
+  const lastSessionRefreshRef = useRef(Date.now() - AUTH_REFRESH_COOLDOWN_MS);
+  
+  // Session ID to track this browser session
+  const sessionIdRef = useRef<string>(`auth_session_${Math.random().toString(36).substring(2, 10)}`);
+  
   const { toast } = useToast();
 
-  // Fetch user profile function
-  const fetchUserProfile = async (userId: string) => {
+  /**
+   * Fetch user profile with memoization
+   */
+  const fetchUserProfile = useCallback(async (userId: string): Promise<Profile | null> => {
     try {
+      // Check session storage for cached profile
+      const cachedProfile = sessionStorage.getItem(`profile_${userId}`);
+      if (cachedProfile) {
+        const parsedProfile = JSON.parse(cachedProfile);
+        const cacheAge = Date.now() - parsedProfile.timestamp;
+        
+        // Use cached profile if it's less than 5 minutes old
+        if (cacheAge < 1000 * 60 * 5) {
+          return parsedProfile.data;
+        }
+      }
+      
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
@@ -64,43 +91,58 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
         return null;
       }
 
-      console.log("Profile fetched:", data);
+      // Cache the profile
+      sessionStorage.setItem(`profile_${userId}`, JSON.stringify({
+        data,
+        timestamp: Date.now(),
+        sessionId: sessionIdRef.current
+      }));
+      
       return data as Profile;
     } catch (error) {
       console.error("Failed to fetch profile:", error);
       return null;
     }
-  };
+  }, []);
 
-  // Function to refresh profile data
-  const refreshProfile = async () => {
+  /**
+   * Refresh profile data
+   */
+  const refreshProfile = useCallback(async () => {
     if (!user) return;
     
     try {
       const profileData = await fetchUserProfile(user.id);
-      setProfile(profileData);
+      if (profileData && JSON.stringify(profileData) !== JSON.stringify(profile)) {
+        setProfile(profileData);
+      }
     } catch (error) {
       console.error("Failed to refresh profile:", error);
     }
-  };
+  }, [user, profile, fetchUserProfile]);
   
-  // Debounced session refresh function to prevent excessive calls
-  const debouncedRefreshSession = async () => {
+  /**
+   * Debounced session refresh function with visibility awareness
+   */
+  const debouncedRefreshSession = useCallback(async () => {
     const now = Date.now();
-    if (isRefreshingSession || (now - lastVisibleTimestamp < AUTH_REFRESH_DEBOUNCE_MS)) {
-      console.log("AuthProvider - Skipping redundant session refresh");
+    
+    // Skip if already refreshing or if we're within the debounce period
+    if (isRefreshingSessionRef.current || 
+        (now - lastSessionRefreshRef.current < AUTH_REFRESH_DEBOUNCE_MS)) {
       return Promise.resolve();
     }
     
-    isRefreshingSession = true;
-    lastVisibleTimestamp = now;
+    // Skip if the tab isn't visible - don't waste resources
+    if (getDocumentVisibilityState() === 'hidden' && !preventRefreshOnVisibilityChange) {
+      return Promise.resolve();
+    }
+    
+    isRefreshingSessionRef.current = true;
+    lastVisibleTimestampRef.current = now;
     
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      console.log("AuthProvider - Debounced session refresh:", {
-        hasSession: !!session,
-        user: session?.user?.email
-      });
       
       // Only update if session has changed
       const sessionChanged = 
@@ -109,33 +151,42 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
         (session?.user?.id !== user?.id);
       
       if (sessionChanged) {
+        console.log("AuthProvider - Session state changed during refresh");
         setSession(session);
         setUser(session?.user ?? null);
         setIsAuthenticated(!!session?.user);
         
         if (session?.user) {
-          const adminStatus = await checkAdminRole();
-          setIsAdmin(adminStatus);
-          
-          // Refresh profile without cascading updates
-          const profileData = await fetchUserProfile(session.user.id);
-          if (profileData && JSON.stringify(profileData) !== JSON.stringify(profile)) {
-            setProfile(profileData);
-          }
+          // Process in non-blocking way
+          Promise.all([
+            checkAdminRole().then(adminStatus => setIsAdmin(adminStatus)),
+            fetchUserProfile(session.user.id).then(profileData => {
+              if (profileData && JSON.stringify(profileData) !== JSON.stringify(profile)) {
+                setProfile(profileData);
+              }
+            })
+          ]).catch(error => {
+            console.error("Error during session refresh: ", error);
+          });
         }
       }
       
+      lastSessionRefreshRef.current = Date.now();
       return Promise.resolve();
     } catch (error) {
       console.error("AuthProvider - Error refreshing session:", error);
       return Promise.reject(error);
     } finally {
-      isRefreshingSession = false;
+      isRefreshingSessionRef.current = false;
     }
-  };
+  }, [user, profile, preventRefreshOnVisibilityChange, fetchUserProfile]);
 
+  /**
+   * Set up auth state listener and visibility handling
+   */
   useEffect(() => {
     console.log("AuthProvider - Initializing auth state listener");
+    let unsubVisibility: (() => void) | null = null;
     
     // Set up the auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -146,14 +197,15 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
           path: window.location.pathname
         });
         
-        // Update auth state synchronously but avoid cascading effects
+        // Update auth state synchronously to avoid cascading effects
         setSession(session);
         setUser(session?.user ?? null);
         setIsAuthenticated(!!session?.user);
         
         // Fetch admin status and profile in a non-blocking way
         if (session?.user) {
-          setTimeout(() => {
+          // Use a microtask to avoid blocking the event loop
+          Promise.resolve().then(() => {
             // Check if component is still mounted before updating state
             checkAdminRole().then(isAdmin => {
               setIsAdmin(isAdmin);
@@ -163,7 +215,7 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
             fetchUserProfile(session.user.id).then(profileData => {
               setProfile(profileData);
             });
-          }, 0);
+          });
         } else {
           setIsAdmin(false);
           setProfile(null);
@@ -188,7 +240,7 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
         Promise.all([
           checkAdminRole().then(isAdmin => setIsAdmin(isAdmin)),
           fetchUserProfile(session.user.id).then(profileData => setProfile(profileData))
-        ]).then(() => {
+        ]).finally(() => {
           setLoading(false);
         });
       } else {
@@ -197,36 +249,77 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
     });
 
     // Add visibility change handler (if not disabled)
-    const handleVisibilityChange = () => {
-      if (preventRefreshOnVisibilityChange) {
-        console.log("AuthProvider - Visibility change detected, refresh prevented by prop");
-        return;
-      }
-      
-      if (document.visibilityState === 'visible') {
-        console.log("AuthProvider - Tab became visible, refreshing auth state");
-        debouncedRefreshSession();
-      }
-    };
-    
     if (!preventRefreshOnVisibilityChange) {
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          const now = Date.now();
+          const timeSinceLastRefresh = now - lastSessionRefreshRef.current;
+          
+          if (timeSinceLastRefresh > AUTH_REFRESH_COOLDOWN_MS) {
+            console.log("AuthProvider - Tab became visible, refreshing auth state");
+            
+            // Store the timestamp of this visibility change in sessionStorage
+            try {
+              sessionStorage.setItem('last_visibility_change', now.toString());
+              sessionStorage.setItem('is_document_visible', 'true');
+            } catch (e) {
+              // Ignore storage errors
+            }
+            
+            // Update session if enough time has passed
+            debouncedRefreshSession();
+          } else {
+            console.log("AuthProvider - Tab visibility changed, but in cooldown period");
+          }
+        } else {
+          // Store the hidden state
+          try {
+            sessionStorage.setItem('is_document_visible', 'false');
+          } catch (e) {
+            // Ignore storage errors
+          }
+        }
+      };
+      
       document.addEventListener('visibilitychange', handleVisibilityChange);
+      unsubVisibility = () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Initialize visibility state
+      try {
+        sessionStorage.setItem('is_document_visible', 
+          document.visibilityState === 'visible' ? 'true' : 'false');
+        sessionStorage.setItem('last_visibility_change', Date.now().toString());
+      } catch (e) {
+        // Ignore storage errors
+      }
     }
 
     return () => {
       console.log("AuthProvider - Unsubscribing from auth state changes");
       subscription.unsubscribe();
-      if (!preventRefreshOnVisibilityChange) {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      }
+      if (unsubVisibility) unsubVisibility();
     };
-  }, [preventRefreshOnVisibilityChange]);
+  }, [preventRefreshOnVisibilityChange, debouncedRefreshSession, fetchUserProfile]);
 
-  // Check if the user has admin role
-  const checkAdminRole = async (): Promise<boolean> => {
+  /**
+   * Check if the user has admin role
+   */
+  const checkAdminRole = useCallback(async (): Promise<boolean> => {
     if (!user) return false;
     
     try {
+      // Check if we have a cached admin status for this session
+      const cachedAdminStatus = sessionStorage.getItem(`admin_status_${user.id}`);
+      if (cachedAdminStatus) {
+        const parsed = JSON.parse(cachedAdminStatus);
+        const cacheAge = Date.now() - parsed.timestamp;
+        
+        // Use cached status if it's less than 5 minutes old
+        if (cacheAge < 1000 * 60 * 5) {
+          return parsed.isAdmin;
+        }
+      }
+      
       const { data, error } = await supabase.rpc('has_role', {
         _user_id: user.id,
         _role: 'admin'
@@ -237,20 +330,35 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
         return false;
       }
       
+      // Cache the result
+      try {
+        sessionStorage.setItem(`admin_status_${user.id}`, JSON.stringify({
+          isAdmin: data === true,
+          timestamp: Date.now(),
+          userId: user.id
+        }));
+      } catch (e) {
+        // Ignore storage errors
+      }
+      
       return data === true;
     } catch (error) {
       console.error("Error checking admin role:", error);
       return false;
     }
-  };
+  }, [user]);
 
-  // Add a session refresh function that components can call when needed
-  const refreshSession = async () => {
+  /**
+   * Refresh session on demand (exported to context)
+   */
+  const refreshSession = useCallback(async () => {
     return debouncedRefreshSession();
-  };
+  }, [debouncedRefreshSession]);
 
-  // Add username update function
-  const updateUsername = async (username: string) => {
+  /**
+   * Update username
+   */
+  const updateUsername = useCallback(async (username: string) => {
     try {
       if (!user) throw new Error("No user logged in");
       
@@ -278,10 +386,12 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
       // Don't show toast here, pass the error to the component
       return Promise.reject(error);
     }
-  };
+  }, [user, refreshProfile, toast]);
 
-  // Update password update function to require current password
-  const updatePassword = async (newPassword: string, currentPassword: string) => {
+  /**
+   * Update password
+   */
+  const updatePassword = useCallback(async (newPassword: string, currentPassword: string) => {
     try {
       console.log("AuthProvider - Updating password");
 
@@ -316,9 +426,12 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
       // Don't show toast here, pass the error to the component
       return Promise.reject(error);
     }
-  };
+  }, [user, toast]);
   
-  const signUp = async (email: string, password: string, username: string) => {
+  /**
+   * Sign up a new user
+   */
+  const signUp = useCallback(async (email: string, password: string, username: string) => {
     try {
       console.log("AuthProvider - Attempting signup for:", email);
       const { error } = await supabase.auth.signUp({
@@ -346,9 +459,12 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
       });
       throw error;
     }
-  };
+  }, [toast]);
 
-  const signIn = async (email: string, password: string) => {
+  /**
+   * Sign in an existing user
+   */
+  const signIn = useCallback(async (email: string, password: string) => {
     try {
       console.log("AuthProvider - Attempting signin for:", email);
       const { error } = await supabase.auth.signInWithPassword({
@@ -371,10 +487,12 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
       });
       throw error;
     }
-  };
+  }, [toast]);
 
-  // New Google sign-in method
-  const signInWithGoogle = async () => {
+  /**
+   * Google sign-in
+   */
+  const signInWithGoogle = useCallback(async () => {
     try {
       console.log("AuthProvider - Attempting Google signin");
       const { error } = await supabase.auth.signInWithOAuth({
@@ -397,9 +515,12 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
       });
       throw error;
     }
-  };
+  }, [toast]);
 
-  const signOut = async () => {
+  /**
+   * Sign out
+   */
+  const signOut = useCallback(async () => {
     try {
       console.log("AuthProvider - Attempting signout");
       const { error } = await supabase.auth.signOut();
@@ -414,6 +535,25 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
       setIsAuthenticated(false);
       setProfile(null);
       
+      // Clear cached data in session storage
+      try {
+        // List of keys to clear on signout
+        const keysToRemove = [];
+        
+        // Find all auth-related items in sessionStorage  
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.startsWith('profile_') || key.startsWith('admin_status_'))) {
+            keysToRemove.push(key);
+          }
+        }
+        
+        // Remove them
+        keysToRemove.forEach(key => sessionStorage.removeItem(key));
+      } catch (e) {
+        // Ignore storage errors
+      }
+      
       toast({
         title: "Signed out successfully",
       });
@@ -426,7 +566,7 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
       });
       throw error;
     }
-  };
+  }, [toast]);
 
   const value = {
     user,
