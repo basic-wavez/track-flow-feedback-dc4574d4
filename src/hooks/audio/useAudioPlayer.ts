@@ -54,6 +54,73 @@ export function useAudioPlayer({
 
   // Store the last known position for tab switching
   const lastKnownPositionRef = useRef<number>(0);
+  const audioLoadedStateRef = useRef<boolean>(false);
+  
+  // Save audio state to session storage for persistence across page navigations
+  const saveAudioStateToSession = () => {
+    try {
+      const audio = audioRef.current;
+      if (!audio) return;
+      
+      const stateToSave = {
+        currentTime: audio.currentTime,
+        duration: audio.duration,
+        isPlaying: !audio.paused,
+        volume: audio.volume,
+        isMuted: audio.muted,
+        trackId,
+        shareKey,
+        audioUrl,
+        timestamp: Date.now()
+      };
+      
+      sessionStorage.setItem(`audioState_${trackId || audioUrl}`, JSON.stringify(stateToSave));
+    } catch (e) {
+      console.warn('Error saving audio state to session storage:', e);
+    }
+  };
+  
+  // Restore audio state from session storage
+  const restoreAudioStateFromSession = () => {
+    try {
+      const storedState = sessionStorage.getItem(`audioState_${trackId || audioUrl}`);
+      if (storedState) {
+        const state = JSON.parse(storedState);
+        
+        // Only restore if it's the same track and not too old (within last hour)
+        if (
+          (state.trackId === trackId || state.audioUrl === audioUrl) &&
+          Date.now() - state.timestamp < 60 * 60 * 1000
+        ) {
+          const audio = audioRef.current;
+          if (!audio) return false;
+          
+          // Restore the audio position
+          if (isFinite(state.currentTime) && state.currentTime > 0) {
+            audio.currentTime = state.currentTime;
+            setCurrentTime(state.currentTime);
+          }
+          
+          // Restore volume settings
+          if (isFinite(state.volume)) {
+            audio.volume = state.volume;
+            setVolume(state.volume);
+          }
+          
+          if (state.isMuted) {
+            audio.muted = true;
+            setIsMuted(true);
+          }
+          
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('Error restoring audio state from session storage:', e);
+    }
+    
+    return false;
+  };
 
   // Handle visibility change to persist audio state between tab switches
   useEffect(() => {
@@ -64,6 +131,10 @@ export function useAudioPlayer({
       if (document.hidden) {
         // Tab is hidden, store the current position
         lastKnownPositionRef.current = audio.currentTime;
+        audioLoadedStateRef.current = audioLoaded;
+        
+        // Save state to session storage for persistence
+        saveAudioStateToSession();
         
         // If we're playing, pause the audio to save resources
         if (!audio.paused) {
@@ -73,23 +144,34 @@ export function useAudioPlayer({
         }
       } else {
         // Tab is visible again
+        const wasRestored = restoreAudioStateFromSession();
+        
+        // If we couldn't restore from session, use the in-memory reference
+        if (!wasRestored) {
+          audio.currentTime = lastKnownPositionRef.current;
+        }
+        
         if (isPlaying && audio.paused) {
           // The user had been playing the audio before switching tabs
-          audio.currentTime = lastKnownPositionRef.current;
           
-          // Resume playback
-          audio.play()
-            .then(() => {
-              // Successfully resumed
-            })
-            .catch(error => {
-              console.error('Error resuming audio after tab switch:', error);
-              setPlaybackState('error');
-              setIsPlaying(false);
-            });
-        } else {
-          // Just restore the position if we were paused
-          audio.currentTime = lastKnownPositionRef.current;
+          // Resume playback - with small delay to allow the UI to stabilize
+          setTimeout(() => {
+            audio.play()
+              .then(() => {
+                // Successfully resumed
+                setPlaybackState('playing');
+              })
+              .catch(error => {
+                console.error('Error resuming audio after tab switch:', error);
+                setPlaybackState('error');
+                setIsPlaying(false);
+              });
+          }, 100);
+        }
+        
+        // Restore loaded state if needed
+        if (audioLoadedStateRef.current) {
+          setAudioLoaded(true);
         }
       }
     };
@@ -98,8 +180,29 @@ export function useAudioPlayer({
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Save state when unmounting component
+      saveAudioStateToSession();
     };
-  }, [isPlaying, setIsPlaying, setPlaybackState]);
+  }, [isPlaying, setIsPlaying, setPlaybackState, audioLoaded, setAudioLoaded]);
+  
+  // Save audio state periodically while playing
+  useEffect(() => {
+    let saveInterval: number | undefined;
+    
+    if (isPlaying) {
+      // Save state every 5 seconds while playing
+      saveInterval = window.setInterval(() => {
+        saveAudioStateToSession();
+      }, 5000);
+    }
+    
+    return () => {
+      if (saveInterval) {
+        clearInterval(saveInterval);
+      }
+    };
+  }, [isPlaying, trackId, audioUrl]);
 
   // Custom toggle play/pause handler for play count tracking
   const handleTogglePlayPause = () => {
@@ -229,6 +332,13 @@ export function useAudioPlayer({
     recentlySeekRef,
     currentTime
   });
+  
+  // Attempt to restore audio state on mount
+  useEffect(() => {
+    setTimeout(() => {
+      restoreAudioStateFromSession();
+    }, 200);
+  }, []);
 
   return {
     audioRef,

@@ -21,8 +21,19 @@ import BugReportPage from './pages/BugReportPage';
 import CookieConsent from './components/CookieConsent';
 import AdminDashboard from './pages/admin/AdminDashboard';
 
-// Create a client
-const queryClient = new QueryClient();
+// Create a client with enhanced caching
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnWindowFocus: false, // Don't refetch when window regains focus
+      refetchOnMount: false, // Don't refetch on component mount
+      refetchOnReconnect: false, // Don't refetch on network reconnect
+      retry: 1, // Only retry once
+    },
+  },
+});
 
 function App() {
   return (

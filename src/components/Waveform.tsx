@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+
+import { useEffect, useState, useRef } from 'react';
 import { analyzeAudio } from '@/lib/audioUtils';
 import { generateWaveformWithVariance } from '@/lib/waveformUtils';
 import WaveformLoader from './waveform/WaveformLoader';
@@ -7,7 +8,7 @@ import WaveformStatus from './waveform/WaveformStatus';
 
 interface WaveformProps {
   audioUrl?: string;
-  waveformAnalysisUrl?: string; // URL specifically for waveform analysis
+  waveformAnalysisUrl?: string;
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -19,12 +20,15 @@ interface WaveformProps {
   isOpusAvailable?: boolean;
   isGeneratingWaveform?: boolean;
   audioLoaded?: boolean;
-  audioQuality?: string; // Added audioQuality prop
+  audioQuality?: string;
 }
+
+// Create a global waveform cache object to persist across route changes
+const waveformCache: Record<string, number[]> = {};
 
 const Waveform = ({ 
   audioUrl, 
-  waveformAnalysisUrl, // Use dedicated analysis URL if available
+  waveformAnalysisUrl,
   isPlaying, 
   currentTime, 
   duration, 
@@ -36,7 +40,7 @@ const Waveform = ({
   isOpusAvailable = false,
   isGeneratingWaveform = false,
   audioLoaded = false,
-  audioQuality // Added audioQuality prop
+  audioQuality
 }: WaveformProps) => {
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -44,10 +48,45 @@ const Waveform = ({
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [analysisAttempted, setAnalysisAttempted] = useState(false);
   const [analysisUrl, setAnalysisUrl] = useState<string | null>(null);
+  const prevUrlRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+  
+  // Check for cached waveform data on mount
+  useEffect(() => {
+    isMountedRef.current = true;
+    
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   
   // Generate initial placeholder waveform immediately with more segments for detail
   useEffect(() => {
     if (waveformData.length === 0) {
+      // Check if we have this waveform cached in memory or session storage
+      if (waveformAnalysisUrl && waveformCache[waveformAnalysisUrl]) {
+        console.log('Using cached waveform data from memory:', waveformAnalysisUrl);
+        setWaveformData(waveformCache[waveformAnalysisUrl]);
+        setIsWaveformGenerated(true);
+        return;
+      }
+      
+      try {
+        const sessionKey = `waveform_${waveformAnalysisUrl}`;
+        const cachedData = sessionStorage.getItem(sessionKey);
+        
+        if (cachedData) {
+          const parsedData = JSON.parse(cachedData);
+          console.log('Using cached waveform data from session storage:', waveformAnalysisUrl);
+          setWaveformData(parsedData);
+          waveformCache[waveformAnalysisUrl || ''] = parsedData; // Also store in memory cache
+          setIsWaveformGenerated(true);
+          return;
+        }
+      } catch (e) {
+        console.warn('Error retrieving from session storage:', e);
+      }
+      
       // Use enhanced generation with 250 segments and higher variance for more dynamics
       const initialWaveformData = generateWaveformWithVariance(250, 0.6);
       setWaveformData(initialWaveformData);
@@ -56,9 +95,15 @@ const Waveform = ({
   
   // Log which URL we're using for analysis to help with debugging
   useEffect(() => {
-    if (waveformAnalysisUrl) {
+    if (waveformAnalysisUrl && waveformAnalysisUrl !== prevUrlRef.current) {
       console.log('Waveform analysis URL set to:', waveformAnalysisUrl);
       setAnalysisUrl(waveformAnalysisUrl);
+      prevUrlRef.current = waveformAnalysisUrl;
+      
+      // Reset analysis state if URL changes
+      if (waveformAnalysisUrl !== prevUrlRef.current) {
+        setAnalysisAttempted(false);
+      }
     }
   }, [waveformAnalysisUrl]);
   
@@ -66,6 +111,33 @@ const Waveform = ({
   useEffect(() => {
     // Only proceed if we have a URL to analyze and haven't attempted analysis yet
     if (!analysisUrl || analysisAttempted) return;
+    
+    // If we already have this in our cache, use it
+    if (waveformCache[analysisUrl]) {
+      console.log('Using cached waveform data for URL:', analysisUrl);
+      setWaveformData(waveformCache[analysisUrl]);
+      setIsWaveformGenerated(true);
+      setAnalysisAttempted(true);
+      return;
+    }
+    
+    // Try to get from session storage first
+    try {
+      const sessionKey = `waveform_${analysisUrl}`;
+      const cachedData = sessionStorage.getItem(sessionKey);
+      
+      if (cachedData) {
+        const parsedData = JSON.parse(cachedData);
+        console.log('Retrieved waveform data from session storage:', analysisUrl);
+        setWaveformData(parsedData);
+        waveformCache[analysisUrl] = parsedData; // Also store in memory cache
+        setIsWaveformGenerated(true);
+        setAnalysisAttempted(true);
+        return;
+      }
+    } catch (e) {
+      console.warn('Error retrieving from session storage:', e);
+    }
     
     // Store the fact that we've attempted analysis
     setAnalysisAttempted(true);
@@ -80,8 +152,22 @@ const Waveform = ({
     // Attempt to analyze the audio file with enhanced dynamics
     analyzeAudio(analysisUrl, segments)
       .then(analyzedData => {
+        if (!isMountedRef.current) return;
+        
         if (analyzedData && analyzedData.length > 0) {
           console.log('Successfully analyzed waveform data:', analyzedData.length, 'segments');
+          
+          // Cache the waveform data in memory
+          waveformCache[analysisUrl] = analyzedData;
+          
+          // Store in session storage for persistence across page navigations
+          try {
+            const sessionKey = `waveform_${analysisUrl}`;
+            sessionStorage.setItem(sessionKey, JSON.stringify(analyzedData));
+          } catch (e) {
+            console.warn('Error storing in session storage:', e);
+          }
+          
           setWaveformData(analyzedData);
           setIsWaveformGenerated(true);
         } else {
@@ -89,6 +175,8 @@ const Waveform = ({
         }
       })
       .catch(error => {
+        if (!isMountedRef.current) return;
+        
         console.error("Error analyzing audio:", error);
         setAnalysisError(`Failed to analyze audio: ${error.message}. Using fallback visualization.`);
         
@@ -98,7 +186,9 @@ const Waveform = ({
         setIsWaveformGenerated(true);
       })
       .finally(() => {
-        setIsAnalyzing(false);
+        if (isMountedRef.current) {
+          setIsAnalyzing(false);
+        }
       });
   }, [analysisUrl, analysisAttempted]);
   
@@ -121,13 +211,6 @@ const Waveform = ({
   }
   
   const isAudioDurationValid = isFinite(duration) && duration > 0;
-
-  // Determine the audio quality level for display
-  const getAudioQuality = () => {
-    if (isOpusAvailable) return 'High quality (Opus)';
-    if (isMp3Available) return 'Good quality (MP3)';
-    return 'Original format';
-  };
   
   return (
     <div className="w-full h-32 relative">
