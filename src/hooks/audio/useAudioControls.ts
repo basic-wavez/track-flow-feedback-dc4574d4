@@ -1,4 +1,3 @@
-
 import { toast } from "@/components/ui/use-toast";
 
 /**
@@ -66,7 +65,7 @@ export function useAudioControls({
     
     // If we're in background playback mode and we might have stale state,
     // first synchronize the UI with the audio's actual position
-    if (allowBackgroundPlayback && document.visibilityState === 'visible') {
+    if (allowBackgroundPlayback) {
       // Force sync our UI with the actual audio position before seeking
       syncCurrentTimeWithAudio();
     }
