@@ -8,4 +8,8 @@ export * from './useAudioEffects';
 export * from './useAudioInitialization';
 export * from './useBackgroundPlayback';
 export * from './usePlayCounting';
-
+export * from './useAudioMetadataEvents';
+export * from './useAudioPlaybackEvents';
+export * from './useAudioBufferingEvents';
+export * from './useAudioErrorEvents';
+export * from './useVisibilityEvents';
