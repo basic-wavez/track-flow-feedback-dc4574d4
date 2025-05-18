@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -25,12 +26,24 @@ export function useAudioEvents({
   clearBufferingTimeout,
   loadRetries,
   lastSeekTimeRef,
-  onTrackEnd
+  onTrackEnd,
+  hasRestoredAfterTabSwitch = false
 }: any) {
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
+
+    // If we've already restored after tab switch, avoid unnecessary metadata loads
+    if (hasRestoredAfterTabSwitch && audio.duration > 0) {
+      console.log('Using restored duration after tab switch:', audio.duration);
+      setDuration(audio.duration);
+      setAudioLoaded(true);
+      
+      // Ensure buffering UI is hidden after tab switch
+      clearBufferingTimeout();
+      setShowBufferingUI(false);
+    }
 
     const updateTime = () => {
       setCurrentTime(audio.currentTime || 0);
@@ -51,6 +64,11 @@ export function useAudioEvents({
     };
     
     const handleLoadedMetadata = () => {
+      // Skip redundant processing if we've already restored after tab switch
+      if (hasRestoredAfterTabSwitch && audio.duration > 0) {
+        return;
+      }
+      
       // Ensure we don't set Infinity or NaN as the duration
       if (isFinite(audio.duration) && !isNaN(audio.duration) && audio.duration > 0) {
         setDuration(audio.duration);
@@ -65,6 +83,9 @@ export function useAudioEvents({
 
     // Estimate duration if metadata doesn't provide it
     const estimateAudioDuration = (audioElement: HTMLAudioElement) => {
+      // Skip estimation if we've already restored after tab switch
+      if (hasRestoredAfterTabSwitch) return;
+      
       // Start with a reasonable default
       setDuration(180); // 3 minutes as fallback
       
@@ -106,6 +127,12 @@ export function useAudioEvents({
     };
     
     const handleWaiting = () => {
+      // For visibility changes, skip waiting events just after returning
+      if (hasRestoredAfterTabSwitch) {
+        console.log('Ignoring waiting event after tab switch');
+        return;
+      }
+      
       console.log(`Audio is waiting/buffering`);
       
       // Only log buffering state for debugging, never show UI or change state
@@ -122,12 +149,15 @@ export function useAudioEvents({
       
       // CRITICAL: Always force buffering UI to be hidden
       setShowBufferingUI(false);
-      
-      // Do NOT change playback state to buffering, keep the current state
-      // Even for logging/debugging, we'll just keep the existing state
     };
     
     const handleError = (e: Event) => {
+      // Skip error handling if we've already restored after tab switch
+      if (hasRestoredAfterTabSwitch) {
+        console.log('Ignoring error event after tab switch');
+        return;
+      }
+      
       const error = (e.target as HTMLAudioElement).error;
       console.error(`Error with audio playback: ${error?.code} - ${error?.message}`);
       handlePlaybackError();
@@ -176,7 +206,7 @@ export function useAudioEvents({
       audio.removeEventListener("waiting", handleWaiting);
       audio.removeEventListener("error", handleError);
     };
-  }, [isPlaying, playbackState]);
+  }, [isPlaying, playbackState, hasRestoredAfterTabSwitch]);
 
   return { handlePlaybackError: null }; // This is just a placeholder as the hook's main purpose is the effect
 }
