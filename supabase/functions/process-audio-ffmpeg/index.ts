@@ -193,6 +193,13 @@ async function processAudioFile(
       
       console.log(`Lambda service response:`, responseData);
       
+      // Debug output for Opus URL
+      if (responseData.opusUrl) {
+        console.log(`Received Opus URL from Lambda: ${responseData.opusUrl}`);
+      } else {
+        console.log(`No Opus URL received from Lambda, even though one may have been generated`);
+      }
+      
       // Update track with new URLs and status
       await updateTrackWithProcessedUrls(
         supabase,

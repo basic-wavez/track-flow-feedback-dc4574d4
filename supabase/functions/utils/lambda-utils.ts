@@ -52,6 +52,33 @@ export async function callLambdaService(
     const responseData = await response.json();
     console.log(`FFmpeg Lambda service response:`, responseData);
     
+    // If the Lambda response has an Opus URL, log it
+    if (responseData.opusUrl) {
+      console.log(`Lambda returned Opus URL: ${responseData.opusUrl}`);
+    } else {
+      console.log(`No Opus URL returned from Lambda service`);
+      
+      // If we requested 'all' or 'opus' but didn't get an Opus URL, try to construct one
+      // based on the observed S3 bucket pattern if MP3 URL is available
+      if ((requestData.format === 'all' || requestData.format === 'opus') && responseData.mp3Url) {
+        console.log(`Attempting to construct Opus URL from MP3 URL pattern`);
+        
+        // Parse MP3 URL to extract bucket and base path
+        const mp3Url = responseData.mp3Url;
+        
+        // Example: https://processed-audio-demo-manager.s3.amazonaws.com/processed/[trackId]/mp3/[trackId].mp3
+        // Change to: https://processed-audio-demo-manager.s3.amazonaws.com/processed/[trackId]/opus/[trackId].opus
+        const opusUrl = mp3Url
+          .replace('/mp3/', '/opus/')
+          .replace('.mp3', '.opus');
+        
+        console.log(`Constructed potential Opus URL: ${opusUrl}`);
+        
+        // Add the constructed URL to the response
+        responseData.opusUrl = opusUrl;
+      }
+    }
+    
     return responseData;
   } catch (error) {
     console.error(`Error calling FFmpeg Lambda service:`, error);

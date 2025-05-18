@@ -28,12 +28,18 @@ export function parseStorageUrl(url: string): ParsedStorageUrl {
     // This supports both the standard format and variations
     const standardPattern = /\/storage\/v1\/object\/public\/([^\/]+)\/(.+)$/;
     const alternatePattern = /\/storage\/v1\/object\/sign\/([^\/]+)\/(.+)$/;
+    const s3Pattern = /s3\.amazonaws\.com\/([\w-]+)\/(.+)$/;
     
     let match = url.match(standardPattern);
     
     if (!match || match.length !== 3) {
       // Try alternate pattern
       match = url.match(alternatePattern);
+    }
+    
+    if (!match || match.length !== 3) {
+      // Try S3 pattern
+      match = url.match(s3Pattern);
     }
     
     if (match && match.length === 3) {
@@ -87,6 +93,27 @@ export function ensureFullUrl(url: string, baseUrl: string): string {
     // Return the original URL as a fallback
     return url;
   }
+}
+
+/**
+ * Create a URL pointing to a processed file in the S3 bucket
+ * @param trackId Track ID
+ * @param format Format (mp3 or opus)
+ * @param baseUrl Base S3 bucket URL
+ * @returns Full URL to the processed file
+ */
+export function constructProcessedFileUrl(
+  trackId: string,
+  format: 'mp3' | 'opus',
+  baseUrl: string = "https://processed-audio-demo-manager.s3.amazonaws.com"
+): string {
+  const extension = format === 'mp3' ? 'mp3' : 'opus';
+  const path = `processed/${trackId}/${format}/${trackId}.${extension}`;
+  
+  // Ensure baseUrl doesn't end with a slash
+  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  
+  return `${normalizedBaseUrl}/${path}`;
 }
 
 /**
