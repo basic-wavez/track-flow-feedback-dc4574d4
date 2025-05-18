@@ -2,10 +2,22 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { parseStorageUrl } from "../utils/storage-utils.ts";
+import { 
+  updateTrackStatusToProcessing, 
+  updateTrackStatusToFailed,
+  updateTrackWithProcessedUrls,
+  ProcessingFormat
+} from "../utils/status-utils.ts";
+import {
+  callLambdaService,
+  LambdaProcessingRequest,
+  LambdaProcessingResponse
+} from "../utils/lambda-utils.ts";
 
 interface RequestBody {
   trackId: string;
-  format: string; // 'mp3', 'opus', or 'all'
+  format: ProcessingFormat;
   originalUrl: string;
 }
 
@@ -48,7 +60,8 @@ serve(async (req: Request) => {
     }
 
     // Parse request body
-    const { trackId, format, originalUrl } = await req.json() as RequestBody;
+    const requestBody = await req.json() as RequestBody;
+    const { trackId, format, originalUrl } = requestBody;
     
     if (!trackId || !format || !originalUrl) {
       return new Response(JSON.stringify({ error: "Missing required parameters" }), {
@@ -57,18 +70,16 @@ serve(async (req: Request) => {
       });
     }
 
-    // Validate FFMPEG_SERVICE_URL and AWS_LAMBDA_API_KEY
-    if (!FFMPEG_SERVICE_URL) {
-      console.error("Missing FFMPEG_SERVICE_URL environment variable");
-      return new Response(JSON.stringify({ error: "FFMPEG_SERVICE_URL is not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    
-    if (!AWS_LAMBDA_API_KEY) {
-      console.error("Missing AWS_LAMBDA_API_KEY environment variable");
-      return new Response(JSON.stringify({ error: "AWS_LAMBDA_API_KEY is not configured" }), {
+    // Validate environment variables
+    if (!FFMPEG_SERVICE_URL || !AWS_LAMBDA_API_KEY) {
+      const missingVars = [];
+      if (!FFMPEG_SERVICE_URL) missingVars.push("FFMPEG_SERVICE_URL");
+      if (!AWS_LAMBDA_API_KEY) missingVars.push("AWS_LAMBDA_API_KEY");
+      
+      const errorMsg = `Missing required environment variables: ${missingVars.join(", ")}`;
+      console.error(errorMsg);
+      
+      return new Response(JSON.stringify({ error: errorMsg }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -78,7 +89,7 @@ serve(async (req: Request) => {
     
     // Process the audio file using FFmpeg service
     // @ts-ignore: EdgeRuntime exists in Supabase Edge Functions
-    EdgeRuntime.waitUntil(processAudioWithFFmpeg(supabase, trackId, format, originalUrl));
+    EdgeRuntime.waitUntil(processAudioFile(supabase, trackId, format, originalUrl));
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -96,7 +107,10 @@ serve(async (req: Request) => {
   }
 });
 
-async function processAudioWithFFmpeg(supabase: any, trackId: string, format: string, originalUrl: string) {
+/**
+ * Main processing function that handles the audio processing workflow
+ */
+async function processAudioFile(supabase: any, trackId: string, format: ProcessingFormat, originalUrl: string) {
   try {
     // Get the track record to work with
     const { data: track, error: trackError } = await supabase
@@ -114,41 +128,19 @@ async function processAudioWithFFmpeg(supabase: any, trackId: string, format: st
     console.log(`Processing audio for track ${trackId} in format ${format}, original URL: ${originalUrl}`);
     
     // Update track status to processing
-    const updateData: any = {};
-    if (format === 'all' || format === 'mp3') {
-      updateData.processing_status = 'processing';
-    }
-    if (format === 'all' || format === 'opus') {
-      updateData.opus_processing_status = 'processing';
-    }
+    await updateTrackStatusToProcessing(supabase, trackId, format);
     
-    await supabase
-      .from("tracks")
-      .update(updateData)
-      .eq("id", trackId);
-    
-    // Create signed URL for the original file
-    // Extract bucket and path from the original URL
-    let bucketName = '';
-    let filePath = '';
-    
+    // Parse the storage URL to extract bucket and path
+    let parsedUrl;
     try {
-      // Parse storage URL to extract bucket and path
-      const urlPattern = /\/storage\/v1\/object\/public\/([^\/]+)\/(.+)$/;
-      const match = originalUrl.match(urlPattern);
-      
-      if (match && match.length === 3) {
-        bucketName = match[1]; // First capture group is the bucket name
-        filePath = match[2];   // Second capture group is the file path
-      } else {
-        throw new Error("Invalid storage URL format");
-      }
+      parsedUrl = parseStorageUrl(originalUrl);
     } catch (error) {
-      console.error(`Error parsing URL ${originalUrl}:`, error);
+      console.error(`Error parsing URL:`, error);
       await updateTrackStatusToFailed(supabase, trackId, format);
       return;
     }
     
+    const { bucketName, filePath } = parsedUrl;
     console.log(`Creating signed URL for bucket: ${bucketName}, file path: ${filePath}`);
     
     // Create signed URL for FFmpeg service
@@ -164,82 +156,36 @@ async function processAudioWithFFmpeg(supabase: any, trackId: string, format: st
     
     console.log(`Successfully created signed URL with length: ${signedURL.length}`);
     
-    // Call the FFmpeg Lambda service with the correct parameter name (signedUrl)
+    // Prepare request for Lambda service
+    const lambdaRequest: LambdaProcessingRequest = {
+      trackId,
+      format,
+      signedUrl: signedURL // This is the key parameter name that Lambda expects
+    };
+    
+    // Call the FFmpeg Lambda service
     try {
-      console.log(`Calling FFmpeg Lambda at ${FFMPEG_SERVICE_URL}`);
-      
-      const response = await fetch(FFMPEG_SERVICE_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': AWS_LAMBDA_API_KEY
-        },
-        body: JSON.stringify({
-          trackId,
-          format,
-          signedUrl: signedURL  // IMPORTANT: Using signedUrl parameter name to match Lambda expectations
-        })
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`FFmpeg Lambda service responded with status ${response.status}: ${errorText}`);
-      }
-      
-      const responseData = await response.json();
-      console.log(`FFmpeg Lambda service response:`, responseData);
+      const responseData = await callLambdaService(
+        FFMPEG_SERVICE_URL,
+        AWS_LAMBDA_API_KEY,
+        lambdaRequest
+      );
       
       // Update track with new URLs and status
-      const finalUpdateData: any = {};
-      
-      if ((format === 'all' || format === 'mp3') && responseData.mp3Url) {
-        finalUpdateData.mp3_url = responseData.mp3Url;
-        finalUpdateData.processing_status = 'completed';
-        console.log(`MP3 processing completed for track: ${trackId}`);
-      }
-      
-      if ((format === 'all' || format === 'opus') && responseData.opusUrl) {
-        finalUpdateData.opus_url = responseData.opusUrl;
-        finalUpdateData.opus_processing_status = 'completed';
-        console.log(`Opus processing completed for track: ${trackId}`);
-      }
-      
-      if (Object.keys(finalUpdateData).length > 0) {
-        await supabase
-          .from("tracks")
-          .update(finalUpdateData)
-          .eq("id", trackId);
-      }
+      await updateTrackWithProcessedUrls(
+        supabase,
+        trackId,
+        format,
+        responseData.mp3Url,
+        responseData.opusUrl
+      );
       
     } catch (error) {
-      console.error(`Error calling FFmpeg Lambda service:`, error);
+      console.error(`Error processing audio with Lambda:`, error);
       await updateTrackStatusToFailed(supabase, trackId, format);
     }
   } catch (error) {
     console.error(`Error processing audio for track ${trackId}:`, error);
     await updateTrackStatusToFailed(supabase, trackId, format);
-  }
-}
-
-async function updateTrackStatusToFailed(supabase: any, trackId: string, format: string) {
-  try {
-    const updateData: any = {};
-    
-    if (format === 'all' || format === 'mp3') {
-      updateData.processing_status = 'failed';
-    }
-    
-    if (format === 'all' || format === 'opus') {
-      updateData.opus_processing_status = 'failed';
-    }
-    
-    await supabase
-      .from("tracks")
-      .update(updateData)
-      .eq("id", trackId);
-      
-    console.log(`Updated track ${trackId} status to failed for format: ${format}`);
-  } catch (error) {
-    console.error(`Error updating track ${trackId} status to failed:`, error);
   }
 }

@@ -2,10 +2,11 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { ProcessingFormat } from "../utils/status-utils.ts";
 
 interface RequestBody {
   trackId: string;
-  format?: string; // Optional parameter to specify format: 'mp3', 'opus', or 'all'
+  format?: ProcessingFormat; // Optional parameter to specify format: 'mp3', 'opus', or 'all'
 }
 
 const SUPABASE_URL = "https://qzykfyavenplpxpdnfxh.supabase.co";
@@ -55,7 +56,7 @@ serve(async (req: Request) => {
     }
     
     // Update track statuses based on the requested format
-    const updateData: any = {};
+    const updateData: Record<string, string> = {};
     
     if (format === 'all' || format === 'mp3') {
       updateData.processing_status = 'queued';
@@ -79,30 +80,7 @@ serve(async (req: Request) => {
     }
 
     // Ensure the processed_audio bucket exists
-    const { data: bucketData, error: bucketCheckError } = await supabase
-      .storage
-      .listBuckets();
-    
-    if (bucketCheckError) {
-      console.error("Error checking buckets:", bucketCheckError);
-    } else {
-      const bucketExists = bucketData.some(bucket => bucket.name === "processed_audio");
-      
-      if (!bucketExists) {
-        // Create the processed_audio bucket if it doesn't exist
-        const { error: createBucketError } = await supabase
-          .storage
-          .createBucket("processed_audio", {
-            public: true
-          });
-          
-        if (createBucketError) {
-          console.error("Error creating bucket:", createBucketError);
-        } else {
-          console.log("Created processed_audio bucket");
-        }
-      }
-    }
+    await ensureProcessedAudioBucketExists(supabase);
 
     // Get track details to find the audio file
     const { data: track, error: trackError } = await supabase
@@ -120,7 +98,7 @@ serve(async (req: Request) => {
     }
 
     // Get the original URL for the audio file
-    const originalUrl = track.original_url || track.compressed_url;
+    const originalUrl = getOriginalAudioUrl(track);
     if (!originalUrl) {
       return new Response(JSON.stringify({ error: "No audio URL found for this track" }), {
         status: 400,
@@ -129,16 +107,11 @@ serve(async (req: Request) => {
     }
 
     // Ensure the URL is properly formatted with full URL
-    let fullUrl = originalUrl;
-    if (!originalUrl.startsWith('http')) {
-      // If it's just a path, construct the full URL
-      fullUrl = `${SUPABASE_URL}/storage/v1/object/public/${originalUrl}`;
-      console.log(`Constructed full URL from path: ${fullUrl}`);
-    }
+    const fullUrl = ensureFullUrl(originalUrl, SUPABASE_URL);
 
     // Start processing in the background to avoid timeout - now using the FFmpeg function
     // @ts-ignore: EdgeRuntime exists in Supabase Edge Functions
-    EdgeRuntime.waitUntil(processAudioWithFFmpeg(supabase, trackId, format, fullUrl));
+    EdgeRuntime.waitUntil(callProcessAudioFFmpeg(supabase, trackId, format, fullUrl));
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -157,7 +130,63 @@ serve(async (req: Request) => {
   }
 });
 
-async function processAudioWithFFmpeg(supabase: any, trackId: string, format: string, originalUrl: string) {
+/**
+ * Ensures the processed_audio bucket exists
+ */
+async function ensureProcessedAudioBucketExists(supabase: any): Promise<void> {
+  try {
+    const { data: bucketData, error: bucketCheckError } = await supabase
+      .storage
+      .listBuckets();
+    
+    if (bucketCheckError) {
+      console.error("Error checking buckets:", bucketCheckError);
+      return;
+    }
+    
+    const bucketExists = bucketData.some(bucket => bucket.name === "processed_audio");
+    
+    if (!bucketExists) {
+      // Create the processed_audio bucket if it doesn't exist
+      const { error: createBucketError } = await supabase
+        .storage
+        .createBucket("processed_audio", {
+          public: true
+        });
+        
+      if (createBucketError) {
+        console.error("Error creating bucket:", createBucketError);
+      } else {
+        console.log("Created processed_audio bucket");
+      }
+    }
+  } catch (error) {
+    console.error("Error ensuring processed_audio bucket exists:", error);
+  }
+}
+
+/**
+ * Gets the original audio URL from the track record
+ */
+function getOriginalAudioUrl(track: any): string | null {
+  return track.original_url || track.compressed_url || null;
+}
+
+/**
+ * Ensures the URL is a full URL
+ */
+function ensureFullUrl(url: string, baseUrl: string): string {
+  if (url.startsWith('http')) {
+    return url;
+  }
+  // If it's just a path, construct the full URL
+  return `${baseUrl}/storage/v1/object/public/${url}`;
+}
+
+/**
+ * Calls the process-audio-ffmpeg function to process the audio
+ */
+async function callProcessAudioFFmpeg(supabase: any, trackId: string, format: ProcessingFormat, originalUrl: string): Promise<void> {
   try {
     console.log(`Starting FFmpeg audio processing for track: ${trackId}, format: ${format}`);
 
@@ -181,7 +210,7 @@ async function processAudioWithFFmpeg(supabase: any, trackId: string, format: st
       console.error(`Error calling FFmpeg function: ${response.status} - ${errorText}`);
       
       // Update track status to failed
-      const updateData: any = {};
+      const updateData: Record<string, string> = {};
       if (format === 'all' || format === 'mp3') {
         updateData.processing_status = 'failed';
       }
@@ -193,15 +222,17 @@ async function processAudioWithFFmpeg(supabase: any, trackId: string, format: st
         .from("tracks")
         .update(updateData)
         .eq("id", trackId);
+        
+      throw new Error(`FFmpeg function error: ${errorText}`);
     } else {
       const result = await response.json();
       console.log(`FFmpeg processing initiated: ${JSON.stringify(result)}`);
     }
   } catch (error) {
-    console.error(`Error in processAudioWithFFmpeg: ${error.message}`);
+    console.error(`Error in callProcessAudioFFmpeg: ${error.message}`);
     
     // Update track status to failed
-    const updateData: any = {};
+    const updateData: Record<string, string> = {};
     if (format === 'all' || format === 'mp3') {
       updateData.processing_status = 'failed';
     }
