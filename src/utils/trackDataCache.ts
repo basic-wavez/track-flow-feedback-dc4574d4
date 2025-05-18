@@ -1,3 +1,4 @@
+
 /**
  * Track Data Cache Utility
  * 
@@ -14,6 +15,13 @@ interface TrackCacheEntry {
 interface TrackCache {
   [key: string]: TrackCacheEntry;
 }
+
+// Global state for visibility tracking to avoid circular dependencies
+const visibilityState = {
+  lastChangeTimestamp: Date.now(),
+  isVisible: document.visibilityState === 'visible',
+  hasRecentChange: false
+};
 
 // Cache validity duration - 5 minutes
 const CACHE_TTL = 1000 * 60 * 5;
@@ -86,9 +94,53 @@ export const invalidateTrackCache = (key: string): void => {
 };
 
 /**
+ * Updates the visibility state when the document visibility changes
+ * This is called from the visibility change event in main.tsx
+ */
+export const updateVisibilityState = (isNowVisible: boolean): void => {
+  const now = Date.now();
+  const wasVisible = visibilityState.isVisible;
+  visibilityState.isVisible = isNowVisible;
+  
+  // Only mark as a change if we went from hidden to visible
+  if (!wasVisible && isNowVisible) {
+    visibilityState.lastChangeTimestamp = now;
+    visibilityState.hasRecentChange = true;
+    
+    // Store in session storage for cross-component access
+    try {
+      sessionStorage.setItem('last_visibility_change', now.toString());
+      sessionStorage.setItem('is_document_visible', 'true');
+    } catch (e) {
+      console.warn('Error setting visibility state in session storage:', e);
+    }
+    
+    // Reset the change flag after a short delay
+    setTimeout(() => {
+      visibilityState.hasRecentChange = false;
+    }, 2000);
+  } else if (wasVisible && !isNowVisible) {
+    visibilityState.lastChangeTimestamp = now;
+    
+    try {
+      sessionStorage.setItem('last_visibility_change', now.toString());
+      sessionStorage.setItem('is_document_visible', 'false');
+    } catch (e) {
+      console.warn('Error setting visibility state in session storage:', e);
+    }
+  }
+};
+
+/**
  * Checks if a visibility change happened recently
  */
 export const isRecentVisibilityChange = (): boolean => {
+  // First check our in-memory state which is faster and more reliable
+  if (visibilityState.hasRecentChange) {
+    return true;
+  }
+  
+  // Fall back to session storage
   try {
     const lastChange = parseInt(sessionStorage.getItem('last_visibility_change') || '0', 10);
     return Date.now() - lastChange < 2000;
@@ -101,11 +153,7 @@ export const isRecentVisibilityChange = (): boolean => {
  * Gets the current document visibility state
  */
 export const getDocumentVisibilityState = (): 'visible' | 'hidden' => {
-  try {
-    return sessionStorage.getItem('is_document_visible') === 'true' ? 'visible' : 'hidden';
-  } catch (e) {
-    return document.visibilityState as 'visible' | 'hidden';
-  }
+  return visibilityState.isVisible ? 'visible' : 'hidden';
 };
 
 /**
@@ -121,3 +169,20 @@ export const shouldFetchData = (key: string): boolean => {
   // Otherwise fetch based on TTL
   return true;
 };
+
+// Initialize visibility state from session storage if available
+try {
+  const storedVisibility = sessionStorage.getItem('is_document_visible');
+  if (storedVisibility !== null) {
+    visibilityState.isVisible = storedVisibility === 'true';
+  }
+  
+  const storedLastChange = sessionStorage.getItem('last_visibility_change');
+  if (storedLastChange) {
+    const timestamp = parseInt(storedLastChange, 10);
+    visibilityState.lastChangeTimestamp = timestamp;
+    visibilityState.hasRecentChange = Date.now() - timestamp < 2000;
+  }
+} catch (e) {
+  console.warn('Error initializing visibility state from session storage:', e);
+}

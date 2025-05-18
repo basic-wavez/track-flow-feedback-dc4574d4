@@ -1,14 +1,39 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { TrackData } from "@/types/track";
-import { cacheTrackData, getCachedTrackData, isRecentVisibilityChange } from "@/utils/trackDataCache";
-import { failedFetchAttempts, MAX_FETCH_ATTEMPTS, FETCH_COOLDOWN_MS, handleTrackQueryError } from "./trackQueryUtils";
+import { 
+  cacheTrackData, 
+  getCachedTrackData, 
+  isRecentVisibilityChange 
+} from "@/utils/trackDataCache";
+import { 
+  failedFetchAttempts, 
+  MAX_FETCH_ATTEMPTS, 
+  FETCH_COOLDOWN_MS, 
+  handleTrackQueryError,
+  isValidTrackId,
+  isInvalidTrackId,
+  markInvalidTrackId
+} from "./trackQueryUtils";
 
 /**
  * Fetches a track by ID with improved error handling
  */
 export const getTrack = async (trackId: string): Promise<TrackData | null> => {
   try {
+    // Validate track ID format first to fail fast
+    if (!trackId || !isValidTrackId(trackId)) {
+      console.error(`Invalid track ID format: ${trackId}`);
+      markInvalidTrackId(trackId);
+      return null;
+    }
+    
+    // Check if this ID is known to be invalid
+    if (isInvalidTrackId(trackId)) {
+      console.log(`Track ID is known to be invalid, skipping fetch: ${trackId}`);
+      return null;
+    }
+    
     // Reset fetch attempts if it's been more than the cooldown period
     const now = Date.now();
     const failRecord = failedFetchAttempts.get(trackId);

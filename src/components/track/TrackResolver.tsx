@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getTrackIdByShareKey } from "@/services/trackShareService";
+import { isValidTrackId, markInvalidTrackId } from "@/services/track/trackQueryUtils";
 
 // This will store known bad track IDs to prevent repeated attempts to load them
 const INVALID_TRACK_IDS = new Set<string>();
@@ -30,12 +31,6 @@ const TrackResolver = ({
   const isInErrorCooldown = useCallback(() => {
     if (!lastErrorTimeRef.current) return false;
     return (Date.now() - lastErrorTimeRef.current) < ERROR_RETRY_COOLDOWN_MS;
-  }, []);
-
-  // Basic validation for UUID format
-  const isValidUUID = useCallback((id: string): boolean => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(id);
   }, []);
 
   // Resolve track ID from share key if necessary
@@ -71,12 +66,13 @@ const TrackResolver = ({
 
         // Validate track ID format
         if (!actualTrackId) {
-          throw new Error("Invalid track ID");
+          throw new Error("No track ID provided");
         }
         
         // Perform basic UUID validation to prevent unnecessary requests
-        if (!isValidUUID(actualTrackId)) {
+        if (!isValidTrackId(actualTrackId)) {
           INVALID_TRACK_IDS.add(actualTrackId);
+          markInvalidTrackId(actualTrackId);
           throw new Error(`Invalid track ID format: ${actualTrackId}`);
         }
         
@@ -110,7 +106,7 @@ const TrackResolver = ({
     return () => {
       isMountedRef.current = false;
     };
-  }, [trackId, shareKey, isShareRoute, onResolve, isInErrorCooldown, isValidUUID]);
+  }, [trackId, shareKey, isShareRoute, onResolve, isInErrorCooldown]);
 
   return null; // This is a logic-only component with no UI
 };

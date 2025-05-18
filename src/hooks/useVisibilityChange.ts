@@ -1,33 +1,20 @@
 
 import { useEffect, useRef, useState } from "react";
+import { getDocumentVisibilityState, isRecentVisibilityChange } from "@/utils/trackDataCache";
 
 export const useVisibilityChange = () => {
   const [isVisible, setIsVisible] = useState<boolean>(
     document.visibilityState === 'visible'
   );
-  const previousVisibilityRef = useRef<'visible' | 'hidden'>(
-    document.visibilityState === 'visible' ? 'visible' : 'hidden'
-  );
-  const isVisibilityChangeRef = useRef<boolean>(false);
   
+  // Get the current visibility state from our centralized manager
   useEffect(() => {
+    // Initial state
+    setIsVisible(getDocumentVisibilityState() === 'visible');
+    
     const handleVisibilityChange = () => {
-      const wasHidden = previousVisibilityRef.current === 'hidden';
       const isNowVisible = document.visibilityState === 'visible';
-      
-      previousVisibilityRef.current = document.visibilityState === 'visible' ? 'visible' : 'hidden';
       setIsVisible(isNowVisible);
-      
-      // Mark that a visibility change occurred
-      if (wasHidden && isNowVisible) {
-        console.log('Tab became visible');
-        isVisibilityChangeRef.current = true;
-        
-        // Reset after a delay to allow for future genuine navigation events
-        setTimeout(() => {
-          isVisibilityChangeRef.current = false;
-        }, 1000);
-      }
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -39,6 +26,6 @@ export const useVisibilityChange = () => {
   
   return {
     isVisible,
-    isVisibilityChange: isVisibilityChangeRef.current
+    isVisibilityChange: isRecentVisibilityChange()
   };
 };

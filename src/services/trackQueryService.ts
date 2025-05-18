@@ -5,8 +5,4 @@ export { getTrackChunkUrls } from './track/trackChunkService';
 export { getUserTracks } from './track/userTracksService';
 export { getTrackVersions } from './track/trackVersionService';
 
-// Fix the circular dependency in trackQueryUtils
-import { isRecentVisibilityChange as originalIsRecentVisibilityChange } from "@/utils/trackDataCache";
-
-// Re-export the fixed implementation to trackQueryUtils
-export const isRecentVisibilityChange = originalIsRecentVisibilityChange;
+// No need for circular imports anymore as we've fixed the architecture

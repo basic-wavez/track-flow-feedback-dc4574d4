@@ -21,7 +21,6 @@ import BugReportPage from './pages/BugReportPage';
 import CookieConsent from './components/CookieConsent';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import FeedbackView from './pages/FeedbackView';
-import { getLastVisibilityState } from './components/waveform/WaveformCache';
 
 // Create a client with a more robust configuration that prevents tab-switch refreshes
 const queryClient = new QueryClient({
@@ -35,52 +34,21 @@ const queryClient = new QueryClient({
       retry: 1, // Only retry once
       refetchInterval: false, // Prevent periodic refetches
       structuralSharing: true, // Preserve data between renders
-      // Prevent unnecessary refetches by checking the visibility state
-      refetchIntervalInBackground: false,
-      // To stabilize queries after tab visibility changes
-      meta: {
-        preserveOnVisibilityChange: true,
-      },
     },
   },
 });
 
-// Track the document visibility state
-let isDocumentVisible = true;
-let lastVisibilityTime = 0;
-
 // Add a global event listener to prevent query invalidations on visibility change
 if (typeof window !== 'undefined') {
-  isDocumentVisible = document.visibilityState === 'visible';
-
   document.addEventListener('visibilitychange', () => {
-    const now = Date.now();
-    lastVisibilityTime = now;
-    const wasVisible = isDocumentVisible;
-    isDocumentVisible = document.visibilityState === 'visible';
+    const isNowVisible = document.visibilityState === 'visible';
     
     // When the visibility state changes, stabilize the QueryClient
-    if (!wasVisible && isDocumentVisible) {
+    if (isNowVisible) {
       console.log('App: Tab became visible, preventing unnecessary refetches');
       
       // Cancel any pending queries that might have started during tab switch
       queryClient.cancelQueries();
-      
-      // Save the visibility state to session storage for components to check
-      try {
-        sessionStorage.setItem('last_visibility_change', now.toString());
-        sessionStorage.setItem('is_document_visible', 'true');
-      } catch (e) {
-        console.warn('Error setting visibility state in session storage:', e);
-      }
-    } else if (wasVisible && !isDocumentVisible) {
-      console.log('App: Tab became hidden');
-      try {
-        sessionStorage.setItem('last_visibility_change', now.toString());
-        sessionStorage.setItem('is_document_visible', 'false');
-      } catch (e) {
-        console.warn('Error setting visibility state in session storage:', e);
-      }
     }
   });
 }

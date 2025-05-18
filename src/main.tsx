@@ -2,13 +2,10 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { setupVisibilityTracking } from './components/waveform/WaveformCache';
+import { updateVisibilityState } from './utils/trackDataCache';
 
 // Update the document title
 document.title = "Demo Manager";
-
-// Set up global visibility tracking only once at application start
-const cleanupVisibilityTracking = setupVisibilityTracking();
 
 // Store the starting timestamp for this session
 try {
@@ -20,11 +17,15 @@ try {
   }
   
   // Initialize visibility state tracking
-  if (!sessionStorage.getItem('last_visibility_change')) {
-    sessionStorage.setItem('last_visibility_change', Date.now().toString());
-    sessionStorage.setItem('is_document_visible', 
-      document.visibilityState === 'visible' ? 'true' : 'false');
-  }
+  const isVisible = document.visibilityState === 'visible';
+  updateVisibilityState(isVisible);
+  
+  // Set up global visibility tracking
+  document.addEventListener('visibilitychange', () => {
+    const isNowVisible = document.visibilityState === 'visible';
+    updateVisibilityState(isNowVisible);
+  });
+  
 } catch (e) {
   console.warn('Error setting session data:', e);
 }
@@ -34,11 +35,6 @@ createRoot(document.getElementById("root")!).render(<App />);
 
 // Add unload handler to clean up resources
 window.addEventListener('beforeunload', () => {
-  // Clean up visibility tracking
-  if (cleanupVisibilityTracking) {
-    cleanupVisibilityTracking();
-  }
-  
   // Persist important state if needed
   try {
     // Mark the session end time
