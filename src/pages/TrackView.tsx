@@ -21,12 +21,8 @@ const TrackView = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   
   // Use visibility change hook
-  const { isVisibilityChange } = useVisibilityChange();
-  const isVisibilityChangeRef = useRef(isVisibilityChange);
+  const { isVisible } = useVisibilityChange();
   
-  // Update ref when visibility changes
-  isVisibilityChangeRef.current = isVisibilityChange;
-
   // Determine if we're on a share link route by checking the URL pattern
   const isShareRoute = location.pathname.startsWith('/track/share/');
   

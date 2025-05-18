@@ -2,7 +2,6 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { updateVisibilityState } from './utils/trackDataCache';
 
 // Update the document title
 document.title = "Demo Manager";
@@ -15,17 +14,6 @@ try {
   if (!sessionStorage.getItem('track_data_cache')) {
     sessionStorage.setItem('track_data_cache', JSON.stringify({}));
   }
-  
-  // Initialize visibility state tracking
-  const isVisible = document.visibilityState === 'visible';
-  updateVisibilityState(isVisible);
-  
-  // Set up global visibility tracking
-  document.addEventListener('visibilitychange', () => {
-    const isNowVisible = document.visibilityState === 'visible';
-    updateVisibilityState(isNowVisible);
-  });
-  
 } catch (e) {
   console.warn('Error setting session data:', e);
 }

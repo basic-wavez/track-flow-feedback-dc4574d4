@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { TrackData } from "@/types/track";
-import { toast } from "@/hooks/use-toast"; // Import directly from hooks to avoid circular deps
+import { toast } from "@/hooks/use-toast"; // Direct import instead of dynamic import
+import { isRecentVisibilityChange } from "@/hooks/useVisibilityChange";
 
 // Track failed attempts to prevent infinite loops
 export const failedFetchAttempts = new Map<string, { count: number, lastAttempt: number }>();
@@ -91,26 +91,14 @@ export function handleTrackQueryError(error: any, trackId: string): null {
   const failRecord = failedFetchAttempts.get(trackId);
   const toastShown = failRecord && failRecord.count > MAX_FETCH_ATTEMPTS;
   
-  // Import from @/utils/trackDataCache in an async way to avoid circular dependency
-  import('@/utils/trackDataCache').then(({ isRecentVisibilityChange }) => {
-    // Only show toast if not a tab switch and not already shown too many times
-    if (!isRecentVisibilityChange() && !toastShown) {
-      toast({
-        title: "Error Loading Track",
-        description: error.message || "Failed to load track details",
-        variant: "destructive",
-      });
-    }
-  }).catch(() => {
-    // Fallback if import fails
-    if (!toastShown) {
-      toast({
-        title: "Error Loading Track",
-        description: error.message || "Failed to load track details",
-        variant: "destructive",
-      });
-    }
-  });
+  // Only show toast if not a tab switch and not already shown too many times
+  if (!isRecentVisibilityChange() && !toastShown) {
+    toast({
+      title: "Error Loading Track",
+      description: error.message || "Failed to load track details",
+      variant: "destructive",
+    });
+  }
   
   return null;
 }

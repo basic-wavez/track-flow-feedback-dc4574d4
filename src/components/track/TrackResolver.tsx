@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getTrackIdByShareKey } from "@/services/trackShareService";
 import { isValidTrackId, markInvalidTrackId } from "@/services/track/trackQueryUtils";
+import { isRecentVisibilityChange } from "@/hooks/useVisibilityChange";
 
 // This will store known bad track IDs to prevent repeated attempts to load them
 const INVALID_TRACK_IDS = new Set<string>();
@@ -26,6 +27,7 @@ const TrackResolver = ({
   const failureCountRef = useRef(0);
   const lastErrorTimeRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
+  const resolvedRef = useRef(false);
   
   // Function to check if we're in error cooldown period
   const isInErrorCooldown = useCallback(() => {
@@ -35,6 +37,11 @@ const TrackResolver = ({
 
   // Resolve track ID from share key if necessary
   useEffect(() => {
+    // Prevent multiple resolution attempts for the same input
+    if (resolvedRef.current && !isRecentVisibilityChange()) {
+      return;
+    }
+    
     const resolveTrack = async () => {
       try {
         // Skip loading if we're in error cooldown and have exceeded failure threshold
@@ -84,6 +91,7 @@ const TrackResolver = ({
         // Reset error tracking on success
         failureCountRef.current = 0;
         lastErrorTimeRef.current = null;
+        resolvedRef.current = true;
         
         // Call the onResolve callback with the resolved track ID
         if (isMountedRef.current) {

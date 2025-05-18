@@ -22,7 +22,7 @@ import CookieConsent from './components/CookieConsent';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import FeedbackView from './pages/FeedbackView';
 
-// Create a client with a more robust configuration that prevents tab-switch refreshes
+// Create a query client that is resilient to tab switches
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -37,21 +37,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-// Add a global event listener to prevent query invalidations on visibility change
-if (typeof window !== 'undefined') {
-  document.addEventListener('visibilitychange', () => {
-    const isNowVisible = document.visibilityState === 'visible';
-    
-    // When the visibility state changes, stabilize the QueryClient
-    if (isNowVisible) {
-      console.log('App: Tab became visible, preventing unnecessary refetches');
-      
-      // Cancel any pending queries that might have started during tab switch
-      queryClient.cancelQueries();
-    }
-  });
-}
 
 function App() {
   return (
