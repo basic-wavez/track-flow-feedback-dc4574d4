@@ -32,6 +32,8 @@ const TrackView = () => {
   const [currentShareKey, setCurrentShareKey] = useState<string | undefined>(undefined);
   const [resolvedTrackId, setResolvedTrackId] = useState<string | undefined>(params.trackId);
   const [trackVersions, setTrackVersions] = useState<TrackVersion[]>([]);
+  
+  const [refreshKey, setRefreshKey] = useState(0); // Add refresh key for forcing data reload
 
   // Determine if we're on a share link route by checking the URL pattern
   const isShareRoute = location.pathname.startsWith('/track/share/');
@@ -136,7 +138,13 @@ const TrackView = () => {
     };
 
     loadTrack();
-  }, [params.trackId, isShareRoute, user, location.pathname]);
+  }, [params.trackId, isShareRoute, user, location.pathname, refreshKey]); // Add refreshKey to the dependency array
+  
+  // Handler for when processing completes
+  const handleProcessingComplete = () => {
+    console.log("Processing complete - refreshing track data");
+    setRefreshKey(prev => prev + 1); // Increment refresh key to trigger data reload
+  };
 
   // Check if share key is in cooldown period
   const inCooldownPeriod = currentShareKey ? isInCooldownPeriod(currentShareKey) : false;
@@ -212,6 +220,7 @@ const TrackView = () => {
               status={trackData.processing_status || "pending"}
               isOwner={isOwner}
               originalFormat={originalFileType}
+              onComplete={handleProcessingComplete}
             />
           ) : trackData && (
             <TrackPlayer 

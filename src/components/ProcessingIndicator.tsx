@@ -4,7 +4,8 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Loader, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { requestTrackProcessing } from "@/services/trackProcessingService";
+import { requestTrackProcessing, getTrackProcessingStatus } from "@/services/trackProcessingService";
+import { toast } from "sonner";
 
 interface ProcessingIndicatorProps {
   trackId: string;
@@ -12,51 +13,103 @@ interface ProcessingIndicatorProps {
   status: string;
   isOwner: boolean;
   originalFormat?: string;
+  onComplete?: () => void;
 }
 
 const ProcessingIndicator = ({ 
   trackId, 
   trackName, 
-  status, 
+  status: initialStatus, 
   isOwner,
-  originalFormat
+  originalFormat,
+  onComplete
 }: ProcessingIndicatorProps) => {
   const [progress, setProgress] = useState(0);
   const [isRequesting, setIsRequesting] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState(initialStatus);
   
-  // Simulate progress based on status
+  // Poll for status updates
   useEffect(() => {
-    if (status === "pending") {
-      setProgress(10);
-    } else if (status === "queued") {
-      setProgress(25);
-    } else if (status === "processing") {
-      // Simulate incremental progress during processing
-      setProgress(50);
-      const interval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) return 90; // Cap at 90% until complete
-          return prev + 1;
-        });
-      }, 1000);
+    // Set initial status and progress
+    setCurrentStatus(initialStatus);
+    updateProgressFromStatus(initialStatus);
+    
+    if (initialStatus !== "completed" && initialStatus !== "failed") {
+      console.log(`Starting processing status polling for track ${trackId}`);
+      
+      // Poll every 3 seconds
+      const interval = setInterval(async () => {
+        try {
+          const { mp3Status } = await getTrackProcessingStatus(trackId);
+          console.log(`Polling status update for ${trackId}: ${mp3Status}`);
+          
+          if (mp3Status !== currentStatus) {
+            console.log(`Status changed from ${currentStatus} to ${mp3Status}`);
+            setCurrentStatus(mp3Status);
+            updateProgressFromStatus(mp3Status);
+            
+            if (mp3Status === "completed") {
+              console.log("Processing completed - clearing interval");
+              clearInterval(interval);
+              toast.success("Audio processing completed");
+              
+              if (onComplete) {
+                console.log("Invoking onComplete callback");
+                onComplete();
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error polling for processing status:", error);
+        }
+      }, 3000);
       
       return () => clearInterval(interval);
-    } else if (status === "completed") {
-      setProgress(100);
     }
-  }, [status]);
+  }, [trackId, initialStatus]);
+  
+  // Set progress based on status
+  const updateProgressFromStatus = (status: string) => {
+    switch (status) {
+      case "pending":
+        setProgress(10);
+        break;
+      case "queued":
+        setProgress(25);
+        break;
+      case "processing":
+        setProgress(60); // Start higher to show faster progress
+        break;
+      case "completed":
+        setProgress(100);
+        break;
+      case "failed":
+        setProgress(0);
+        break;
+      default:
+        setProgress(10);
+    }
+  };
   
   const handleRequestProcessing = async () => {
     setIsRequesting(true);
     try {
-      await requestTrackProcessing(trackId);
+      const success = await requestTrackProcessing(trackId);
+      if (success) {
+        setCurrentStatus("queued");
+        updateProgressFromStatus("queued");
+        toast.success("Processing requested successfully");
+      }
+    } catch (error) {
+      console.error("Error requesting processing:", error);
+      toast.error("Failed to request processing");
     } finally {
       setIsRequesting(false);
     }
   };
   
   const getStatusDisplay = () => {
-    switch (status) {
+    switch (currentStatus) {
       case "pending":
         return "Waiting to process";
       case "queued":
@@ -65,13 +118,15 @@ const ProcessingIndicator = ({
         return "Processing audio";
       case "failed":
         return "Processing failed";
+      case "completed":
+        return "Processing completed";
       default:
         return "Optimizing for streaming";
     }
   };
   
   const getStatusBadge = () => {
-    switch (status) {
+    switch (currentStatus) {
       case "pending":
         return (
           <Badge variant="outline" className="bg-gray-700 text-gray-300 mt-2">
@@ -95,6 +150,12 @@ const ProcessingIndicator = ({
         return (
           <Badge variant="outline" className="bg-red-900 text-red-200 border-red-700 mt-2">
             Failed
+          </Badge>
+        );
+      case "completed":
+        return (
+          <Badge variant="outline" className="bg-green-900 text-green-200 border-green-700 mt-2">
+            Completed
           </Badge>
         );
       default:
@@ -128,7 +189,7 @@ const ProcessingIndicator = ({
         
         <div className="text-gray-400 text-sm">
           <p>Audio optimization improves streaming quality and performance.</p>
-          {status === "failed" && isOwner && (
+          {currentStatus === "failed" && isOwner && (
             <div className="mt-4">
               <p className="text-red-400 mb-2">
                 Processing failed. You can request processing again.

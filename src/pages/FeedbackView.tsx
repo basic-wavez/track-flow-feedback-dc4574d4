@@ -32,6 +32,7 @@ const FeedbackView = () => {
   });
   const [djSetPercentage, setDjSetPercentage] = useState(0);
   const [listeningPercentage, setListeningPercentage] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0); // Add refresh key for forcing data reload
 
   useEffect(() => {
     const fetchTrackData = async () => {
@@ -51,7 +52,7 @@ const FeedbackView = () => {
     };
 
     fetchTrackData();
-  }, [trackId]);
+  }, [trackId, refreshKey]); // Add refreshKey to dependency array
 
   useEffect(() => {
     const fetchFeedback = async () => {
@@ -162,6 +163,12 @@ const FeedbackView = () => {
     if (rating >= 6) return "text-yellow-400";
     return "text-red-400";
   };
+  
+  // Handler for when processing completes
+  const handleProcessingComplete = () => {
+    console.log("Processing complete in FeedbackView - refreshing track data");
+    setRefreshKey(prev => prev + 1); // Increment refresh key to trigger data reload
+  };
 
   // Determine if we need to show the processing indicator instead of the player
   const originalFileType = trackData ? getFileTypeFromUrl(trackData.original_url) : undefined;
@@ -201,6 +208,7 @@ const FeedbackView = () => {
                 status={trackData.processing_status || "pending"}
                 isOwner={true}
                 originalFormat={originalFileType}
+                onComplete={handleProcessingComplete}
               />
             ) : (
               <TrackPlayer 
