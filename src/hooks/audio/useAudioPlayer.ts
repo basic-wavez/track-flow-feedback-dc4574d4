@@ -14,6 +14,7 @@ export interface UseAudioPlayerProps {
   defaultAudioUrl?: string;
   trackId?: string;
   shareKey?: string;
+  allowBackgroundPlayback?: boolean; // New option to allow background playback
 }
 
 // Track which audio we've already loaded to prevent double-loading on tab switch
@@ -23,7 +24,8 @@ export function useAudioPlayer({
   mp3Url, 
   defaultAudioUrl = "https://assets.mixkit.co/active_storage/sfx/5135/5135.wav",
   trackId,
-  shareKey
+  shareKey,
+  allowBackgroundPlayback = false // Default to false for backward compatibility
 }: UseAudioPlayerProps) {
   // Create audio element reference
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -162,11 +164,14 @@ export function useAudioPlayer({
         // Save state to localStorage for persistence
         saveAudioStateToStorage();
         
-        // If we're playing, pause the audio to save resources
-        if (!audio.paused) {
+        // Only pause the audio if background playback is not allowed
+        if (!audio.paused && !allowBackgroundPlayback) {
+          console.log('Background playback disabled, pausing audio');
           audio.pause();
           // We don't call setIsPlaying(false) here because we want to 
           // remember that the user intended to play this
+        } else if (!audio.paused && allowBackgroundPlayback) {
+          console.log('Background playback enabled, audio continues playing');
         }
       } else if (wasHidden && isNowVisible) {
         // Tab is visible again after being hidden
@@ -185,7 +190,9 @@ export function useAudioPlayer({
           setCurrentTime(lastKnownPositionRef.current);
         }
         
-        if (isPlaying && audio.paused) {
+        // Only try to resume if we previously paused the audio on tab hide
+        // If background playback is enabled, we don't need to resume as it should still be playing
+        if (isPlaying && audio.paused && !allowBackgroundPlayback) {
           // The user had been playing the audio before switching tabs
           
           // Resume playback - with small delay to allow the UI to stabilize
@@ -247,7 +254,7 @@ export function useAudioPlayer({
       // Save state when unmounting component
       saveAudioStateToStorage();
     };
-  }, [isPlaying, setIsPlaying, setPlaybackState, audioLoaded, setAudioLoaded, audioUrl]);
+  }, [isPlaying, setIsPlaying, setPlaybackState, audioLoaded, setAudioLoaded, audioUrl, allowBackgroundPlayback]);
   
   // Mark audio as loaded in cache when it's successfully loaded
   useEffect(() => {
@@ -417,7 +424,8 @@ export function useAudioPlayer({
     playbackState,
     recentlySeekRef,
     currentTime,
-    hasRestoredAfterTabSwitch
+    hasRestoredAfterTabSwitch,
+    allowBackgroundPlayback // Pass the new option to useAudioEffects
   });
 
   return {

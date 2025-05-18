@@ -88,7 +88,8 @@ const TrackPlayer = ({
   } = useAudioPlayer({ 
     mp3Url: playbackUrl,
     trackId,
-    shareKey 
+    shareKey,
+    allowBackgroundPlayback: true // Enable background playback
   });
   
   // Update playedRecently when a track finishes playing

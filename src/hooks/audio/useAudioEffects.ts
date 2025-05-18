@@ -19,7 +19,8 @@ export function useAudioEffects({
   playbackState,
   recentlySeekRef,
   currentTime,
-  hasRestoredAfterTabSwitch = false
+  hasRestoredAfterTabSwitch = false,
+  allowBackgroundPlayback = false // New prop for background playback
 }: any) {
   // Track if this effect has already run for this URL
   const hasInitializedRef = useRef(false);
@@ -53,6 +54,11 @@ export function useAudioEffects({
       if (document.visibilityState === 'hidden') {
         console.log('useAudioEffects: Tab becoming hidden, storing state');
         storeAudioState();
+        
+        // If background playback is enabled, log it
+        if (allowBackgroundPlayback) {
+          console.log('useAudioEffects: Background playback enabled, audio will continue');
+        }
       } else if (document.visibilityState === 'visible') {
         console.log('useAudioEffects: Tab became visible');
       }
@@ -63,7 +69,7 @@ export function useAudioEffects({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [audioUrl, playbackState]);
+  }, [audioUrl, playbackState, allowBackgroundPlayback]);
   
   // Effect to handle URL changes and reset state
   useEffect(() => {
