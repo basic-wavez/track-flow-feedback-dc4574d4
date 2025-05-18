@@ -1,4 +1,3 @@
-
 /**
  * Track Data Cache Utility
  * 
@@ -102,4 +101,3 @@ export const shouldFetchData = (key: string): boolean => {
   // Otherwise fetch based on TTL
   return true;
 };
-

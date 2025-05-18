@@ -1,6 +1,6 @@
 
 import { useQuery } from "@tanstack/react-query";
-import { getUserTracks } from "@/services/trackService";
+import { getUserTracks } from "@/services/trackQueryService";
 import { TrackWithVersions } from "@/types/track";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";

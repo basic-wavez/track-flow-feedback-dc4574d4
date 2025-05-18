@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast"; // Standardize toast import
+import { toast } from "@/components/ui/use-toast"; // Standardize toast import
 import { VisibilityStateManager } from "@/hooks/useVisibilityChange"; // Direct import
 
 // Track failed attempts to prevent infinite loops
