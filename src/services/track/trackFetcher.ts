@@ -5,7 +5,7 @@ import {
   cacheTrackData, 
   getCachedTrackData 
 } from "@/utils/trackDataCache";
-import { isRecentVisibilityChange } from "@/hooks/useVisibilityChange";
+import { VisibilityStateManager } from "@/hooks/useVisibilityChange";
 import { 
   failedFetchAttempts, 
   MAX_FETCH_ATTEMPTS, 
@@ -58,7 +58,7 @@ export const getTrack = async (trackId: string): Promise<TrackData | null> => {
     
     // Return cached data if this is a tab visibility change or we have a cached version
     if (cachedData) {
-      if (isRecentVisibilityChange()) {
+      if (VisibilityStateManager.isRecentChange()) {
         console.log('Using cached track data for tab switch:', trackId);
         return cachedData;
       } else {

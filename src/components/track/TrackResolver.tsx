@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getTrackIdByShareKey } from "@/services/trackShareService";
 import { isValidTrackId, markInvalidTrackId } from "@/services/track/trackQueryUtils";
-import { isRecentVisibilityChange } from "@/hooks/useVisibilityChange";
+import { VisibilityStateManager } from "@/hooks/useVisibilityChange";
 
 // This will store known bad track IDs to prevent repeated attempts to load them
 const INVALID_TRACK_IDS = new Set<string>();
@@ -49,9 +49,16 @@ const TrackResolver = ({
       (isShareRoute && shareKey && !resolvedTrackIdRef.current);
       
     if (!shouldResolve) {
+      console.log('TrackResolver: Skipping resolution, already resolved or no change');
       return;
     }
     
+    // Skip resolution if this is just a tab visibility change
+    if (VisibilityStateManager.isRecentChange() && resolvedRef.current) {
+      console.log('TrackResolver: Skipping resolution on visibility change');
+      return;
+    }
+
     const resolveTrack = async () => {
       try {
         // Skip loading if we're in error cooldown and have exceeded failure threshold

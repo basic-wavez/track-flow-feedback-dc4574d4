@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { getUserTracks } from "@/services/trackService";
 import { TrackWithVersions } from "@/types/track";
 import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/hooks/use-toast"; // Fixed import path
+import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef } from "react";
-import { getDocumentVisibilityState, isRecentVisibilityChange } from "@/hooks/useVisibilityChange";
+import { VisibilityStateManager } from "@/hooks/useVisibilityChange";
 
 /**
  * Hook for fetching user tracks with React Query for better caching and visibility handling
@@ -19,7 +19,7 @@ export function useProfileTracks() {
   // Handle visibility changes
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (getDocumentVisibilityState() === 'visible') {
+      if (VisibilityStateManager.getState() === 'visible') {
         visibilityChangedRef.current = true;
       }
     };
@@ -38,7 +38,7 @@ export function useProfileTracks() {
     isLoading,
     refetch,
     error,
-  } = useQuery({
+  } = useQuery<TrackWithVersions[]>({
     queryKey: ['userTracks', user?.id],
     queryFn: async () => {
       // Skip if not authenticated

@@ -62,23 +62,10 @@ if (typeof document !== 'undefined') {
     const isNowVisible = document.visibilityState === 'visible';
     VisibilityStateManager.updateState(isNowVisible);
   });
+  
+  // Initial state setup
+  VisibilityStateManager.updateState(document.visibilityState === 'visible');
 }
-
-/**
- * Helper function to check recent visibility changes
- * Exported at the module level for easy import without hooks
- */
-export const isRecentVisibilityChange = (): boolean => {
-  return VisibilityStateManager.isRecentChange();
-};
-
-/**
- * Helper function to get current visibility state
- * Exported at the module level for easy import without hooks
- */
-export const getDocumentVisibilityState = (): 'visible' | 'hidden' => {
-  return VisibilityStateManager.getState();
-};
 
 /**
  * Hook that provides the current visibility state of the document
@@ -86,7 +73,7 @@ export const getDocumentVisibilityState = (): 'visible' | 'hidden' => {
  */
 export const useVisibilityChange = () => {
   const [isVisible, setIsVisible] = useState<boolean>(
-    typeof document !== 'undefined' && document.visibilityState === 'visible'
+    typeof document !== 'undefined' ? document.visibilityState === 'visible' : true
   );
   
   useEffect(() => {
@@ -104,6 +91,10 @@ export const useVisibilityChange = () => {
   
   return {
     isVisible,
-    isVisibilityChange: isRecentVisibilityChange()
+    isVisibilityChange: VisibilityStateManager.isRecentChange()
   };
 };
+
+// These exports are for backwards compatibility
+export const isRecentVisibilityChange = VisibilityStateManager.isRecentChange.bind(VisibilityStateManager);
+export const getDocumentVisibilityState = VisibilityStateManager.getState.bind(VisibilityStateManager);

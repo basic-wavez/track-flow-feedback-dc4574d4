@@ -5,7 +5,8 @@
  * unnecessary refetches when switching tabs
  */
 
-import { getDocumentVisibilityState, isRecentVisibilityChange } from "@/hooks/useVisibilityChange";
+// Import visibility functions directly from source
+import { VisibilityStateManager } from "@/hooks/useVisibilityChange";
 
 interface TrackCacheEntry {
   data: any;
@@ -95,11 +96,10 @@ export const shouldFetchData = (key: string): boolean => {
   if (!getCachedTrackData(key)) return true;
   
   // If this is a visibility change and we have cached data, don't fetch
-  if (isRecentVisibilityChange()) return false;
+  if (VisibilityStateManager.isRecentChange()) return false;
   
   // Otherwise fetch based on TTL
   return true;
 };
 
-// Re-export visibility functions to avoid circular dependencies
-export { getDocumentVisibilityState, isRecentVisibilityChange };
+// We no longer re-export visibility functions to avoid circular dependencies

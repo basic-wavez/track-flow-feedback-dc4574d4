@@ -12,7 +12,7 @@ import {
 export function Toaster() {
   const { toasts } = useToast()
 
-  // Limit the number of toasts shown at once to prevent screen flooding
+  // Limit the number of toasts shown at once to prevent screen flooding and performance issues
   const limitedToasts = toasts.slice(0, 2); // Only show up to 2 toasts at once to reduce re-renders
 
   return (

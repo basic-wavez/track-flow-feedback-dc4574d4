@@ -1,6 +1,7 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast"; // Use the correct import path
-import { isRecentVisibilityChange } from "@/hooks/useVisibilityChange";
+import { toast } from "@/hooks/use-toast"; // Standardize toast import
+import { VisibilityStateManager } from "@/hooks/useVisibilityChange"; // Direct import
 
 // Track failed attempts to prevent infinite loops
 export const failedFetchAttempts = new Map<string, { count: number, lastAttempt: number }>();
@@ -101,7 +102,7 @@ export function handleTrackQueryError(error: any, trackId: string): null {
   // 1. Not a tab visibility change event
   // 2. Not already shown too many times
   // 3. Not in toast cooldown period
-  if (!isRecentVisibilityChange() && !isToastCooldown && (!failRecord || failRecord.count <= MAX_FETCH_ATTEMPTS)) {
+  if (!VisibilityStateManager.isRecentChange() && !isToastCooldown && (!failRecord || failRecord.count <= MAX_FETCH_ATTEMPTS)) {
     lastToastTimes.set(errorKey, nowMs);
     
     // Use the toast from the hook with rate limiting

@@ -2,8 +2,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { TrackData, TrackWithVersions, TrackVersion } from "@/types/track";
 import { cacheTrackData, getCachedTrackData } from "@/utils/trackDataCache";
-import { isRecentVisibilityChange } from "@/hooks/useVisibilityChange";
-import { toast } from "@/hooks/use-toast"; // Fixed import path
+import { VisibilityStateManager } from "@/hooks/useVisibilityChange";
+import { toast } from "@/hooks/use-toast";
 import { findRootParentId } from "./trackQueryUtils";
 
 // Store last toast time for rate limiting
@@ -19,7 +19,7 @@ export const getUserTracks = async (): Promise<TrackWithVersions[]> => {
     const cacheKey = 'user_tracks';
     const cachedTracks = getCachedTrackData(cacheKey);
     
-    if (cachedTracks && isRecentVisibilityChange()) {
+    if (cachedTracks && VisibilityStateManager.isRecentChange()) {
       console.log('Using cached user tracks for tab switch');
       return cachedTracks;
     }
@@ -141,7 +141,7 @@ export const getUserTracks = async (): Promise<TrackWithVersions[]> => {
     });
     
     // Only log if this isn't a tab visibility change
-    if (!isRecentVisibilityChange()) {
+    if (!VisibilityStateManager.isRecentChange()) {
       console.log("getUserTracks - Loaded from API:", 
         groupedTracks.map(t => ({
           id: t.id,

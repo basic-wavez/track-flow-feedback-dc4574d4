@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { TrackData } from "@/types/track";
 import { handleError } from "@/utils/errorHandler";
@@ -57,7 +56,7 @@ export const createTrackVersion = async (
 };
 
 /**
- * Simplified function to get the next version number
+ * Helper function to get the next version number
  * Counts all versions in the family and adds one
  */
 async function getNextVersionNumber(rootParentId: string): Promise<number> {

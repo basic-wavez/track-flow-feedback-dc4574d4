@@ -3,7 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { TrackData, TrackVersion } from "@/types/track";
 import { findRootParentId, handleTrackQueryError } from "./trackQueryUtils";
 import { getTrack } from "./trackFetcher";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
+
+// Error toast cooldown tracking to prevent spamming
+const ERROR_TOAST_COOLDOWN_MS = 10000;
+let lastErrorToastTime = 0;
 
 /**
  * Gets all versions of a specific track by finding the root parent and all related tracks
@@ -34,11 +38,18 @@ export const getTrackVersions = async (trackId: string): Promise<TrackData[]> =>
     return familyTracks.sort((a, b) => b.version_number - a.version_number);
   } catch (error: any) {
     console.error("Error loading track versions:", error);
-    useToast().toast({
-      title: "Error Loading Versions",
-      description: error.message || "Failed to load track versions",
-      variant: "destructive",
-    });
+    
+    // Rate-limit toast notifications to prevent spamming
+    const now = Date.now();
+    if (now - lastErrorToastTime > ERROR_TOAST_COOLDOWN_MS) {
+      lastErrorToastTime = now;
+      toast({
+        title: "Error Loading Versions",
+        description: error.message || "Failed to load track versions",
+        variant: "destructive",
+      });
+    }
+    
     return [];
   }
 };
