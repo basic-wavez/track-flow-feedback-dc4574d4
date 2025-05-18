@@ -1,3 +1,4 @@
+
 /**
  * Utility functions for handling audio files
  */
@@ -44,6 +45,14 @@ export const isNativelyPlayable = (fileType: string | undefined): boolean => {
 };
 
 /**
+ * Check if the file is a WAV file format
+ */
+export const isWavFormat = (fileType: string | undefined): boolean => {
+  if (!fileType) return false;
+  return fileType === 'audio/wav' || fileType === 'audio/x-wav';
+};
+
+/**
  * Determine if a processing indicator should be shown based on file type and availability of processed versions
  */
 export const needsProcessingIndicator = (
@@ -52,6 +61,9 @@ export const needsProcessingIndicator = (
   opusUrl: string | undefined | null,
   processingStatus: string | undefined
 ): boolean => {
+  // Special case: WAV files should always play immediately without showing the processing indicator
+  if (isWavFormat(originalFileType)) return false;
+  
   // If MP3 or Opus is available, we don't need the indicator
   if (mp3Url || opusUrl) return false;
   

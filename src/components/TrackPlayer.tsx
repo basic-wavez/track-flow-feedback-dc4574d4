@@ -5,6 +5,7 @@ import TrackHeader from "./player/TrackHeader";
 import PlaybackControls from "./player/PlaybackControls";
 import TrackActions from "./player/TrackActions";
 import { isInServerCooldown } from "@/services/trackShareService";
+import { isWavFormat, getFileTypeFromUrl } from "@/lib/audioUtils";
 
 interface TrackPlayerProps {
   trackId: string;
@@ -45,11 +46,11 @@ const TrackPlayer = ({
   const [serverCooldown, setServerCooldown] = useState(false);
   const [playedRecently, setPlayedRecently] = useState(false);
   
-  // Determine which URL to use for playback - prefer Opus if available, then MP3, then original
+  // Determine which URL to use for playback - prefer Opus if available, then MP3, then audioUrl
   const playbackUrl = opusUrl || mp3Url || audioUrl;
 
   // Determine which URL to use for waveform analysis - ALWAYS prefer MP3 if available
-  const waveformUrl = mp3Url || audioUrl;
+  const waveformUrl = mp3Url || waveformAnalysisUrl;
   
   // Check server cooldown on load
   useEffect(() => {
@@ -103,6 +104,10 @@ const TrackPlayer = ({
     }
   }, [playbackState, currentTime, duration, shareKey]);
   
+  // Check if we're using the original WAV file
+  const originalFileType = getFileTypeFromUrl(originalUrl);
+  const isPlayingWav = isWavFormat(originalFileType) && playbackUrl === originalUrl;
+  
   // Check if we're using the MP3 version
   const usingMp3 = !!mp3Url;
   
@@ -113,6 +118,7 @@ const TrackPlayer = ({
   const getAudioQuality = () => {
     if (usingOpus) return "Opus (96kbps)";
     if (usingMp3) return "MP3 (320kbps)";
+    if (isPlayingWav) return "WAV (Original)";
     return "Original";
   };
   
@@ -126,6 +132,7 @@ const TrackPlayer = ({
   
   // Determine whether to display processing message
   const showProcessingMessage = 
+    (isPlayingWav && processingStatus === 'pending') || 
     (!mp3Url && processingStatus === 'pending') || 
     (!opusUrl && opusProcessingStatus === 'pending');
   
@@ -136,9 +143,10 @@ const TrackPlayer = ({
       waveformUrl,
       originalUrl,
       mp3Url,
-      opusUrl
+      opusUrl,
+      isPlayingWav
     });
-  }, [playbackUrl, waveformUrl, originalUrl, mp3Url, opusUrl]);
+  }, [playbackUrl, waveformUrl, originalUrl, mp3Url, opusUrl, isPlayingWav]);
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
@@ -176,7 +184,11 @@ const TrackPlayer = ({
         onToggleMute={toggleMute}
       />
       
-      {showProcessingMessage && (
+      {isPlayingWav && processingStatus === 'pending' ? (
+        <div className="text-blue-400 text-sm mb-2 bg-blue-900/20 p-2 rounded">
+          Playing WAV file directly. MP3 version is being processed in the background for better streaming quality.
+        </div>
+      ) : showProcessingMessage && (
         <div className="text-yellow-400 text-sm mb-2 bg-yellow-900/20 p-2 rounded">
           {!mp3Url && processingStatus === 'pending' ? (
             "MP3 version is still processing. Waveform and playback may be limited until processing completes."

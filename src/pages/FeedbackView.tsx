@@ -14,7 +14,7 @@ import { getTrack } from "@/services/trackService";
 import { TrackData } from "@/types/track";
 import { getFeedbackForTrack, Feedback } from "@/services/feedbackService";
 import { supabase } from "@/integrations/supabase/client";
-import { getFileTypeFromUrl, needsProcessingIndicator } from "@/lib/audioUtils";
+import { getFileTypeFromUrl, needsProcessingIndicator, isWavFormat } from "@/lib/audioUtils";
 
 const FeedbackView = () => {
   const { trackId } = useParams();
@@ -178,6 +178,31 @@ const FeedbackView = () => {
     trackData.opus_url,
     trackData.processing_status
   ) : false;
+  
+  // Determine which URL to prioritize for playback
+  const getPlaybackUrl = () => {
+    if (!trackData) return undefined;
+    
+    // For WAV files, prioritize the original URL for immediate playback
+    if (isWavFormat(originalFileType)) {
+      return trackData.original_url;
+    }
+    
+    // Otherwise follow the normal priority: MP3 > compressed > original
+    return trackData.mp3_url || trackData.compressed_url || trackData.original_url;
+  };
+  
+  // Get the best URL for waveform analysis
+  const getWaveformUrl = () => {
+    if (!trackData) return undefined;
+    
+    // For WAV files, we can use the original for waveform too
+    if (isWavFormat(originalFileType)) {
+      return trackData.original_url;
+    }
+    
+    return trackData.mp3_url || trackData.compressed_url;
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-wip-dark">
@@ -214,9 +239,9 @@ const FeedbackView = () => {
               <TrackPlayer 
                 trackId={trackId || ''}
                 trackName={trackData.title || 'Untitled Track'} 
-                audioUrl={trackData.mp3_url || trackData.compressed_url}
+                audioUrl={getPlaybackUrl()} // Use our helper function
                 originalUrl={trackData.original_url}
-                waveformAnalysisUrl={trackData.mp3_url || trackData.compressed_url}
+                waveformAnalysisUrl={getWaveformUrl()} // Use our helper function
                 originalFilename={trackData.original_filename}
                 isOwner={true}
                 versionNumber={trackData.version_number || 1}

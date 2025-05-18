@@ -17,7 +17,7 @@ import TrackFeedbackDisplay from "@/components/track/TrackFeedbackDisplay";
 import ShareLinkManager from "@/components/track/ShareLinkManager";
 import { isInCooldownPeriod } from "@/services/playCountService";
 import TrackVersionsDrawer from "@/components/track/TrackVersionsDrawer";
-import { getFileTypeFromUrl, needsProcessingIndicator } from "@/lib/audioUtils";
+import { getFileTypeFromUrl, needsProcessingIndicator, isWavFormat } from "@/lib/audioUtils";
 
 const TrackView = () => {
   const params = useParams<{ trackId?: string; shareKey?: string; "*"?: string }>();
@@ -162,13 +162,38 @@ const TrackView = () => {
   const versionNumber = trackData.version_number || 1;
   
   // Determine if we need to show the processing indicator instead of the player
-  const originalFileType = getFileTypeFromUrl(trackData.original_url);
-  const showProcessingIndicator = needsProcessingIndicator(
+  const originalFileType = getFileTypeFromUrl(trackData?.original_url);
+  const showProcessingIndicator = trackData ? needsProcessingIndicator(
     originalFileType,
     trackData.mp3_url,
     trackData.opus_url,
     trackData.processing_status
-  );
+  ) : false;
+  
+  // Determine which URL to prioritize for playback
+  const getPlaybackUrl = () => {
+    if (!trackData) return undefined;
+    
+    // For WAV files, prioritize the original URL for immediate playback
+    if (isWavFormat(originalFileType)) {
+      return trackData.original_url;
+    }
+    
+    // Otherwise follow the normal priority: MP3 > compressed > original
+    return trackData.mp3_url || trackData.compressed_url || trackData.original_url;
+  };
+  
+  // Get the best URL for waveform analysis
+  const getWaveformUrl = () => {
+    if (!trackData) return undefined;
+    
+    // For WAV files, we can use the original for waveform too
+    if (isWavFormat(originalFileType)) {
+      return trackData.original_url;
+    }
+    
+    return trackData.mp3_url || trackData.compressed_url;
+  };
 
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
@@ -226,9 +251,9 @@ const TrackView = () => {
             <TrackPlayer 
               trackId={trackData.id}
               trackName={trackData.title} 
-              audioUrl={trackData.mp3_url || trackData.compressed_url}
+              audioUrl={getPlaybackUrl()} // Use our helper function
               originalUrl={trackData.original_url}
-              waveformAnalysisUrl={trackData.mp3_url || trackData.compressed_url}
+              waveformAnalysisUrl={getWaveformUrl()} // Use our helper function
               originalFilename={trackData.original_filename}
               isOwner={isOwner}
               mp3Url={trackData.mp3_url}
