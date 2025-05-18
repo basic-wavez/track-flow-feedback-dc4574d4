@@ -1,9 +1,8 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { getDocumentVisibilityState } from "@/hooks/useVisibilityChange";
+import { VisibilityStateManager } from "@/hooks/useVisibilityChange"; // Import the manager directly
 
 interface Profile {
   id: string;
@@ -134,7 +133,8 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
     }
     
     // Skip if the tab isn't visible - don't waste resources
-    if (getDocumentVisibilityState() === 'hidden' && !preventRefreshOnVisibilityChange) {
+    // Use VisibilityStateManager directly instead of imported function
+    if (VisibilityStateManager.getState() === 'hidden' && !preventRefreshOnVisibilityChange) {
       return Promise.resolve();
     }
     

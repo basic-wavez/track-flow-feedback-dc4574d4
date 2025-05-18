@@ -1,3 +1,4 @@
+
 /**
  * Track Data Cache Utility
  * 
@@ -102,4 +103,3 @@ export const shouldFetchData = (key: string): boolean => {
   return true;
 };
 
-// We no longer re-export visibility functions to avoid circular dependencies

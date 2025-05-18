@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { TrackData, TrackVersion } from "@/types/track";
 import { findRootParentId, handleTrackQueryError } from "./trackQueryUtils";
 import { getTrack } from "./trackFetcher";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/components/ui/use-toast";
 
 // Error toast cooldown tracking to prevent spamming
 const ERROR_TOAST_COOLDOWN_MS = 10000;
@@ -43,6 +43,7 @@ export const getTrackVersions = async (trackId: string): Promise<TrackData[]> =>
     const now = Date.now();
     if (now - lastErrorToastTime > ERROR_TOAST_COOLDOWN_MS) {
       lastErrorToastTime = now;
+      // Use imported toast directly instead of React hook
       toast({
         title: "Error Loading Versions",
         description: error.message || "Failed to load track versions",

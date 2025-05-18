@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { TrackData, TrackWithVersions, TrackVersion } from "@/types/track";
 import { cacheTrackData, getCachedTrackData } from "@/utils/trackDataCache";
 import { VisibilityStateManager } from "@/hooks/useVisibilityChange";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/components/ui/use-toast";  // Use the re-exported toast
 import { findRootParentId } from "./trackQueryUtils";
 
 // Store last toast time for rate limiting

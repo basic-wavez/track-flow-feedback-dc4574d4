@@ -1,4 +1,9 @@
 
+/**
+ * Central visibility state management for the entire application
+ * This is implemented as a singleton to prevent circular dependencies
+ */
+
 import { useEffect, useState } from "react";
 
 // Create a centralized visibility state manager (singleton pattern)
@@ -95,6 +100,8 @@ export const useVisibilityChange = () => {
   };
 };
 
-// These exports are for backwards compatibility
-export const isRecentVisibilityChange = VisibilityStateManager.isRecentChange.bind(VisibilityStateManager);
-export const getDocumentVisibilityState = VisibilityStateManager.getState.bind(VisibilityStateManager);
+// Helper function exports that directly use the singleton
+// This avoids issues with hooks being used in non-React components
+export const isRecentVisibilityChange = () => VisibilityStateManager.isRecentChange();
+export const getDocumentVisibilityState = () => VisibilityStateManager.getState();
+

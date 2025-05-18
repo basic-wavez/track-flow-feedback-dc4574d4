@@ -10,7 +10,7 @@ const waveformMemoryCache: Record<string, number[]> = {};
 const analysisAttemptedUrls = new Set<string>();
 
 // Track app visibility state to handle tab switches
-let lastVisibilityState: 'visible' | 'hidden' = document.visibilityState === 'visible' 
+let lastVisibilityState: 'visible' | 'hidden' = typeof document !== 'undefined' && document.visibilityState === 'visible' 
   ? 'visible' 
   : 'hidden';
 let lastVisibilityChangeTime = Date.now();
@@ -164,6 +164,10 @@ export const recordAnalysisTimestamp = (url: string): void => {
  * Track visibility changes
  */
 export const setupVisibilityTracking = (): () => void => {
+  if (typeof document === 'undefined') {
+    return () => {}; // Return no-op for SSR
+  }
+
   const handleVisibilityChange = () => {
     const now = Date.now();
     // Debounce the visibility change event

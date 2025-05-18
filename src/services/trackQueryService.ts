@@ -4,5 +4,3 @@ export { getTrack } from './track/trackFetcher';
 export { getTrackChunkUrls } from './track/trackChunkService';
 export { getUserTracks } from './track/userTracksService';
 export { getTrackVersions } from './track/trackVersionService';
-
-// No need for circular imports anymore as we've fixed the architecture
