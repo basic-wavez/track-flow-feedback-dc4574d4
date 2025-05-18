@@ -13,7 +13,7 @@ import { Button } from "../ui/button";
 import { ArrowUpCircle, History } from "lucide-react";
 import TrackVersionItem from "./TrackVersionItem";
 import { useNavigate } from "react-router-dom";
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useMemo, memo } from "react";
 
 interface TrackVersionsDrawerProps {
   trackId: string;
@@ -24,7 +24,8 @@ interface TrackVersionsDrawerProps {
   onOpenChange?: Dispatch<SetStateAction<boolean>>;
 }
 
-const TrackVersionsDrawer = ({
+// Use memo to prevent unnecessary re-renders
+const TrackVersionsDrawer = memo(({
   trackId,
   trackTitle,
   versions,
@@ -33,17 +34,37 @@ const TrackVersionsDrawer = ({
   onOpenChange,
 }: TrackVersionsDrawerProps) => {
   const navigate = useNavigate();
-  // Always sort versions by version number (highest first)
-  const sortedVersions = [...versions].sort((a, b) => b.version_number - a.version_number);
-  // Log versions for debugging
-  console.log("TrackVersionsDrawer - Received versions:", versions.map(v => ({ id: v.id, version: v.version_number })));
-  console.log("TrackVersionsDrawer - Sorted versions:", sortedVersions.map(v => ({ id: v.id, version: v.version_number })));
   
-  const latestVersion = sortedVersions.find(v => v.is_latest_version) || sortedVersions[0];
+  // Memoize versions sorting to prevent unnecessary recalculations
+  const sortedVersions = useMemo(() => {
+    return [...versions].sort((a, b) => b.version_number - a.version_number);
+  }, [versions]);
   
-  const handleCreateNewVersion = () => {
-    navigate(`/track/${trackId}/version`);
-  };
+  // Skip logging on tab changes by checking for visibility events
+  const shouldLog = useMemo(() => {
+    try {
+      const lastVisibilityChange = parseInt(sessionStorage.getItem('last_visibility_change') || '0', 10);
+      // Only log if not a recent visibility change (within the last 2 seconds)
+      return Date.now() - lastVisibilityChange > 2000;
+    } catch (e) {
+      return true;
+    }
+  }, []);
+  
+  // Only log when appropriate to reduce noise
+  if (shouldLog) {
+    console.log("TrackVersionsDrawer - Versions:", versions.map(v => ({ id: v.id, version: v.version_number })));
+  }
+  
+  // Memoize latest version detection
+  const latestVersion = useMemo(() => {
+    return sortedVersions.find(v => v.is_latest_version) || sortedVersions[0];
+  }, [sortedVersions]);
+  
+  // Memoize create new version handler
+  const handleCreateNewVersion = useMemo(() => {
+    return () => navigate(`/track/${trackId}/version`);
+  }, [navigate, trackId]);
 
   return (
     <Drawer open={isOpen} onOpenChange={onOpenChange}>
@@ -97,6 +118,9 @@ const TrackVersionsDrawer = ({
       </DrawerContent>
     </Drawer>
   );
-};
+});
+
+// Add display name for debugging
+TrackVersionsDrawer.displayName = "TrackVersionsDrawer";
 
 export default TrackVersionsDrawer;

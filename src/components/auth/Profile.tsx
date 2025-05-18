@@ -1,11 +1,11 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, memo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 
-const Profile = () => {
+const Profile = memo(() => {
   const { signOut, session } = useAuth();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -49,6 +49,9 @@ const Profile = () => {
       {isSigningOut ? "Signing out..." : "Sign out"}
     </Button>
   );
-};
+});
+
+// Add display name for better debugging
+Profile.displayName = "Profile";
 
 export default Profile;

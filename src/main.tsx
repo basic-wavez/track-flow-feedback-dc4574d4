@@ -13,8 +13,20 @@ const cleanupVisibilityTracking = setupVisibilityTracking();
 // Store the starting timestamp for this session
 try {
   sessionStorage.setItem('app_session_start', Date.now().toString());
+  
+  // Create a persistent track cache if it doesn't exist
+  if (!sessionStorage.getItem('track_data_cache')) {
+    sessionStorage.setItem('track_data_cache', JSON.stringify({}));
+  }
+  
+  // Initialize visibility state tracking
+  if (!sessionStorage.getItem('last_visibility_change')) {
+    sessionStorage.setItem('last_visibility_change', Date.now().toString());
+    sessionStorage.setItem('is_document_visible', 
+      document.visibilityState === 'visible' ? 'true' : 'false');
+  }
 } catch (e) {
-  console.warn('Error setting session start time:', e);
+  console.warn('Error setting session data:', e);
 }
 
 // Initialize React app
@@ -39,3 +51,30 @@ window.addEventListener('beforeunload', () => {
     console.warn('Error during unload cleanup:', e);
   }
 });
+
+// Function to safely access session storage
+window.getSessionItem = (key: string) => {
+  try {
+    return sessionStorage.getItem(key);
+  } catch (e) {
+    return null;
+  }
+};
+
+// Function to safely set session storage item
+window.setSessionItem = (key: string, value: string) => {
+  try {
+    sessionStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+// Declare the window methods for TypeScript
+declare global {
+  interface Window {
+    getSessionItem: (key: string) => string | null;
+    setSessionItem: (key: string, value: string) => boolean;
+  }
+}

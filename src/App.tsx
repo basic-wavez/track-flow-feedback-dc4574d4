@@ -23,20 +23,20 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import FeedbackView from './pages/FeedbackView';
 import { getLastVisibilityState } from './components/waveform/WaveformCache';
 
-// Create a client with significantly enhanced caching and smarter handling of visibility changes
+// Create a client with a more robust configuration that prevents tab-switch refreshes
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 60 * 3, // 3 hours - data stays fresh much longer
-      gcTime: 1000 * 60 * 60 * 6, // 6 hours - keep in cache much longer
+      staleTime: 1000 * 60 * 60 * 6, // 6 hours - data stays fresh much longer
+      gcTime: 1000 * 60 * 60 * 12, // 12 hours - keep in cache much longer
       refetchOnWindowFocus: false, // Critical: Disable refetching when window regains focus
       refetchOnMount: false, // Don't refetch on component mount
       refetchOnReconnect: false, // Don't refetch on network reconnect
       retry: 1, // Only retry once
-      // Prevent unnecessary refetches when switching tabs
-      refetchInterval: false,
-      // Preserve data between renders
-      structuralSharing: true,
+      refetchInterval: false, // Prevent periodic refetches
+      structuralSharing: true, // Preserve data between renders
+      // Prevent unnecessary refetches by checking the visibility state
+      refetchIntervalInBackground: false,
       // To stabilize queries after tab visibility changes
       meta: {
         preserveOnVisibilityChange: true,
@@ -45,15 +45,42 @@ const queryClient = new QueryClient({
   },
 });
 
+// Track the document visibility state
+let isDocumentVisible = true;
+let lastVisibilityTime = 0;
+
 // Add a global event listener to prevent query invalidations on visibility change
 if (typeof window !== 'undefined') {
+  isDocumentVisible = document.visibilityState === 'visible';
+
   document.addEventListener('visibilitychange', () => {
+    const now = Date.now();
+    lastVisibilityTime = now;
+    const wasVisible = isDocumentVisible;
+    isDocumentVisible = document.visibilityState === 'visible';
+    
     // When the visibility state changes, stabilize the QueryClient
-    if (document.visibilityState === 'visible') {
+    if (!wasVisible && isDocumentVisible) {
       console.log('App: Tab became visible, preventing unnecessary refetches');
       
       // Cancel any pending queries that might have started during tab switch
       queryClient.cancelQueries();
+      
+      // Save the visibility state to session storage for components to check
+      try {
+        sessionStorage.setItem('last_visibility_change', now.toString());
+        sessionStorage.setItem('is_document_visible', 'true');
+      } catch (e) {
+        console.warn('Error setting visibility state in session storage:', e);
+      }
+    } else if (wasVisible && !isDocumentVisible) {
+      console.log('App: Tab became hidden');
+      try {
+        sessionStorage.setItem('last_visibility_change', now.toString());
+        sessionStorage.setItem('is_document_visible', 'false');
+      } catch (e) {
+        console.warn('Error setting visibility state in session storage:', e);
+      }
     }
   });
 }

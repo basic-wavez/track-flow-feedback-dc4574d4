@@ -1,12 +1,24 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { TrackData, TrackWithVersions, TrackVersion } from "@/types/track";
+import { cacheTrackData, getCachedTrackData, isRecentVisibilityChange } from "@/utils/trackDataCache";
 
 /**
  * Fetches a track by ID
  */
 export const getTrack = async (trackId: string): Promise<TrackData | null> => {
   try {
+    // Check cache first
+    const cacheKey = `track_${trackId}`;
+    const cachedData = getCachedTrackData(cacheKey);
+    
+    // Return cached data if this is a tab visibility change
+    if (cachedData && isRecentVisibilityChange()) {
+      console.log('Using cached track data for tab switch:', trackId);
+      return cachedData;
+    }
+    
     const { data: track, error } = await supabase
       .from('tracks')
       .select('*')
@@ -16,6 +28,9 @@ export const getTrack = async (trackId: string): Promise<TrackData | null> => {
     if (error) {
       throw error;
     }
+    
+    // Cache the result
+    cacheTrackData(cacheKey, track);
     
     return track;
   } catch (error: any) {
@@ -30,7 +45,6 @@ export const getTrack = async (trackId: string): Promise<TrackData | null> => {
 
 /**
  * Fetches all chunks for a track and returns their URLs
- * Includes improved error handling and validation
  */
 export const getTrackChunkUrls = async (trackId: string): Promise<string[]> => {
   try {
@@ -127,6 +141,15 @@ export const getTrackChunkUrls = async (trackId: string): Promise<string[]> => {
  */
 export const getUserTracks = async (): Promise<TrackWithVersions[]> => {
   try {
+    // Check if this is a tab visibility change - use cache if available
+    const cacheKey = 'user_tracks';
+    const cachedTracks = getCachedTrackData(cacheKey);
+    
+    if (cachedTracks && isRecentVisibilityChange()) {
+      console.log('Using cached user tracks for tab switch');
+      return cachedTracks;
+    }
+    
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return [];
@@ -243,14 +266,20 @@ export const getUserTracks = async (): Promise<TrackWithVersions[]> => {
       return bDate - aDate; // Most recent first
     });
     
-    console.log("getUserTracks - Returning grouped tracks:", 
-      groupedTracks.map(t => ({
-        id: t.id,
-        title: t.title,
-        versionCount: t.versions.length,
-        versions: t.versions.map(v => v.version_number)
-      }))
-    );
+    // Only log if this isn't a tab visibility change
+    if (!isRecentVisibilityChange()) {
+      console.log("getUserTracks - Loaded from API:", 
+        groupedTracks.map(t => ({
+          id: t.id,
+          title: t.title,
+          versionCount: t.versions.length,
+          versions: t.versions.map(v => v.version_number)
+        }))
+      );
+    }
+    
+    // Cache the result
+    cacheTrackData(cacheKey, groupedTracks);
     
     return groupedTracks;
   } catch (error: any) {
