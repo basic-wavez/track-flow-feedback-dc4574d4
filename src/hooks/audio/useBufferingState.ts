@@ -5,7 +5,8 @@ import { useRef } from "react";
  * Hook that manages buffering-related state and refs
  */
 export function useBufferingState() {
-  const bufferingTimeoutRef = useRef<number | null>(null);
+  // Update the TypeScript type to accommodate both browser's number and Node's Timeout
+  const bufferingTimeoutRef = useRef<number | ReturnType<typeof setTimeout> | null>(null);
   const bufferingStartTimeRef = useRef<number | null>(null);
   const lastSeekTimeRef = useRef<number>(0);
   const recentlySeekRef = useRef<boolean>(false);

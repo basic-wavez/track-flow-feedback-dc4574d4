@@ -18,7 +18,7 @@ export function useAudioBufferingEvents({
   audioRef: React.RefObject<HTMLAudioElement>;
   isPlaying: boolean;
   bufferingStartTimeRef: React.MutableRefObject<number | null>;
-  bufferingTimeoutRef: React.MutableRefObject<number | null>;
+  bufferingTimeoutRef: React.MutableRefObject<number | ReturnType<typeof setTimeout> | null>;
   playClickTimeRef: React.MutableRefObject<number>;
   clearBufferingTimeout: () => void;
   setShowBufferingUI: (show: boolean) => void;

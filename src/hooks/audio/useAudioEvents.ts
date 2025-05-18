@@ -34,7 +34,31 @@ export function useAudioEvents({
   onTrackEnd,
   hasRestoredAfterTabSwitch,
   timeUpdateActiveRef
-}: any) {
+}: {
+  audioRef: React.RefObject<HTMLAudioElement>;
+  audioUrl: string | null | undefined;
+  playbackState: string;
+  isPlaying: boolean;
+  setPlaybackState: (state: string) => void;
+  setDuration: (duration: number) => void;
+  setCurrentTime: (time: number) => void;
+  setIsPlaying: (isPlaying: boolean) => void;
+  setAudioLoaded: (loaded: boolean) => void;
+  setShowBufferingUI: (show: boolean) => void;
+  setLoadRetries: (retries: number) => void;
+  volume: number;
+  isMuted: boolean;
+  bufferingStartTimeRef: React.MutableRefObject<number | null>;
+  bufferingTimeoutRef: React.MutableRefObject<number | ReturnType<typeof setTimeout> | null>;
+  recentlySeekRef: React.MutableRefObject<boolean>;
+  playClickTimeRef: React.MutableRefObject<number>;
+  clearBufferingTimeout: () => void;
+  loadRetries: number;
+  lastSeekTimeRef: React.MutableRefObject<number>;
+  onTrackEnd: () => void;
+  hasRestoredAfterTabSwitch?: React.MutableRefObject<boolean>;
+  timeUpdateActiveRef?: React.MutableRefObject<boolean>;
+}) {
   // Set up volume and mute when they change
   useEffect(() => {
     const audio = audioRef.current;
