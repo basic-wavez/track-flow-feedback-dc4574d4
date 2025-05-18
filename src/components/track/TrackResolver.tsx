@@ -32,6 +32,12 @@ const TrackResolver = ({
     return (Date.now() - lastErrorTimeRef.current) < ERROR_RETRY_COOLDOWN_MS;
   }, []);
 
+  // Basic validation for UUID format
+  const isValidUUID = useCallback((id: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(id);
+  }, []);
+
   // Resolve track ID from share key if necessary
   useEffect(() => {
     const resolveTrack = async () => {
@@ -63,8 +69,15 @@ const TrackResolver = ({
           }
         }
 
+        // Validate track ID format
         if (!actualTrackId) {
           throw new Error("Invalid track ID");
+        }
+        
+        // Perform basic UUID validation to prevent unnecessary requests
+        if (!isValidUUID(actualTrackId)) {
+          INVALID_TRACK_IDS.add(actualTrackId);
+          throw new Error(`Invalid track ID format: ${actualTrackId}`);
         }
         
         // Check if this track ID is known to be invalid
@@ -97,7 +110,7 @@ const TrackResolver = ({
     return () => {
       isMountedRef.current = false;
     };
-  }, [trackId, shareKey, isShareRoute, onResolve, isInErrorCooldown]);
+  }, [trackId, shareKey, isShareRoute, onResolve, isInErrorCooldown, isValidUUID]);
 
   return null; // This is a logic-only component with no UI
 };

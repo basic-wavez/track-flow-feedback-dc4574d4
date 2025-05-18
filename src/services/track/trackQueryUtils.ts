@@ -1,16 +1,19 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { TrackData } from "@/types/track";
-import { useToast } from "@/components/ui/use-toast";
-import { isRecentVisibilityChange as originalIsRecentVisibilityChange } from "@/utils/trackDataCache";
+import { useToast } from "@/hooks/use-toast";
 
 // Track failed attempts to prevent infinite loops
 export const failedFetchAttempts = new Map<string, { count: number, lastAttempt: number }>();
 export const MAX_FETCH_ATTEMPTS = 3;
 export const FETCH_COOLDOWN_MS = 5000; // 5 seconds cooldown
 
-// Re-export the visibility change function
-export const isRecentVisibilityChange = originalIsRecentVisibilityChange;
+// Cache recent visibility changes to avoid unnecessary fetches
+// This needs to be moved to trackDataCache.ts to fix circular dependency
+export const lastVisibilityChange = {
+  timestamp: 0,
+  isVisible: true
+};
 
 /**
  * Helper function to find the root parent of a track
@@ -56,6 +59,9 @@ export function handleTrackQueryError(error: any, trackId: string): null {
   // Don't show toast if we're in cooldown to avoid toast spam
   const failRecord = failedFetchAttempts.get(trackId);
   if (!failRecord || failRecord.count <= MAX_FETCH_ATTEMPTS) {
+    // Import visibility check from trackDataCache to fix circular dependency
+    const { isRecentVisibilityChange } = require("@/utils/trackDataCache");
+    
     if (!isRecentVisibilityChange()) {
       // Only show toast if not a tab switch
       useToast().toast({
