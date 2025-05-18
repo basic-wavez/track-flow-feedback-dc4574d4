@@ -13,12 +13,15 @@ import { Button } from "../ui/button";
 import { ArrowUpCircle, History } from "lucide-react";
 import TrackVersionItem from "./TrackVersionItem";
 import { useNavigate } from "react-router-dom";
+import { Dispatch, SetStateAction } from "react";
 
 interface TrackVersionsDrawerProps {
   trackId: string;
   trackTitle: string;
   versions: TrackVersion[];
   children?: React.ReactNode;
+  isOpen?: boolean;
+  onOpenChange?: Dispatch<SetStateAction<boolean>>;
 }
 
 const TrackVersionsDrawer = ({
@@ -26,6 +29,8 @@ const TrackVersionsDrawer = ({
   trackTitle,
   versions,
   children,
+  isOpen,
+  onOpenChange,
 }: TrackVersionsDrawerProps) => {
   const navigate = useNavigate();
   // Always sort versions by version number (highest first)
@@ -41,7 +46,7 @@ const TrackVersionsDrawer = ({
   };
 
   return (
-    <Drawer>
+    <Drawer open={isOpen} onOpenChange={onOpenChange}>
       <DrawerTrigger asChild>
         {children}
       </DrawerTrigger>

@@ -17,6 +17,7 @@ import ShareLinkManager from "@/components/track/ShareLinkManager";
 import { isInCooldownPeriod } from "@/services/playCountService";
 import TrackVersionsDrawer from "@/components/track/TrackVersionsDrawer";
 import { getFileTypeFromUrl, needsProcessingIndicator, isWavFormat } from "@/lib/audioUtils";
+import { Button } from "@/components/ui/button";
 
 const TrackView = () => {
   const params = useParams<{ trackId?: string; shareKey?: string; "*"?: string }>();
