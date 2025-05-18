@@ -1,3 +1,4 @@
+
 /**
  * Track Data Cache Utility
  * 
@@ -100,3 +101,7 @@ export const shouldFetchData = (key: string): boolean => {
   // Otherwise fetch based on TTL
   return true;
 };
+
+// Re-export visibility functions to avoid circular dependencies
+export { getDocumentVisibilityState, isRecentVisibilityChange };
+

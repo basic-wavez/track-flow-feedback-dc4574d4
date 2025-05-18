@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 // Track visibility state without circular dependencies
 const visibilityState = {
-  isVisible: document.visibilityState === 'visible',
+  isVisible: typeof document !== 'undefined' && document.visibilityState === 'visible',
   lastChangeTime: Date.now(),
   hasRecentChange: false
 };
@@ -52,7 +52,7 @@ if (typeof document !== 'undefined') {
  */
 export const useVisibilityChange = () => {
   const [isVisible, setIsVisible] = useState<boolean>(
-    document.visibilityState === 'visible'
+    typeof document !== 'undefined' && document.visibilityState === 'visible'
   );
   
   useEffect(() => {

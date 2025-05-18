@@ -3,9 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { TrackData } from "@/types/track";
 import { 
   cacheTrackData, 
-  getCachedTrackData, 
-  isRecentVisibilityChange 
+  getCachedTrackData 
 } from "@/utils/trackDataCache";
+import { isRecentVisibilityChange } from "@/hooks/useVisibilityChange";
 import { 
   failedFetchAttempts, 
   MAX_FETCH_ATTEMPTS, 

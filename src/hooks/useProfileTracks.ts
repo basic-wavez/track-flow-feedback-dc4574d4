@@ -1,10 +1,11 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { getUserTracks } from "@/services/trackService";
 import { TrackWithVersions } from "@/types/track";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useEffect, useRef } from "react";
-import { getDocumentVisibilityState } from "@/utils/trackDataCache";
+import { getDocumentVisibilityState } from "@/hooks/useVisibilityChange";
 
 /**
  * Hook for fetching user tracks with React Query for better caching and visibility handling

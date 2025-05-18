@@ -1,6 +1,8 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { TrackData, TrackWithVersions, TrackVersion } from "@/types/track";
-import { cacheTrackData, getCachedTrackData, isRecentVisibilityChange } from "@/utils/trackDataCache";
+import { cacheTrackData, getCachedTrackData } from "@/utils/trackDataCache";
+import { isRecentVisibilityChange } from "@/hooks/useVisibilityChange";
 import { useToast } from "@/components/ui/use-toast";
 import { findRootParentId } from "./trackQueryUtils";
 
