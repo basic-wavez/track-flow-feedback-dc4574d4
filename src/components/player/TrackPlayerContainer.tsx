@@ -5,6 +5,7 @@ import { isInServerCooldown } from "@/services/trackShareService";
 import { isWavFormat, getFileTypeFromUrl } from "@/lib/audioUtils";
 import { TrackVersion } from "@/types/track";
 import TrackPlayer from "./TrackPlayer";
+import { toast } from "@/components/ui/use-toast";
 
 interface TrackPlayerContainerProps {
   trackId: string;
@@ -68,6 +69,18 @@ const TrackPlayerContainer = ({
     checkServerCooldown();
   }, [shareKey]);
   
+  // Log when playback URL changes to help debugging
+  useEffect(() => {
+    console.log(`TrackPlayerContainer: playbackUrl set to ${playbackUrl}`);
+    if (!playbackUrl) {
+      toast({
+        title: "Playback Issue",
+        description: "No audio URL available for playback",
+        variant: "destructive",
+      });
+    }
+  }, [playbackUrl]);
+
   // Use custom hook for audio playback
   const {
     audioRef,
@@ -124,18 +137,6 @@ const TrackPlayerContainer = ({
   // Determine combined cooldown state
   const isCooldown = inCooldownPeriod || serverCooldown;
   
-  // Log which URLs we're using to help with debugging
-  useEffect(() => {
-    console.log('TrackPlayer URLs:', {
-      playbackUrl,
-      waveformUrl,
-      originalUrl,
-      mp3Url,
-      opusUrl,
-      isPlayingWav
-    });
-  }, [playbackUrl, waveformUrl, originalUrl, mp3Url, opusUrl, isPlayingWav]);
-
   return (
     <TrackPlayer
       audioRef={audioRef}

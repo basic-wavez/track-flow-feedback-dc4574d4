@@ -27,18 +27,27 @@ export function useAudioEvents({
   lastSeekTimeRef,
   onTrackEnd,
   hasRestoredAfterTabSwitch,
-  timeUpdateActiveRef // We'll use this to prevent double updates rather than blocking updates
+  timeUpdateActiveRef
 }: any) {
   useEffect(() => {
-    if (!audioUrl) return;
+    if (!audioUrl) {
+      console.log('No audio URL provided - cannot set up audio events');
+      return;
+    }
     
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      console.error('Audio element not found - cannot set up audio events');
+      return;
+    }
 
     // Explicitly load the audio when URL changes
-    audio.load();
-    
-    console.log(`Setting up audio events for URL: ${audioUrl}`);
+    try {
+      console.log(`Loading audio URL: ${audioUrl}`);
+      audio.load();
+    } catch (e) {
+      console.error('Error loading audio:', e);
+    }
     
     // Handlers to set up for the audio element
     const handleLoadedMetadata = () => {
@@ -73,6 +82,8 @@ export function useAudioEvents({
       if (isFinite(audio.duration) && audio.duration > 0) {
         setDuration(audio.duration);
       }
+      
+      setAudioLoaded(true);
     };
     
     // Time update handler - keep this running in background tabs
@@ -174,7 +185,11 @@ export function useAudioEvents({
     };
     
     const handleError = (e: Event) => {
-      console.error("Audio error:", e);
+      const audioElement = e.target as HTMLAudioElement;
+      const errorCode = audioElement?.error?.code;
+      const errorMessage = audioElement?.error?.message;
+      
+      console.error("Audio error:", { code: errorCode, message: errorMessage });
       setPlaybackState('error');
       
       // Retry logic for transient errors

@@ -1,3 +1,4 @@
+
 import { toast } from "@/components/ui/use-toast";
 
 /**
@@ -26,7 +27,16 @@ export function useAudioControls({
   
   const togglePlayPause = () => {
     const audio = audioRef.current;
-    if (!audio || !audioUrl) return;
+    if (!audio) {
+      console.error("Cannot toggle play/pause: Audio element not found");
+      return;
+    }
+    
+    if (!audioUrl) {
+      console.error("Cannot toggle play/pause: No audio URL provided");
+      handlePlaybackError("No audio URL available");
+      return;
+    }
 
     // Record the time when play was clicked
     playClickTimeRef.current = Date.now();
@@ -47,15 +57,40 @@ export function useAudioControls({
       // Always ensure buffering UI is disabled
       setShowBufferingUI(false);
       
-      audio.play()
-        .then(() => {
+      // Try to play and handle failures more gracefully
+      try {
+        const playPromise = audio.play();
+        
+        // Modern browsers return a promise from play()
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log("Playback started successfully");
+              setPlaybackState('playing');
+              setIsPlaying(true);
+            })
+            .catch(error => {
+              console.error("Playback failed:", error.name, error.message);
+              
+              // Provide more detailed error info for debugging
+              if (error.name === 'NotAllowedError') {
+                handlePlaybackError("Playback not allowed - user interaction needed");
+              } else if (error.name === 'NotSupportedError') {
+                handlePlaybackError("Audio format not supported");
+              } else {
+                handlePlaybackError(error.message || "Unknown playback error");
+              }
+            });
+        } else {
+          // Older browsers don't return a promise
+          // Immediately assume it worked, but might fail silently
           setPlaybackState('playing');
           setIsPlaying(true);
-        })
-        .catch(error => {
-          console.error("Playback failed:", error);
-          handlePlaybackError();
-        });
+        }
+      } catch (e) {
+        console.error("Error during play() call:", e);
+        handlePlaybackError("Playback failed");
+      }
     }
   };
 
@@ -110,12 +145,14 @@ export function useAudioControls({
     }
   };
 
-  const handlePlaybackError = () => {
+  const handlePlaybackError = (errorMessage: string = "Could not play this track") => {
+    console.error(`Playback error: ${errorMessage}`);
     setPlaybackState('error');
     setIsPlaying(false);
+    
     toast({
       title: "Playback Error",
-      description: "Could not play this track. Please try again later.",
+      description: errorMessage,
       variant: "destructive",
     });
   };

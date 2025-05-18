@@ -42,9 +42,8 @@ const PlaybackControls = ({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Determine if the button should be disabled
-  // Only disable if explicitly in error state or loading state
-  const isButtonDisabled = playbackState === 'error' || isLoading;
+  // Only disable button if explicitly in error state
+  const isButtonDisabled = playbackState === 'error';
 
   return (
     <div className="flex items-center gap-4 mb-4">

@@ -84,6 +84,7 @@ const TrackPlayer = ({
         ref={audioRef} 
         src={playbackUrl}
         preload="auto"
+        onError={(e) => console.error("Audio error event:", e)}
       />
       
       <TrackHeader 
