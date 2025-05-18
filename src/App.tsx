@@ -20,13 +20,14 @@ import FAQPage from './pages/FAQPage';
 import BugReportPage from './pages/BugReportPage';
 import CookieConsent from './components/CookieConsent';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import FeedbackView from './pages/FeedbackView';
 
 // Create a client with enhanced caching
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 30 * 60 * 1000, // 30 minutes
+      gcTime: 30 * 60 * 1000, // 30 minutes (replacing cacheTime which is deprecated)
       refetchOnWindowFocus: false, // Don't refetch when window regains focus
       refetchOnMount: false, // Don't refetch on component mount
       refetchOnReconnect: false, // Don't refetch on network reconnect
@@ -46,6 +47,7 @@ function App() {
             {/* Important: The more specific route (with shareKey) must come BEFORE the more general route */}
             <Route path="/track/share/:shareKey" element={<TrackView />} />
             <Route path="/track/:trackId" element={<TrackView />} />
+            <Route path="/track/:trackId/feedback" element={<FeedbackView />} />
             
             {/* Protected routes */}
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
