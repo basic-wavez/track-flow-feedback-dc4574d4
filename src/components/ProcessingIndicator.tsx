@@ -11,13 +11,15 @@ interface ProcessingIndicatorProps {
   trackName: string;
   status: string;
   isOwner: boolean;
+  originalFormat?: string;
 }
 
 const ProcessingIndicator = ({ 
   trackId, 
   trackName, 
   status, 
-  isOwner
+  isOwner,
+  originalFormat
 }: ProcessingIndicatorProps) => {
   const [progress, setProgress] = useState(0);
   const [isRequesting, setIsRequesting] = useState(false);
@@ -39,6 +41,8 @@ const ProcessingIndicator = ({
       }, 1000);
       
       return () => clearInterval(interval);
+    } else if (status === "completed") {
+      setProgress(100);
     }
   }, [status]);
   
@@ -98,10 +102,12 @@ const ProcessingIndicator = ({
     }
   };
 
+  const formatName = originalFormat ? ` (${originalFormat.toUpperCase().replace('AUDIO/', '')})` : '';
+
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
       <div className="mb-6">
-        <h2 className="text-xl font-bold gradient-text">{trackName}</h2>
+        <h2 className="text-xl font-bold gradient-text">{trackName}{formatName}</h2>
         <p className="text-gray-400 mt-2">
           We're optimizing your audio for the best streaming experience.
         </p>
@@ -140,7 +146,10 @@ const ProcessingIndicator = ({
                     Requesting...
                   </>
                 ) : (
-                  "Try Again"
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-2" />
+                    Try Again
+                  </>
                 )}
               </Button>
             </div>

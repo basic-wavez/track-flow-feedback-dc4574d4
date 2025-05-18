@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for handling audio files
  */
@@ -23,6 +22,75 @@ export const isAllowedAudioFormat = (file: File): boolean => {
   ];
   
   return allowedTypes.includes(file.type);
+};
+
+/**
+ * Check if the file is natively playable in browsers
+ * WAV, MP3 and AAC/MP4 are generally supported in modern browsers
+ */
+export const isNativelyPlayable = (fileType: string | undefined): boolean => {
+  if (!fileType) return false;
+  
+  const nativelyPlayable = [
+    'audio/mpeg', // MP3
+    'audio/wav', // WAV
+    'audio/x-wav',
+    'audio/mp4', // AAC/MP4
+    'audio/aac',
+    'audio/x-m4a'
+  ];
+  
+  return nativelyPlayable.includes(fileType);
+};
+
+/**
+ * Determine if a processing indicator should be shown based on file type and availability of processed versions
+ */
+export const needsProcessingIndicator = (
+  originalFileType: string | undefined, 
+  mp3Url: string | undefined | null,
+  opusUrl: string | undefined | null,
+  processingStatus: string | undefined
+): boolean => {
+  // If MP3 or Opus is available, we don't need the indicator
+  if (mp3Url || opusUrl) return false;
+  
+  // If file is natively playable and not being processed, no need for indicator
+  if (isNativelyPlayable(originalFileType) && processingStatus !== 'processing') return false;
+  
+  // If processing is completed but we still don't have URLs, something went wrong
+  if (processingStatus === 'completed') return false;
+  
+  // Otherwise, we need the indicator
+  return true;
+};
+
+/**
+ * Helper to get file type from URL or filename
+ */
+export const getFileTypeFromUrl = (url: string | undefined): string | undefined => {
+  if (!url) return undefined;
+  
+  const extension = url.split('.').pop()?.toLowerCase();
+  
+  switch (extension) {
+    case 'mp3':
+      return 'audio/mpeg';
+    case 'wav':
+      return 'audio/wav';
+    case 'flac':
+      return 'audio/flac';
+    case 'aiff':
+    case 'aif':
+      return 'audio/aiff';
+    case 'mp4':
+    case 'm4a':
+      return 'audio/mp4';
+    case 'opus':
+      return 'audio/opus';
+    default:
+      return undefined;
+  }
 };
 
 /**

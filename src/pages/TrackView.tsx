@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowUpCircle, History } from "lucide-react"; // Added proper import for icons
+import { ArrowUpCircle, History } from "lucide-react";
 import TrackPlayer from "@/components/TrackPlayer";
+import ProcessingIndicator from "@/components/ProcessingIndicator";
 import TrackFeedbackSection from "@/components/track/TrackFeedbackSection";
 import TrackLoading from "@/components/track/TrackLoading";
 import TrackNotFound from "@/components/track/TrackNotFound";
@@ -16,7 +17,7 @@ import TrackFeedbackDisplay from "@/components/track/TrackFeedbackDisplay";
 import ShareLinkManager from "@/components/track/ShareLinkManager";
 import { isInCooldownPeriod } from "@/services/playCountService";
 import TrackVersionsDrawer from "@/components/track/TrackVersionsDrawer";
-import VersionControls from "@/components/track/VersionControls";
+import { getFileTypeFromUrl, needsProcessingIndicator } from "@/lib/audioUtils";
 
 const TrackView = () => {
   const params = useParams<{ trackId?: string; shareKey?: string; "*"?: string }>();
@@ -151,6 +152,15 @@ const TrackView = () => {
   // Use the original filename for display - this keeps hyphens and original capitalization
   const displayName = trackData.title;
   const versionNumber = trackData.version_number || 1;
+  
+  // Determine if we need to show the processing indicator instead of the player
+  const originalFileType = getFileTypeFromUrl(trackData.original_url);
+  const showProcessingIndicator = needsProcessingIndicator(
+    originalFileType,
+    trackData.mp3_url,
+    trackData.opus_url,
+    trackData.processing_status
+  );
 
   return (
     <div className="min-h-screen bg-wip-dark flex flex-col">
@@ -195,7 +205,15 @@ const TrackView = () => {
             )}
           </div>
           
-          {trackData && (
+          {trackData && showProcessingIndicator ? (
+            <ProcessingIndicator
+              trackId={trackData.id}
+              trackName={trackData.title}
+              status={trackData.processing_status || "pending"}
+              isOwner={isOwner}
+              originalFormat={originalFileType}
+            />
+          ) : trackData && (
             <TrackPlayer 
               trackId={trackData.id}
               trackName={trackData.title} 

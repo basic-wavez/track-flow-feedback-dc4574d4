@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import TrackPlayer from "@/components/TrackPlayer";
+import ProcessingIndicator from "@/components/ProcessingIndicator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
@@ -13,6 +14,7 @@ import { getTrack } from "@/services/trackService";
 import { TrackData } from "@/types/track";
 import { getFeedbackForTrack, Feedback } from "@/services/feedbackService";
 import { supabase } from "@/integrations/supabase/client";
+import { getFileTypeFromUrl, needsProcessingIndicator } from "@/lib/audioUtils";
 
 const FeedbackView = () => {
   const { trackId } = useParams();
@@ -161,6 +163,15 @@ const FeedbackView = () => {
     return "text-red-400";
   };
 
+  // Determine if we need to show the processing indicator instead of the player
+  const originalFileType = trackData ? getFileTypeFromUrl(trackData.original_url) : undefined;
+  const showProcessingIndicator = trackData ? needsProcessingIndicator(
+    originalFileType,
+    trackData.mp3_url,
+    trackData.opus_url,
+    trackData.processing_status
+  ) : false;
+
   return (
     <div className="min-h-screen flex flex-col bg-wip-dark">
       <Header />
@@ -183,17 +194,27 @@ const FeedbackView = () => {
       <div className="flex-1 py-12 px-4">
         <div className="max-w-5xl mx-auto space-y-8">
           {trackData ? (
-            <TrackPlayer 
-              trackId={trackId || ''}
-              trackName={trackData.title || 'Untitled Track'} 
-              audioUrl={trackData.mp3_url || trackData.compressed_url}
-              originalUrl={trackData.original_url}
-              waveformAnalysisUrl={trackData.mp3_url || trackData.compressed_url}
-              originalFilename={trackData.original_filename}
-              isOwner={true}
-              versionNumber={trackData.version_number || 1}
-              mp3Url={trackData.mp3_url}
-            />
+            showProcessingIndicator ? (
+              <ProcessingIndicator
+                trackId={trackId || ''}
+                trackName={trackData.title || 'Untitled Track'}
+                status={trackData.processing_status || "pending"}
+                isOwner={true}
+                originalFormat={originalFileType}
+              />
+            ) : (
+              <TrackPlayer 
+                trackId={trackId || ''}
+                trackName={trackData.title || 'Untitled Track'} 
+                audioUrl={trackData.mp3_url || trackData.compressed_url}
+                originalUrl={trackData.original_url}
+                waveformAnalysisUrl={trackData.mp3_url || trackData.compressed_url}
+                originalFilename={trackData.original_filename}
+                isOwner={true}
+                versionNumber={trackData.version_number || 1}
+                mp3Url={trackData.mp3_url}
+              />
+            )
           ) : (
             <div className="h-60 bg-wip-darker rounded-lg flex items-center justify-center">
               <p className="text-wip-pink">{isLoading ? 'Loading track...' : 'Track not found'}</p>
