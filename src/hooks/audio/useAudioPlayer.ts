@@ -1,5 +1,5 @@
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useAudioState } from "./useAudioState";
 import { useBufferingState } from "./useBufferingState";
 import { useAudioEvents } from "./useAudioEvents";
@@ -51,6 +51,55 @@ export function useAudioPlayer({
     playClickTimeRef,
     clearBufferingTimeout
   } = useBufferingState();
+
+  // Store the last known position for tab switching
+  const lastKnownPositionRef = useRef<number>(0);
+
+  // Handle visibility change to persist audio state between tab switches
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      if (document.hidden) {
+        // Tab is hidden, store the current position
+        lastKnownPositionRef.current = audio.currentTime;
+        
+        // If we're playing, pause the audio to save resources
+        if (!audio.paused) {
+          audio.pause();
+          // We don't call setIsPlaying(false) here because we want to 
+          // remember that the user intended to play this
+        }
+      } else {
+        // Tab is visible again
+        if (isPlaying && audio.paused) {
+          // The user had been playing the audio before switching tabs
+          audio.currentTime = lastKnownPositionRef.current;
+          
+          // Resume playback
+          audio.play()
+            .then(() => {
+              // Successfully resumed
+            })
+            .catch(error => {
+              console.error('Error resuming audio after tab switch:', error);
+              setPlaybackState('error');
+              setIsPlaying(false);
+            });
+        } else {
+          // Just restore the position if we were paused
+          audio.currentTime = lastKnownPositionRef.current;
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isPlaying, setIsPlaying, setPlaybackState]);
 
   // Custom toggle play/pause handler for play count tracking
   const handleTogglePlayPause = () => {

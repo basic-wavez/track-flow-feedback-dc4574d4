@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import Waveform from "./Waveform";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
@@ -114,27 +115,10 @@ const TrackPlayer = ({
   // Check if we're using the Opus version
   const usingOpus = !!opusUrl;
   
-  // Determine audio quality based on format
-  const getAudioQuality = () => {
-    if (usingOpus) return "Opus (96kbps)";
-    if (usingMp3) return "MP3 (320kbps)";
-    if (isPlayingWav) return "WAV (Original)";
-    return "Original";
-  };
-  
-  // Show format indicator
-  const formatIndicator = getAudioQuality();
-  
   const isLoading = playbackState === 'loading';
   
   // Determine combined cooldown state
   const isCooldown = inCooldownPeriod || serverCooldown;
-  
-  // Determine whether to display processing message
-  const showProcessingMessage = 
-    (isPlayingWav && processingStatus === 'pending') || 
-    (!mp3Url && processingStatus === 'pending') || 
-    (!opusUrl && opusProcessingStatus === 'pending');
   
   // Log which URLs we're using to help with debugging
   useEffect(() => {
@@ -188,21 +172,7 @@ const TrackPlayer = ({
         <div className="text-blue-400 text-sm mb-2 bg-blue-900/20 p-2 rounded">
           Playing WAV file directly. MP3 version is being processed in the background for better streaming quality.
         </div>
-      ) : showProcessingMessage && (
-        <div className="text-yellow-400 text-sm mb-2 bg-yellow-900/20 p-2 rounded">
-          {!mp3Url && processingStatus === 'pending' ? (
-            "MP3 version is still processing. Waveform and playback may be limited until processing completes."
-          ) : (
-            "Opus version is still processing. Higher quality playback will be available soon."
-          )}
-        </div>
-      )}
-      
-      <div className="flex justify-end mb-2">
-        <span className="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
-          {formatIndicator}
-        </span>
-      </div>
+      ) : null}
       
       <Waveform 
         audioUrl={playbackUrl}
@@ -218,7 +188,7 @@ const TrackPlayer = ({
         isOpusAvailable={usingOpus}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
-        audioQuality={formatIndicator}
+        audioQuality={''}  // Removed format indicator by passing empty string
       />
       
       <TrackActions 
