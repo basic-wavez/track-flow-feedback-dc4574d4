@@ -1,17 +1,20 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 
 const Profile = () => {
-  const { signOut } = useAuth();
+  const { signOut, session } = useAuth();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { toast } = useToast();
 
-  const handleSignOut = async () => {
+  // Memoize the signout function to prevent unnecessary rerenders
+  const handleSignOut = useCallback(async () => {
+    if (isSigningOut) return; // Prevent multiple sign-out attempts
+    
     setIsSigningOut(true);
     try {
       await signOut();
@@ -29,7 +32,11 @@ const Profile = () => {
     } finally {
       setIsSigningOut(false);
     }
-  };
+  }, [signOut, navigate, toast, isSigningOut]);
+
+  // More efficient rendering that depends only on session.access_token
+  // instead of the entire user object
+  const isLoggedIn = !!session?.access_token;
 
   return (
     <Button 
@@ -37,7 +44,7 @@ const Profile = () => {
       size="sm" 
       className="border-wip-pink text-wip-pink hover:bg-wip-pink/10"
       onClick={handleSignOut}
-      disabled={isSigningOut}
+      disabled={isSigningOut || !isLoggedIn}
     >
       {isSigningOut ? "Signing out..." : "Sign out"}
     </Button>

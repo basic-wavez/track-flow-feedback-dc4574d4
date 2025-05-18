@@ -21,25 +21,47 @@ import BugReportPage from './pages/BugReportPage';
 import CookieConsent from './components/CookieConsent';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import FeedbackView from './pages/FeedbackView';
+import { getLastVisibilityState } from './components/waveform/WaveformCache';
 
-// Create a client with enhanced caching and visibility change handling
+// Create a client with significantly enhanced caching and smarter handling of visibility changes
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 30, // 30 minutes - data is fresh for much longer
-      gcTime: 1000 * 60 * 60, // 60 minutes - keep in cache longer (replacing cacheTime)
+      staleTime: 1000 * 60 * 60 * 3, // 3 hours - data stays fresh much longer
+      gcTime: 1000 * 60 * 60 * 6, // 6 hours - keep in cache much longer
       refetchOnWindowFocus: false, // Critical: Disable refetching when window regains focus
       refetchOnMount: false, // Don't refetch on component mount
       refetchOnReconnect: false, // Don't refetch on network reconnect
       retry: 1, // Only retry once
+      // Prevent unnecessary refetches when switching tabs
+      refetchInterval: false,
+      // Preserve data between renders
+      structuralSharing: true,
+      // To stabilize queries after tab visibility changes
+      meta: {
+        preserveOnVisibilityChange: true,
+      },
     },
   },
 });
 
+// Add a global event listener to prevent query invalidations on visibility change
+if (typeof window !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    // When the visibility state changes, stabilize the QueryClient
+    if (document.visibilityState === 'visible') {
+      console.log('App: Tab became visible, preventing unnecessary refetches');
+      
+      // Cancel any pending queries that might have started during tab switch
+      queryClient.cancelQueries();
+    }
+  });
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+      <AuthProvider preventRefreshOnVisibilityChange={true}>
         <Router>
           <Routes>
             <Route path="/" element={<Index />} />

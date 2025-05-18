@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +17,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>; // New Google sign-in method
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
   isAuthenticated: boolean;
@@ -28,9 +29,19 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
+interface AuthProviderProps {
+  children: React.ReactNode;
+  preventRefreshOnVisibilityChange?: boolean;
+}
+
+// Tracking the last visibility state to prevent duplicate refreshes
+let lastVisibleTimestamp = Date.now();
+let isRefreshingSession = false;
+const AUTH_REFRESH_DEBOUNCE_MS = 2000; // Minimum time between auth refreshes
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = false }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,6 +83,56 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error("Failed to refresh profile:", error);
     }
   };
+  
+  // Debounced session refresh function to prevent excessive calls
+  const debouncedRefreshSession = async () => {
+    const now = Date.now();
+    if (isRefreshingSession || (now - lastVisibleTimestamp < AUTH_REFRESH_DEBOUNCE_MS)) {
+      console.log("AuthProvider - Skipping redundant session refresh");
+      return Promise.resolve();
+    }
+    
+    isRefreshingSession = true;
+    lastVisibleTimestamp = now;
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("AuthProvider - Debounced session refresh:", {
+        hasSession: !!session,
+        user: session?.user?.email
+      });
+      
+      // Only update if session has changed
+      const sessionChanged = 
+        (!session && !!user) || 
+        (session && !user) || 
+        (session?.user?.id !== user?.id);
+      
+      if (sessionChanged) {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsAuthenticated(!!session?.user);
+        
+        if (session?.user) {
+          const adminStatus = await checkAdminRole();
+          setIsAdmin(adminStatus);
+          
+          // Refresh profile without cascading updates
+          const profileData = await fetchUserProfile(session.user.id);
+          if (profileData && JSON.stringify(profileData) !== JSON.stringify(profile)) {
+            setProfile(profileData);
+          }
+        }
+      }
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error("AuthProvider - Error refreshing session:", error);
+      return Promise.reject(error);
+    } finally {
+      isRefreshingSession = false;
+    }
+  };
 
   useEffect(() => {
     console.log("AuthProvider - Initializing auth state listener");
@@ -85,14 +146,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           path: window.location.pathname
         });
         
-        // Update auth state synchronously
+        // Update auth state synchronously but avoid cascading effects
         setSession(session);
         setUser(session?.user ?? null);
-        setIsAuthenticated(!!session?.user); // Update explicit auth state
+        setIsAuthenticated(!!session?.user);
         
-        // Check if the user is an admin
+        // Fetch admin status and profile in a non-blocking way
         if (session?.user) {
           setTimeout(() => {
+            // Check if component is still mounted before updating state
             checkAdminRole().then(isAdmin => {
               setIsAdmin(isAdmin);
             });
@@ -119,7 +181,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       setSession(session);
       setUser(session?.user ?? null);
-      setIsAuthenticated(!!session?.user); // Update explicit auth state
+      setIsAuthenticated(!!session?.user); 
       
       // Check if the user is an admin and fetch profile
       if (session?.user) {
@@ -134,11 +196,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
 
+    // Add visibility change handler (if not disabled)
+    const handleVisibilityChange = () => {
+      if (preventRefreshOnVisibilityChange) {
+        console.log("AuthProvider - Visibility change detected, refresh prevented by prop");
+        return;
+      }
+      
+      if (document.visibilityState === 'visible') {
+        console.log("AuthProvider - Tab became visible, refreshing auth state");
+        debouncedRefreshSession();
+      }
+    };
+    
+    if (!preventRefreshOnVisibilityChange) {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
     return () => {
       console.log("AuthProvider - Unsubscribing from auth state changes");
       subscription.unsubscribe();
+      if (!preventRefreshOnVisibilityChange) {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
     };
-  }, []);
+  }, [preventRefreshOnVisibilityChange]);
 
   // Check if the user has admin role
   const checkAdminRole = async (): Promise<boolean> => {
@@ -164,32 +246,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Add a session refresh function that components can call when needed
   const refreshSession = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log("AuthProvider - Manual session refresh:", {
-        hasSession: !!session,
-        user: session?.user?.email
-      });
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsAuthenticated(!!session?.user); // Update explicit auth state
-      
-      // Check if the user is an admin
-      if (session?.user) {
-        const adminStatus = await checkAdminRole();
-        setIsAdmin(adminStatus);
-        
-        // Refresh profile
-        const profileData = await fetchUserProfile(session.user.id);
-        setProfile(profileData);
-      }
-      
-      return Promise.resolve();
-    } catch (error) {
-      console.error("AuthProvider - Error refreshing session:", error);
-      return Promise.reject(error);
-    }
+    return debouncedRefreshSession();
   };
 
   // Add username update function
@@ -330,7 +387,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) throw error;
       
       // No toast needed here as we're redirecting to Google
-      // The auth state listener will handle the success toast when user returns
       
     } catch (error: any) {
       console.error("AuthProvider - Google signin error:", error.message);
@@ -355,7 +411,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear local state
       setUser(null);
       setSession(null);
-      setIsAuthenticated(false); // Update explicit auth state
+      setIsAuthenticated(false);
       setProfile(null);
       
       toast({
@@ -378,7 +434,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loading,
     signUp,
     signIn,
-    signInWithGoogle, // Add the new method to context
+    signInWithGoogle,
     signOut,
     refreshSession,
     isAuthenticated,

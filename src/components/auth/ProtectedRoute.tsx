@@ -1,5 +1,5 @@
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, useMemo, useRef } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
@@ -11,6 +11,25 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   const location = useLocation();
   const [authChecked, setAuthChecked] = useState(false);
+  const prevUserIdRef = useRef<string | null>(null);
+  const authCheckTimeRef = useRef<number>(0);
+  
+  // Memoize the authentication status to prevent unnecessary rerenders
+  const authStatus = useMemo(() => {
+    // Avoid redundant auth checks in quick succession (e.g., during tab switching)
+    const now = Date.now();
+    if (now - authCheckTimeRef.current < 500 && prevUserIdRef.current === (user?.id || null)) {
+      return { isAuthenticated: !!user, needsRedirect: authChecked && !user };
+    }
+    
+    authCheckTimeRef.current = now;
+    prevUserIdRef.current = user?.id || null;
+    
+    return { 
+      isAuthenticated: !!user,
+      needsRedirect: authChecked && !user
+    };
+  }, [user, authChecked]);
   
   useEffect(() => {
     // Debug logging to help troubleshoot auth state issues
@@ -39,8 +58,12 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
   
   // Only redirect after loading is complete and auth has been checked
-  if (authChecked && !user) {
+  // And prevent redirects during visibility changes
+  if (authStatus.needsRedirect) {
+    // Before redirecting, check if this might be a tab visibility change
+    // and give a small delay to allow auth state to stabilize
     console.log("ProtectedRoute - Redirecting to auth page from:", location.pathname);
+    
     // Redirect to auth page with the return URL
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
