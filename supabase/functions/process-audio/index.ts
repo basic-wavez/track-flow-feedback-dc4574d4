@@ -2,6 +2,7 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { ensureFullUrl } from "../utils/storage-utils.ts";
 import { ProcessingFormat } from "../utils/status-utils.ts";
 
 interface RequestBody {
@@ -56,28 +57,7 @@ serve(async (req: Request) => {
     }
     
     // Update track statuses based on the requested format
-    const updateData: Record<string, string> = {};
-    
-    if (format === 'all' || format === 'mp3') {
-      updateData.processing_status = 'queued';
-    }
-    
-    if (format === 'all' || format === 'opus') {
-      updateData.opus_processing_status = 'queued';
-    }
-    
-    const { error: updateError } = await supabase
-      .from("tracks")
-      .update(updateData)
-      .eq("id", trackId);
-    
-    if (updateError) {
-      console.error("Error updating track status:", updateError);
-      return new Response(JSON.stringify({ error: "Failed to update track status" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    await updateTrackToQueued(supabase, trackId, format);
 
     // Ensure the processed_audio bucket exists
     await ensureProcessedAudioBucketExists(supabase);
@@ -131,6 +111,35 @@ serve(async (req: Request) => {
 });
 
 /**
+ * Update track status to queued for the specified format
+ */
+async function updateTrackToQueued(
+  supabase: any, 
+  trackId: string, 
+  format: ProcessingFormat
+): Promise<void> {
+  const updateData: Record<string, string> = {};
+  
+  if (format === 'all' || format === 'mp3') {
+    updateData.processing_status = 'queued';
+  }
+  
+  if (format === 'all' || format === 'opus') {
+    updateData.opus_processing_status = 'queued';
+  }
+  
+  const { error: updateError } = await supabase
+    .from("tracks")
+    .update(updateData)
+    .eq("id", trackId);
+  
+  if (updateError) {
+    console.error("Error updating track status:", updateError);
+    throw new Error("Failed to update track status");
+  }
+}
+
+/**
  * Ensures the processed_audio bucket exists
  */
 async function ensureProcessedAudioBucketExists(supabase: any): Promise<void> {
@@ -173,20 +182,14 @@ function getOriginalAudioUrl(track: any): string | null {
 }
 
 /**
- * Ensures the URL is a full URL
- */
-function ensureFullUrl(url: string, baseUrl: string): string {
-  if (url.startsWith('http')) {
-    return url;
-  }
-  // If it's just a path, construct the full URL
-  return `${baseUrl}/storage/v1/object/public/${url}`;
-}
-
-/**
  * Calls the process-audio-ffmpeg function to process the audio
  */
-async function callProcessAudioFFmpeg(supabase: any, trackId: string, format: ProcessingFormat, originalUrl: string): Promise<void> {
+async function callProcessAudioFFmpeg(
+  supabase: any, 
+  trackId: string, 
+  format: ProcessingFormat, 
+  originalUrl: string
+): Promise<void> {
   try {
     console.log(`Starting FFmpeg audio processing for track: ${trackId}, format: ${format}`);
 
@@ -210,19 +213,7 @@ async function callProcessAudioFFmpeg(supabase: any, trackId: string, format: Pr
       console.error(`Error calling FFmpeg function: ${response.status} - ${errorText}`);
       
       // Update track status to failed
-      const updateData: Record<string, string> = {};
-      if (format === 'all' || format === 'mp3') {
-        updateData.processing_status = 'failed';
-      }
-      if (format === 'all' || format === 'opus') {
-        updateData.opus_processing_status = 'failed';
-      }
-      
-      await supabase
-        .from("tracks")
-        .update(updateData)
-        .eq("id", trackId);
-        
+      await updateTrackToFailed(supabase, trackId, format);
       throw new Error(`FFmpeg function error: ${errorText}`);
     } else {
       const result = await response.json();
@@ -230,19 +221,30 @@ async function callProcessAudioFFmpeg(supabase: any, trackId: string, format: Pr
     }
   } catch (error) {
     console.error(`Error in callProcessAudioFFmpeg: ${error.message}`);
-    
-    // Update track status to failed
-    const updateData: Record<string, string> = {};
-    if (format === 'all' || format === 'mp3') {
-      updateData.processing_status = 'failed';
-    }
-    if (format === 'all' || format === 'opus') {
-      updateData.opus_processing_status = 'failed';
-    }
-    
-    await supabase
-      .from("tracks")
-      .update(updateData)
-      .eq("id", trackId);
+    await updateTrackToFailed(supabase, trackId, format);
   }
+}
+
+/**
+ * Update track status to failed for the specified format
+ */
+async function updateTrackToFailed(
+  supabase: any, 
+  trackId: string, 
+  format: ProcessingFormat
+): Promise<void> {
+  const updateData: Record<string, string> = {};
+  
+  if (format === 'all' || format === 'mp3') {
+    updateData.processing_status = 'failed';
+  }
+  
+  if (format === 'all' || format === 'opus') {
+    updateData.opus_processing_status = 'failed';
+  }
+  
+  await supabase
+    .from("tracks")
+    .update(updateData)
+    .eq("id", trackId);
 }

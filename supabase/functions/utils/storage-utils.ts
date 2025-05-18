@@ -13,6 +13,9 @@ export interface ParsedStorageUrl {
   filePath: string;
 }
 
+/**
+ * Parses a Supabase storage URL to extract bucket name and file path
+ */
 export function parseStorageUrl(url: string): ParsedStorageUrl {
   try {
     // Parse storage URL to extract bucket and path
@@ -31,6 +34,20 @@ export function parseStorageUrl(url: string): ParsedStorageUrl {
     console.error(`Error parsing URL ${url}:`, error);
     throw new Error(`Failed to parse storage URL: ${error.message}`);
   }
+}
+
+/**
+ * Ensures a URL is a full URL with domain
+ * @param url URL or path
+ * @param baseUrl Base domain URL
+ * @returns Full URL
+ */
+export function ensureFullUrl(url: string, baseUrl: string): string {
+  if (url.startsWith('http')) {
+    return url;
+  }
+  // If it's just a path, construct the full URL
+  return `${baseUrl}/storage/v1/object/public/${url}`;
 }
 
 /**
