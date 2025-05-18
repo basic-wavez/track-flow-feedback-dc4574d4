@@ -1,10 +1,15 @@
-
 import { useEffect, useState, useRef } from 'react';
 import { analyzeAudio } from '@/lib/audioUtils';
 import { generateWaveformWithVariance } from '@/lib/waveformUtils';
 import WaveformLoader from './waveform/WaveformLoader';
 import WaveformCanvas from './waveform/WaveformCanvas';
 import WaveformStatus from './waveform/WaveformStatus';
+import { 
+  storeWaveformData, 
+  getCachedWaveformData, 
+  markAnalysisAttempted,
+  hasAttemptedAnalysis,
+} from './waveform/WaveformCache';
 
 interface WaveformProps {
   audioUrl?: string;
@@ -22,9 +27,6 @@ interface WaveformProps {
   audioLoaded?: boolean;
   audioQuality?: string;
 }
-
-// Create a global waveform cache object to persist across route changes
-const waveformCache: Record<string, number[]> = {};
 
 const Waveform = ({ 
   audioUrl, 
@@ -50,48 +52,96 @@ const Waveform = ({
   const [analysisUrl, setAnalysisUrl] = useState<string | null>(null);
   const prevUrlRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
+  const didRestoreFromVisibilityRef = useRef(false);
+  
+  // Track visible state to handle tab switching
+  const visibilityStateRef = useRef<'visible' | 'hidden'>(
+    document.visibilityState === 'visible' ? 'visible' : 'hidden'
+  );
   
   // Check for cached waveform data on mount
   useEffect(() => {
     isMountedRef.current = true;
     
+    // Handle visibility changes to persist state during tab switches
+    const handleVisibilityChange = () => {
+      const wasHidden = visibilityStateRef.current === 'hidden';
+      const isNowVisible = document.visibilityState === 'visible';
+      
+      visibilityStateRef.current = document.visibilityState === 'visible' ? 'visible' : 'hidden';
+      
+      // If we're becoming visible again after being hidden
+      if (wasHidden && isNowVisible) {
+        console.log('Waveform: Tab became visible, restoring state for url:', waveformAnalysisUrl);
+        
+        // If we have an analysis URL, attempt to restore cached data
+        if (waveformAnalysisUrl) {
+          const cachedData = getCachedWaveformData(waveformAnalysisUrl);
+          
+          if (cachedData && cachedData.length > 0) {
+            console.log('Waveform: Restored cached data on visibility change');
+            setWaveformData(cachedData);
+            setIsWaveformGenerated(true);
+            didRestoreFromVisibilityRef.current = true;
+          }
+          
+          // If analysis has been attempted for this URL, mark it as attempted
+          if (hasAttemptedAnalysis(waveformAnalysisUrl)) {
+            setAnalysisAttempted(true);
+          }
+        }
+      }
+    };
+    
+    // Also handle pageshow event for browser back/forward cache
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        console.log('Waveform: Page restored from bfcache');
+        
+        // Similar logic to visibility change for bfcache restoration
+        if (waveformAnalysisUrl) {
+          const cachedData = getCachedWaveformData(waveformAnalysisUrl);
+          
+          if (cachedData && cachedData.length > 0) {
+            console.log('Waveform: Restored cached data from bfcache');
+            setWaveformData(cachedData);
+            setIsWaveformGenerated(true);
+            didRestoreFromVisibilityRef.current = true;
+          }
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handlePageShow);
+    
     return () => {
       isMountedRef.current = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
     };
-  }, []);
+  }, [waveformAnalysisUrl]);
   
   // Generate initial placeholder waveform immediately with more segments for detail
   useEffect(() => {
-    if (waveformData.length === 0) {
-      // Check if we have this waveform cached in memory or session storage
-      if (waveformAnalysisUrl && waveformCache[waveformAnalysisUrl]) {
-        console.log('Using cached waveform data from memory:', waveformAnalysisUrl);
-        setWaveformData(waveformCache[waveformAnalysisUrl]);
-        setIsWaveformGenerated(true);
-        return;
-      }
-      
-      try {
-        const sessionKey = `waveform_${waveformAnalysisUrl}`;
-        const cachedData = sessionStorage.getItem(sessionKey);
+    if (waveformData.length === 0 && !didRestoreFromVisibilityRef.current) {
+      // Try to get cached data first
+      if (waveformAnalysisUrl) {
+        const cachedData = getCachedWaveformData(waveformAnalysisUrl);
         
         if (cachedData) {
-          const parsedData = JSON.parse(cachedData);
-          console.log('Using cached waveform data from session storage:', waveformAnalysisUrl);
-          setWaveformData(parsedData);
-          waveformCache[waveformAnalysisUrl || ''] = parsedData; // Also store in memory cache
+          console.log('Using cached waveform data:', waveformAnalysisUrl);
+          setWaveformData(cachedData);
           setIsWaveformGenerated(true);
           return;
         }
-      } catch (e) {
-        console.warn('Error retrieving from session storage:', e);
       }
       
-      // Use enhanced generation with 250 segments and higher variance for more dynamics
+      // Generate placeholder waveform if no cached data
       const initialWaveformData = generateWaveformWithVariance(250, 0.6);
       setWaveformData(initialWaveformData);
     }
-  }, []);
+  }, [waveformData.length]);
   
   // Log which URL we're using for analysis to help with debugging
   useEffect(() => {
@@ -100,9 +150,10 @@ const Waveform = ({
       setAnalysisUrl(waveformAnalysisUrl);
       prevUrlRef.current = waveformAnalysisUrl;
       
-      // Reset analysis state if URL changes
+      // Reset analysis state if URL changes significantly
       if (waveformAnalysisUrl !== prevUrlRef.current) {
         setAnalysisAttempted(false);
+        didRestoreFromVisibilityRef.current = false;
       }
     }
   }, [waveformAnalysisUrl]);
@@ -110,39 +161,22 @@ const Waveform = ({
   // Attempt to analyze waveform data when analysis URL is available
   useEffect(() => {
     // Only proceed if we have a URL to analyze and haven't attempted analysis yet
-    if (!analysisUrl || analysisAttempted) return;
+    if (!analysisUrl || analysisAttempted || didRestoreFromVisibilityRef.current) return;
     
-    // If we already have this in our cache, use it
-    if (waveformCache[analysisUrl]) {
+    // Try to get from cache first
+    const cachedData = getCachedWaveformData(analysisUrl);
+    if (cachedData) {
       console.log('Using cached waveform data for URL:', analysisUrl);
-      setWaveformData(waveformCache[analysisUrl]);
+      setWaveformData(cachedData);
       setIsWaveformGenerated(true);
       setAnalysisAttempted(true);
       return;
     }
     
-    // Try to get from session storage first
-    try {
-      const sessionKey = `waveform_${analysisUrl}`;
-      const cachedData = sessionStorage.getItem(sessionKey);
-      
-      if (cachedData) {
-        const parsedData = JSON.parse(cachedData);
-        console.log('Retrieved waveform data from session storage:', analysisUrl);
-        setWaveformData(parsedData);
-        waveformCache[analysisUrl] = parsedData; // Also store in memory cache
-        setIsWaveformGenerated(true);
-        setAnalysisAttempted(true);
-        return;
-      }
-    } catch (e) {
-      console.warn('Error retrieving from session storage:', e);
-    }
-    
-    // Store the fact that we've attempted analysis
+    // Mark that we've attempted analysis
     setAnalysisAttempted(true);
+    markAnalysisAttempted(analysisUrl);
     
-    // Use higher segment count for more detailed visualization
     const segments = 250;
     
     console.log('Starting waveform analysis from URL:', analysisUrl);
@@ -157,16 +191,8 @@ const Waveform = ({
         if (analyzedData && analyzedData.length > 0) {
           console.log('Successfully analyzed waveform data:', analyzedData.length, 'segments');
           
-          // Cache the waveform data in memory
-          waveformCache[analysisUrl] = analyzedData;
-          
-          // Store in session storage for persistence across page navigations
-          try {
-            const sessionKey = `waveform_${analysisUrl}`;
-            sessionStorage.setItem(sessionKey, JSON.stringify(analyzedData));
-          } catch (e) {
-            console.warn('Error storing in session storage:', e);
-          }
+          // Cache the waveform data
+          storeWaveformData(analysisUrl, analyzedData);
           
           setWaveformData(analyzedData);
           setIsWaveformGenerated(true);
@@ -191,15 +217,6 @@ const Waveform = ({
         }
       });
   }, [analysisUrl, analysisAttempted]);
-  
-  // Reset analysis attempted flag when the URL changes significantly
-  useEffect(() => {
-    if (waveformAnalysisUrl && waveformAnalysisUrl !== analysisUrl) {
-      console.log('Waveform analysis URL changed, resetting analysis state');
-      setAnalysisAttempted(false);
-      setAnalysisUrl(waveformAnalysisUrl);
-    }
-  }, [waveformAnalysisUrl, analysisUrl]);
   
   // Show loading states
   if (isAnalyzing) {
