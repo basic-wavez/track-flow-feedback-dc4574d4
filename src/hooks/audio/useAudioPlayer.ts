@@ -14,7 +14,7 @@ export interface UseAudioPlayerProps {
   defaultAudioUrl?: string;
   trackId?: string;
   shareKey?: string;
-  allowBackgroundPlayback?: boolean; // New option to allow background playback
+  allowBackgroundPlayback?: boolean; // Option to allow background playback
 }
 
 // Track which audio we've already loaded to prevent double-loading on tab switch
@@ -73,88 +73,7 @@ export function useAudioPlayer({
   // Add a new flag to track if the timeupdate event handler is active
   const timeUpdateActiveRef = useRef(true);
 
-  // Save audio state to localStorage for persistence across page navigations
-  const saveAudioStateToStorage = () => {
-    try {
-      const audio = audioRef.current;
-      if (!audio) return;
-      
-      const stateToSave = {
-        currentTime: audio.currentTime,
-        duration: audio.duration,
-        isPlaying: !audio.paused,
-        volume: audio.volume,
-        isMuted: audio.muted,
-        trackId,
-        shareKey,
-        audioUrl,
-        timestamp: Date.now()
-      };
-      
-      // Use localStorage instead of sessionStorage for better persistence
-      localStorage.setItem(`audioState_${trackId || audioUrl}`, JSON.stringify(stateToSave));
-    } catch (e) {
-      console.warn('Error saving audio state to localStorage:', e);
-    }
-  };
-  
-  // Restore audio state from localStorage
-  const restoreAudioStateFromStorage = () => {
-    // Skip restoration if background playback is enabled and we're playing
-    if (allowBackgroundPlayback && audioRef.current && !audioRef.current.paused) {
-      console.log('Background playback active, skipping state restoration from storage');
-      return false;
-    }
-    
-    try {
-      const storedState = localStorage.getItem(`audioState_${trackId || audioUrl}`);
-      if (storedState) {
-        const state = JSON.parse(storedState);
-        
-        // Only restore if it's the same track and not too old (within last 4 hours)
-        if (
-          (state.trackId === trackId || state.audioUrl === audioUrl) &&
-          Date.now() - state.timestamp < 4 * 60 * 60 * 1000
-        ) {
-          const audio = audioRef.current;
-          if (!audio) return false;
-          
-          console.log('Restoring audio state from localStorage:', state.currentTime);
-          
-          // Restore the audio position (only if we're not doing background playback)
-          if (isFinite(state.currentTime) && state.currentTime > 0 && !allowBackgroundPlayback) {
-            audio.currentTime = state.currentTime;
-            setCurrentTime(state.currentTime);
-          }
-          
-          // Restore volume settings
-          if (isFinite(state.volume)) {
-            audio.volume = state.volume;
-            setVolume(state.volume);
-          }
-          
-          if (state.isMuted) {
-            audio.muted = true;
-            setIsMuted(true);
-          }
-          
-          // Mark as loaded if we've loaded this URL before
-          if (loadedAudioCache.has(audioUrl)) {
-            console.log('Audio was previously loaded, restoring loaded state');
-            setAudioLoaded(true);
-          }
-          
-          return true;
-        }
-      }
-    } catch (e) {
-      console.warn('Error restoring audio state from localStorage:', e);
-    }
-    
-    return false;
-  };
-
-  // Add a new function to manually sync the UI's currentTime with the audio element
+  // Sync current time function - gets the time directly from the audio element
   const syncCurrentTimeWithAudio = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -170,7 +89,7 @@ export function useAudioPlayer({
     recentlySeekRef.current = false;
   };
 
-  // Handle visibility change to persist audio state between tab switches
+  // Handle visibility change to manage background playback
   useEffect(() => {
     const handleVisibilityChange = () => {
       const wasHidden = visibilityStateRef.current === 'hidden';
@@ -181,91 +100,23 @@ export function useAudioPlayer({
       const audio = audioRef.current;
       if (!audio) return;
 
-      if (document.hidden) {
-        // Tab is hidden, store the current position
-        lastKnownPositionRef.current = audio.currentTime;
-        audioLoadedStateRef.current = audioLoaded;
-        
-        // Save state to localStorage for persistence
-        saveAudioStateToStorage();
-        
-        // Only pause the audio if background playback is not allowed
-        if (!audio.paused && !allowBackgroundPlayback) {
-          console.log('Background playback disabled, pausing audio');
-          audio.pause();
-          // We don't call setIsPlaying(false) here because we want to 
-          // remember that the user intended to play this
-        } else if (!audio.paused && allowBackgroundPlayback) {
-          console.log('Background playback enabled, audio continues playing');
-          // When allowing background playback, we need to disable time updates temporarily
-          // since they won't work properly when the tab is inactive
-          timeUpdateActiveRef.current = false;
-        }
-      } else if (wasHidden && isNowVisible) {
-        // Tab is visible again after being hidden
-        console.log('Tab visible again, restoring audio state');
+      if (document.visibilityState === 'visible' && wasHidden) {
+        console.log('Tab visible again, syncing with audio');
         
         // Set flag to prevent unnecessary reloading
         setHasRestoredAfterTabSwitch(true);
         
-        // If background playback is enabled and audio is playing, 
-        // sync the UI time with actual audio position
-        if (allowBackgroundPlayback && !audio.paused) {
-          console.log('Background playback was active, syncing UI with audio position');
-          timeUpdateActiveRef.current = true; // Re-enable time updates
-          syncCurrentTimeWithAudio(); // Force immediate sync
+        // When returning to visible state, ALWAYS read the current state from the audio element
+        // This is critical for background playback
+        if (allowBackgroundPlayback) {
+          // Sync the UI with the actual audio position
+          syncCurrentTimeWithAudio();
           
           // Reset any flags that could interfere with seeking
           recentlySeekRef.current = false;
-          
-          // Skip the rest of the restoration logic
-          return;
         }
         
-        // Re-enable time updates now that we're back
-        timeUpdateActiveRef.current = true;
-        
-        // For non-background playback, restore from localStorage first for most accurate state
-        const wasRestored = restoreAudioStateFromStorage();
-        
-        // If we couldn't restore from localStorage, use the in-memory reference
-        if (!wasRestored && lastKnownPositionRef.current > 0 && !allowBackgroundPlayback) {
-          console.log('Restoring from in-memory position:', lastKnownPositionRef.current);
-          audio.currentTime = lastKnownPositionRef.current;
-          setCurrentTime(lastKnownPositionRef.current);
-        }
-        
-        // Only try to resume if we previously paused the audio on tab hide
-        // If background playback is enabled, we don't need to resume as it should still be playing
-        if (isPlaying && audio.paused && !allowBackgroundPlayback) {
-          // The user had been playing the audio before switching tabs
-          
-          // Resume playback - with small delay to allow the UI to stabilize
-          setTimeout(() => {
-            audio.play()
-              .then(() => {
-                // Successfully resumed
-                setPlaybackState('playing');
-              })
-              .catch(error => {
-                console.error('Error resuming audio after tab switch:', error);
-                setPlaybackState('error');
-                setIsPlaying(false);
-              });
-          }, 150);
-        }
-        
-        // Restore loaded state if needed
-        if (audioLoadedStateRef.current) {
-          setAudioLoaded(true);
-          
-          // Also mark this URL as loaded in our cache
-          if (audioUrl) {
-            loadedAudioCache.add(audioUrl);
-          }
-        }
-        
-        // Ensure buffering UI is reset
+        // Ensure buffering UI is hidden after tab switch
         setShowBufferingUI(false);
         clearBufferingTimeout();
       }
@@ -276,31 +127,11 @@ export function useAudioPlayer({
       if (e.persisted) {
         console.log('Page was restored from bfcache');
         
-        // Similar to visibility change but for back/forward navigation
-        // Re-enable time updates
-        timeUpdateActiveRef.current = true;
-        
-        // For background playback, sync UI with audio instead of restoring
-        if (allowBackgroundPlayback && audioRef.current && !audioRef.current.paused) {
-          console.log('Background playback active when restored from bfcache, syncing UI with audio');
+        // When returning from bfcache, sync with the audio's actual position
+        const audio = audioRef.current;
+        if (audio && !audio.paused && allowBackgroundPlayback) {
+          // Sync UI with real audio position
           syncCurrentTimeWithAudio();
-          
-          // Skip further restoration
-          return;
-        }
-        
-        const wasRestored = restoreAudioStateFromStorage();
-        
-        if (wasRestored) {
-          setHasRestoredAfterTabSwitch(true);
-          
-          // Mark audio as loaded if we restored successfully
-          setAudioLoaded(true);
-          
-          // Add to loaded cache
-          if (audioUrl) {
-            loadedAudioCache.add(audioUrl);
-          }
         }
       }
     };
@@ -311,9 +142,6 @@ export function useAudioPlayer({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pageshow', handlePageShow);
-      
-      // Save state when unmounting component
-      saveAudioStateToStorage();
     };
   }, [isPlaying, setIsPlaying, setPlaybackState, audioLoaded, setAudioLoaded, audioUrl, allowBackgroundPlayback]);
   
@@ -323,40 +151,6 @@ export function useAudioPlayer({
       loadedAudioCache.add(audioUrl);
     }
   }, [audioLoaded, audioUrl]);
-  
-  // Save audio state periodically while playing
-  useEffect(() => {
-    let saveInterval: number | undefined;
-    
-    if (isPlaying) {
-      // Save state every 5 seconds while playing
-      saveInterval = window.setInterval(() => {
-        saveAudioStateToStorage();
-      }, 5000);
-    }
-    
-    return () => {
-      if (saveInterval) {
-        clearInterval(saveInterval);
-      }
-    };
-  }, [isPlaying, trackId, audioUrl]);
-
-  // Only attempt to restore on first mount
-  useEffect(() => {
-    if (isFirstLoadRef.current && audioUrl) {
-      isFirstLoadRef.current = false;
-      
-      setTimeout(() => {
-        restoreAudioStateFromStorage();
-        
-        // If this URL is in our loaded cache, mark it as loaded
-        if (loadedAudioCache.has(audioUrl)) {
-          setAudioLoaded(true);
-        }
-      }, 200);
-    }
-  }, [audioUrl]);
 
   // Custom toggle play/pause handler for play count tracking
   const handleTogglePlayPause = () => {
@@ -445,7 +239,7 @@ export function useAudioPlayer({
     lastSeekTimeRef,
     onTrackEnd: handleTrackEnd,
     hasRestoredAfterTabSwitch,
-    timeUpdateActiveRef // Pass the new ref to control time updates
+    timeUpdateActiveRef // Pass the ref to control time updates
   });
   
   // Audio controls
@@ -470,8 +264,8 @@ export function useAudioPlayer({
     setVolume,
     isPlaying,
     setShowBufferingUI,
-    allowBackgroundPlayback, // Pass to audio controls
-    syncCurrentTimeWithAudio // Pass the sync function
+    allowBackgroundPlayback,
+    syncCurrentTimeWithAudio
   });
   
   // Setup audio effects
@@ -490,8 +284,8 @@ export function useAudioPlayer({
     currentTime,
     setCurrentTime, // Pass setCurrentTime to useAudioEffects
     hasRestoredAfterTabSwitch,
-    allowBackgroundPlayback, // Pass the new option to useAudioEffects
-    timeUpdateActiveRef // Pass the time update control ref
+    allowBackgroundPlayback,
+    timeUpdateActiveRef
   });
 
   return {

@@ -21,8 +21,8 @@ export function useAudioControls({
   setVolume,
   isPlaying,
   setShowBufferingUI,
-  allowBackgroundPlayback = false, // New prop for background playback
-  syncCurrentTimeWithAudio = () => {} // New prop for syncing time
+  allowBackgroundPlayback = false,
+  syncCurrentTimeWithAudio = () => {}
 }: any) {
   
   const togglePlayPause = () => {
@@ -36,15 +36,13 @@ export function useAudioControls({
     // Always reset any buffering state on play click
     clearBufferingTimeout();
     bufferingStartTimeRef.current = null;
-    setShowBufferingUI(false); // Explicitly force buffering UI to be hidden
+    setShowBufferingUI(false);
 
     if (isPlaying) {
       audio.pause();
       setPlaybackState('paused');
       setIsPlaying(false);
     } else {
-      // Don't show buffering state in the UI
-      // setPlaybackState('buffering');
       setPlaybackState('loading');
       
       // Always ensure buffering UI is disabled
@@ -66,7 +64,7 @@ export function useAudioControls({
     const audio = audioRef.current;
     if (!audio || !audioUrl || !isFinite(time) || isNaN(time)) return;
     
-    // If we're in background playback mode and we're now visible, 
+    // If we're in background playback mode and we might have stale state,
     // first synchronize the UI with the audio's actual position
     if (allowBackgroundPlayback && document.visibilityState === 'visible') {
       // Force sync our UI with the actual audio position before seeking
@@ -81,7 +79,7 @@ export function useAudioControls({
     // Reset buffering states when seeking
     clearBufferingTimeout();
     bufferingStartTimeRef.current = null;
-    setShowBufferingUI(false); // Always force buffering UI to be hidden
+    setShowBufferingUI(false);
     
     // Ensure we're seeking to a valid time within the audio duration
     const validTime = Math.max(0, Math.min(time, isFinite(duration) ? duration : 0));

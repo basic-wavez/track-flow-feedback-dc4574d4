@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from "react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -28,7 +27,8 @@ export function useAudioEvents({
   lastSeekTimeRef,
   onTrackEnd,
   hasRestoredAfterTabSwitch = false,
-  timeUpdateActiveRef = { current: true } // Reference to control time updates
+  // We'll still keep this ref but won't use it to block updates
+  timeUpdateActiveRef = { current: true }
 }: any) {
   // Track if this hook has been initialized for the current audio URL
   const hasInitializedEventsRef = useRef(false);
@@ -36,6 +36,8 @@ export function useAudioEvents({
   const lastVisibilityStateRef = useRef<'visible' | 'hidden'>(
     document.visibilityState === 'visible' ? 'visible' : 'hidden'
   );
+  // Add a RAF ID ref to manage the animation frame
+  const rafIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -62,11 +64,47 @@ export function useAudioEvents({
     hasInitializedEventsRef.current = true;
     prevAudioUrlRef.current = audioUrl;
 
+    // Update time function - ALWAYS updates regardless of tab visibility
     const updateTime = () => {
-      // Only update the UI time if the timeUpdateActiveRef flag is true
-      // This prevents updating the UI when in the background but still allows the audio to play
-      if (timeUpdateActiveRef.current) {
-        setCurrentTime(audio.currentTime || 0);
+      // No longer check timeUpdateActiveRef - always update the time
+      setCurrentTime(audio.currentTime || 0);
+    };
+    
+    // Start smooth animation loop that only runs when tab is visible
+    const startSmoothUpdates = () => {
+      // Cancel any existing animation frame
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+      
+      // Animation loop function
+      const animationLoop = () => {
+        // Only run updates when tab is visible
+        if (document.visibilityState === 'visible' && !audio.paused) {
+          setCurrentTime(audio.currentTime || 0);
+          rafIdRef.current = requestAnimationFrame(animationLoop);
+        } else {
+          // Stop the loop when tab hidden or audio paused
+          rafIdRef.current = null;
+        }
+      };
+      
+      // Start the animation loop
+      rafIdRef.current = requestAnimationFrame(animationLoop);
+    };
+    
+    // Handle when audio starts playing to start smooth updates
+    const handlePlaying = () => {
+      // Start the smooth update animation when playing
+      startSmoothUpdates();
+    };
+    
+    // Handle when audio stops or pauses
+    const handlePause = () => {
+      // Cancel animation frame when paused
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
       }
     };
     
@@ -77,6 +115,12 @@ export function useAudioEvents({
       clearBufferingTimeout();
       // Always ensure buffering UI is disabled
       setShowBufferingUI(false);
+      
+      // Cancel animation frame when ended
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
       
       // Call the onTrackEnd callback if provided
       if (typeof onTrackEnd === 'function') {
@@ -137,6 +181,8 @@ export function useAudioEvents({
           .then(() => {
             setPlaybackState('playing');
             setLoadRetries(0);
+            // Start smooth updates when we start playing
+            startSmoothUpdates();
           })
           .catch(error => {
             console.error(`Error playing audio:`, error);
@@ -170,17 +216,6 @@ export function useAudioEvents({
       
       // CRITICAL: Always force buffering UI to be hidden
       setShowBufferingUI(false);
-    };
-    
-    const handlePlaying = () => {
-      // Enable time updates if they were disabled
-      if (!timeUpdateActiveRef.current && document.visibilityState === 'visible') {
-        console.log('Re-enabling time updates on playing event');
-        timeUpdateActiveRef.current = true;
-        
-        // Force a sync when playback starts/resumes
-        setCurrentTime(audio.currentTime || 0);
-      }
     };
     
     const handleError = (e: Event) => {
@@ -226,22 +261,32 @@ export function useAudioEvents({
       lastVisibilityStateRef.current = document.visibilityState === 'visible' ? 'visible' : 'hidden';
       
       if (wasHidden && isNowVisible) {
-        console.log('Audio: Tab became visible, preserving audio state');
+        console.log('Audio: Tab became visible, syncing with real audio position');
         
-        // Ensure we resume time updates
-        timeUpdateActiveRef.current = true;
-        
-        // Force a sync of the current time
-        if (audio && !audio.paused) {
+        // When coming back to visible, ALWAYS read the current position from the audio element
+        // instead of trying to restore from any cache
+        if (audio) {
+          // Make sure we update to audio's true position
           setCurrentTime(audio.currentTime || 0);
+          
+          // Reset any flags that might interfere with seeking
+          recentlySeekRef.current = false;
+          
+          // Restart the smooth animation loop if audio is playing
+          if (!audio.paused) {
+            startSmoothUpdates();
+          }
         }
         
         // Ensure buffering UI is hidden after tab switch
         clearBufferingTimeout();
         setShowBufferingUI(false);
       } else if (document.hidden) {
-        // If we're going into background, log that for debugging
-        console.log('Audio: Tab becoming hidden, may pause time updates');
+        // If we're going into background, cancel the animation frame loop
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current);
+          rafIdRef.current = null;
+        }
       }
     };
     
@@ -253,11 +298,17 @@ export function useAudioEvents({
     audio.addEventListener("waiting", handleWaiting);
     audio.addEventListener("error", handleError);
     audio.addEventListener("playing", handlePlaying);
+    audio.addEventListener("pause", handlePause);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Set volume and muted state
     audio.volume = volume;
     audio.muted = isMuted;
+    
+    // Start smooth updates if already playing
+    if (!audio.paused) {
+      startSmoothUpdates();
+    }
 
     return () => {
       clearBufferingTimeout();
@@ -268,7 +319,13 @@ export function useAudioEvents({
       audio.removeEventListener("waiting", handleWaiting);
       audio.removeEventListener("error", handleError);
       audio.removeEventListener("playing", handlePlaying);
+      audio.removeEventListener("pause", handlePause);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      
+      // Clean up animation frame
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
     };
   }, [isPlaying, playbackState, hasRestoredAfterTabSwitch, audioUrl]);
 
