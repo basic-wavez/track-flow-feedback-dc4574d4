@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Download, Share2, MoreHorizontal, Settings } from "lucide-react";
+import { Download, Share2, MoreHorizontal, Settings, ArrowUpCircle, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,6 +11,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { incrementDownloadCount } from "@/services/trackShareService";
 import TrackSettingsDialog from "@/components/track/TrackSettingsDialog";
+import TrackVersionsDrawer from "@/components/track/TrackVersionsDrawer";
+import { useNavigate } from "react-router-dom";
+import { TrackVersion } from "@/types/track";
 
 interface TrackActionsProps {
   isOwner: boolean;
@@ -19,6 +22,8 @@ interface TrackActionsProps {
   trackId: string;
   downloadsEnabled?: boolean;
   shareKey?: string;
+  versionNumber?: number;
+  trackVersions?: TrackVersion[];
 }
 
 const TrackActions = ({ 
@@ -27,11 +32,15 @@ const TrackActions = ({
   originalFilename,
   trackId,
   downloadsEnabled = false,
-  shareKey
+  shareKey,
+  versionNumber = 1,
+  trackVersions = []
 }: TrackActionsProps) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isVersionsDrawerOpen, setIsVersionsDrawerOpen] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const handleDownload = async () => {
     try {
@@ -154,6 +163,17 @@ const TrackActions = ({
                 <Settings className="h-4 w-4 mr-2" />
                 Track Settings
               </DropdownMenuItem>
+              
+              <DropdownMenuItem onClick={() => navigate(`/track/${trackId}/version`)}>
+                <ArrowUpCircle className="h-4 w-4 mr-2" />
+                New Version
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem onClick={() => setIsVersionsDrawerOpen(true)}>
+                <History className="h-4 w-4 mr-2" />
+                Version History
+              </DropdownMenuItem>
+              
               <DropdownMenuItem onClick={() => window.location.href = `/track/${trackId}/delete`} className="text-destructive">
                 Delete Track
               </DropdownMenuItem>
@@ -166,6 +186,18 @@ const TrackActions = ({
             trackId={trackId}
             downloadsEnabled={downloadsEnabled}
           />
+          
+          {trackVersions.length > 0 && (
+            <TrackVersionsDrawer
+              trackId={trackId}
+              trackTitle={""}
+              versions={trackVersions}
+              isOpen={isVersionsDrawerOpen}
+              onOpenChange={setIsVersionsDrawerOpen}
+            >
+              {/* No children needed since we're controlling the drawer via state */}
+            </TrackVersionsDrawer>
+          )}
         </>
       )}
     </div>

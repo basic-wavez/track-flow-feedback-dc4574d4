@@ -10,6 +10,15 @@ interface FeedbackHeaderProps {
 const FeedbackHeader = ({ trackId }: FeedbackHeaderProps) => {
   const navigate = useNavigate();
   
+  // If no trackId is provided, navigate to the home page
+  const handleBack = () => {
+    if (trackId) {
+      navigate(`/track/${trackId}`);
+    } else {
+      navigate('/');
+    }
+  };
+  
   return (
     <div className="py-6 px-8 border-b border-wip-gray/30">
       <div className="max-w-5xl mx-auto">
@@ -17,7 +26,7 @@ const FeedbackHeader = ({ trackId }: FeedbackHeaderProps) => {
           <Button
             variant="ghost"
             className="flex items-center gap-2 text-wip-pink hover:bg-wip-pink/10"
-            onClick={() => navigate(`/track/${trackId}`)}
+            onClick={handleBack}
           >
             <ChevronLeft size={16} />
             <span>Back to Track</span>

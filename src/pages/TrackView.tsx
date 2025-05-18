@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { ArrowUpCircle, History } from "lucide-react";
 import TrackPlayer from "@/components/TrackPlayer";
 import ProcessingIndicator from "@/components/ProcessingIndicator";
@@ -202,42 +201,6 @@ const TrackView = () => {
       <main className="flex-1 py-12 px-4">
         <div className="max-w-5xl mx-auto space-y-8">
           
-          {/* Version controls with version drawer integration */}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold gradient-text">{displayName}</h1>
-            </div>
-            
-            {isOwner && (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex gap-2 items-center"
-                  onClick={() => navigate(`/track/${trackData.id}/version`)}
-                >
-                  <ArrowUpCircle className="h-4 w-4" />
-                  New Version
-                </Button>
-                
-                <TrackVersionsDrawer
-                  trackId={trackData.id}
-                  trackTitle={displayName}
-                  versions={trackVersions}
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex gap-2 items-center"
-                  >
-                    <History className="h-4 w-4" />
-                    Version History
-                  </Button>
-                </TrackVersionsDrawer>
-              </div>
-            )}
-          </div>
-          
           {trackData && showProcessingIndicator ? (
             <ProcessingIndicator
               trackId={trackData.id}
@@ -264,6 +227,7 @@ const TrackView = () => {
               processingStatus={trackData.processing_status}
               downloadsEnabled={trackData.downloads_enabled || false}
               versionNumber={versionNumber}
+              trackVersions={trackVersions} // Pass the versions to the player
             />
           )}
           
