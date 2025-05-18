@@ -22,13 +22,13 @@ import CookieConsent from './components/CookieConsent';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import FeedbackView from './pages/FeedbackView';
 
-// Create a client with enhanced caching
+// Create a client with enhanced caching and visibility change handling
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 30 * 60 * 1000, // 30 minutes (replacing cacheTime which is deprecated)
-      refetchOnWindowFocus: false, // Don't refetch when window regains focus
+      staleTime: 1000 * 60 * 30, // 30 minutes - data is fresh for much longer
+      gcTime: 1000 * 60 * 60, // 60 minutes - keep in cache longer (replacing cacheTime)
+      refetchOnWindowFocus: false, // Critical: Disable refetching when window regains focus
       refetchOnMount: false, // Don't refetch on component mount
       refetchOnReconnect: false, // Don't refetch on network reconnect
       retry: 1, // Only retry once

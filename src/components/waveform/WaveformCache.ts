@@ -9,11 +9,18 @@ const waveformMemoryCache: Record<string, number[]> = {};
 // Track which URLs we've already tried to analyze to prevent redundant attempts
 const analysisAttemptedUrls = new Set<string>();
 
+// Track app visibility state to handle tab switches
+let lastVisibilityState: 'visible' | 'hidden' = document.visibilityState === 'visible' 
+  ? 'visible' 
+  : 'hidden';
+
 /**
  * Store waveform data in both memory and localStorage cache
  */
 export const storeWaveformData = (url: string, data: number[]): void => {
   if (!url) return;
+  
+  console.log(`Storing waveform data for URL: ${url}`);
   
   // Store in memory cache
   waveformMemoryCache[url] = data;
@@ -25,6 +32,9 @@ export const storeWaveformData = (url: string, data: number[]): void => {
   } catch (e) {
     console.warn('Error storing waveform in localStorage:', e);
   }
+  
+  // Mark this URL as having been analyzed to prevent redundant attempts
+  markAnalysisAttempted(url);
 };
 
 /**
@@ -78,6 +88,43 @@ export const hasAttemptedAnalysis = (url: string): boolean => {
 export const clearAnalysisAttempted = (url: string): void => {
   if (!url) return;
   analysisAttemptedUrls.delete(url);
+};
+
+/**
+ * Track visibility changes
+ */
+export const setupVisibilityTracking = (): () => void => {
+  const handleVisibilityChange = () => {
+    const wasHidden = lastVisibilityState === 'hidden';
+    const isNowVisible = document.visibilityState === 'visible';
+    
+    lastVisibilityState = document.visibilityState === 'visible' ? 'visible' : 'hidden';
+    
+    if (wasHidden && isNowVisible) {
+      console.log('WaveformCache: Tab became visible, ready to restore cached data');
+    }
+  };
+  
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  
+  // Return cleanup function
+  return () => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+  };
+};
+
+/**
+ * Get app visibility state (for components to check)
+ */
+export const getLastVisibilityState = (): 'visible' | 'hidden' => {
+  return lastVisibilityState;
+};
+
+/**
+ * Check if tab has recently become visible (for preventing redundant operations)
+ */
+export const didTabBecomeVisible = (): boolean => {
+  return lastVisibilityState === 'visible' && document.visibilityState === 'visible';
 };
 
 /**

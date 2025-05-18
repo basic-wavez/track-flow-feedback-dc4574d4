@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "@/components/ui/use-toast";
 
 /**
@@ -29,6 +29,12 @@ export function useAudioEvents({
   onTrackEnd,
   hasRestoredAfterTabSwitch = false
 }: any) {
+  // Track if this hook has been initialized for the current audio URL
+  const hasInitializedEventsRef = useRef(false);
+  const prevAudioUrlRef = useRef<string | undefined>(undefined);
+  const lastVisibilityStateRef = useRef<'visible' | 'hidden'>(
+    document.visibilityState === 'visible' ? 'visible' : 'hidden'
+  );
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -43,7 +49,17 @@ export function useAudioEvents({
       // Ensure buffering UI is hidden after tab switch
       clearBufferingTimeout();
       setShowBufferingUI(false);
+      
+      // Skip rest of initialization if this is a tab switch and we've already set up events
+      if (hasInitializedEventsRef.current && prevAudioUrlRef.current === audioUrl) {
+        console.log('Audio events already initialized after tab switch, skipping redundant setup');
+        return;
+      }
     }
+    
+    // Update initialization tracking
+    hasInitializedEventsRef.current = true;
+    prevAudioUrlRef.current = audioUrl;
 
     const updateTime = () => {
       setCurrentTime(audio.currentTime || 0);
@@ -185,13 +201,31 @@ export function useAudioEvents({
         });
       }
     };
-
+    
+    // Add visibility change handler to preserve state during tab switches
+    const handleVisibilityChange = () => {
+      const wasHidden = lastVisibilityStateRef.current === 'hidden';
+      const isNowVisible = document.visibilityState === 'visible';
+      
+      lastVisibilityStateRef.current = document.visibilityState === 'visible' ? 'visible' : 'hidden';
+      
+      if (wasHidden && isNowVisible) {
+        console.log('Audio: Tab became visible, preserving audio state');
+        
+        // Ensure buffering UI is hidden after tab switch
+        clearBufferingTimeout();
+        setShowBufferingUI(false);
+      }
+    };
+    
+    // Register all event listeners
     audio.addEventListener("timeupdate", updateTime);
     audio.addEventListener("ended", handleEnd);
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("canplay", handleCanPlay);
     audio.addEventListener("waiting", handleWaiting);
     audio.addEventListener("error", handleError);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Set volume and muted state
     audio.volume = volume;
@@ -205,8 +239,12 @@ export function useAudioEvents({
       audio.removeEventListener("canplay", handleCanPlay);
       audio.removeEventListener("waiting", handleWaiting);
       audio.removeEventListener("error", handleError);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [isPlaying, playbackState, hasRestoredAfterTabSwitch]);
+  }, [isPlaying, playbackState, hasRestoredAfterTabSwitch, audioUrl]);
 
-  return { handlePlaybackError: null }; // This is just a placeholder as the hook's main purpose is the effect
+  return { 
+    handlePlaybackError: null, // This is just a placeholder as the hook's main purpose is the effect
+    hasInitialized: hasInitializedEventsRef.current 
+  };
 }

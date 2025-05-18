@@ -1,5 +1,6 @@
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { getLastVisibilityState } from "@/components/waveform/WaveformCache";
 
 /**
  * Hook that handles audio-related side effects like loadedmetadata, timeupdate, etc.
@@ -19,6 +20,10 @@ export function useAudioEffects({
   currentTime,
   hasRestoredAfterTabSwitch = false
 }: any) {
+  // Track if this effect has already run for this URL
+  const hasInitializedRef = useRef(false);
+  const prevAudioUrlRef = useRef<string | undefined>(undefined);
+  
   // Effect to handle URL changes and reset state
   useEffect(() => {
     if (!audioUrl) return;
@@ -29,8 +34,18 @@ export function useAudioEffects({
       return;
     }
     
+    // Skip if we've already initialized this URL and it hasn't changed
+    if (hasInitializedRef.current && prevAudioUrlRef.current === audioUrl) {
+      console.log(`Audio URL ${audioUrl} already initialized, skipping redundant reset`);
+      return;
+    }
+    
     const audio = audioRef.current;
     if (!audio) return;
+
+    // Update refs to prevent redundant initialization
+    hasInitializedRef.current = true;
+    prevAudioUrlRef.current = audioUrl;
 
     // Reset state when URL changes
     console.log(`Audio URL changed to: ${audioUrl}`);
@@ -52,8 +67,8 @@ export function useAudioEffects({
       // Turn off waveform generation indicator after a delay
       setIsGeneratingWaveform(false);
       
-      // Load the audio
-      if (audioRef.current) {
+      // Load the audio if we're still mounted and the URL hasn't changed
+      if (audioRef.current && prevAudioUrlRef.current === audioUrl) {
         audioRef.current.load();
       }
     }, 200);
@@ -61,7 +76,7 @@ export function useAudioEffects({
     return () => {
       clearBufferingTimeout();
     };
-  }, [audioUrl]);
+  }, [audioUrl, hasRestoredAfterTabSwitch]);
 
   // Effect to log playback state changes
   useEffect(() => {
@@ -76,5 +91,7 @@ export function useAudioEffects({
     }
   }, [playbackState, currentTime]);
 
-  return {}; // This hook doesn't return anything as it's a side-effects hook
+  // Return a flag indicating if this is a restored session after tab switch
+  return { isRestoredSession: hasRestoredAfterTabSwitch };
 }
+
