@@ -21,6 +21,7 @@ import BugReportPage from './pages/BugReportPage';
 import CookieConsent from './components/CookieConsent';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import FeedbackView from './pages/FeedbackView';
+import { useMemo } from 'react';
 
 // Create a query client that is resilient to tab switches
 const queryClient = new QueryClient({
@@ -39,9 +40,15 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  // Memoize the AuthProvider props to ensure component stability
+  const authProviderProps = useMemo(
+    () => ({ preventRefreshOnVisibilityChange: true }),
+    []
+  );
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider preventRefreshOnVisibilityChange={true}>
+      <AuthProvider {...authProviderProps}>
         <Router>
           <Routes>
             <Route path="/" element={<Index />} />

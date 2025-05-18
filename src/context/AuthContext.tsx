@@ -57,6 +57,9 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
   const lastVisibleTimestampRef = useRef(Date.now());
   const lastSessionRefreshRef = useRef(Date.now() - AUTH_REFRESH_COOLDOWN_MS);
   
+  // Keep track of the auth subscription to prevent duplicate listeners
+  const authSubscriptionRef = useRef<{ subscription: { unsubscribe: () => void } } | null>(null);
+  
   // Session ID to track this browser session
   const sessionIdRef = useRef<string>(`auth_session_${Math.random().toString(36).substring(2, 10)}`);
   
@@ -188,42 +191,44 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
     console.log("AuthProvider - Initializing auth state listener");
     let unsubVisibility: (() => void) | null = null;
     
-    // Set up the auth state listener first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("AuthProvider - Auth state changed:", { 
-          event, 
-          user: session?.user?.email,
-          path: window.location.pathname
-        });
-        
-        // Update auth state synchronously to avoid cascading effects
-        setSession(session);
-        setUser(session?.user ?? null);
-        setIsAuthenticated(!!session?.user);
-        
-        // Fetch admin status and profile in a non-blocking way
-        if (session?.user) {
-          // Use a microtask to avoid blocking the event loop
-          Promise.resolve().then(() => {
-            // Check if component is still mounted before updating state
-            checkAdminRole().then(isAdmin => {
-              setIsAdmin(isAdmin);
-            });
-            
-            // Fetch profile data
-            fetchUserProfile(session.user.id).then(profileData => {
-              setProfile(profileData);
-            });
+    // Set up the auth state listener only once
+    if (!authSubscriptionRef.current) {
+      const { data } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          console.log("AuthProvider - Auth state changed:", { 
+            event, 
+            user: session?.user?.email,
+            path: window.location.pathname
           });
-        } else {
-          setIsAdmin(false);
-          setProfile(null);
+          
+          // Update auth state synchronously to avoid cascading effects
+          setSession(session);
+          setUser(session?.user ?? null);
+          setIsAuthenticated(!!session?.user);
+          
+          // Use a non-blocking promise for additional data fetching
+          if (session?.user) {
+            Promise.resolve().then(() => {
+              checkAdminRole().then(isAdmin => {
+                setIsAdmin(isAdmin);
+              });
+              
+              fetchUserProfile(session.user.id).then(profileData => {
+                setProfile(profileData);
+              });
+            });
+          } else {
+            setIsAdmin(false);
+            setProfile(null);
+          }
         }
-      }
-    );
+      );
+      
+      // Store the subscription reference
+      authSubscriptionRef.current = data;
+    }
 
-    // Then check for existing session
+    // Only check session after establishing the auth listener
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log("AuthProvider - Initial session check:", { 
         hasSession: !!session,
@@ -296,10 +301,13 @@ export const AuthProvider = ({ children, preventRefreshOnVisibilityChange = fals
 
     return () => {
       console.log("AuthProvider - Unsubscribing from auth state changes");
-      subscription.unsubscribe();
+      if (authSubscriptionRef.current) {
+        authSubscriptionRef.current.subscription.unsubscribe();
+        authSubscriptionRef.current = null;
+      }
       if (unsubVisibility) unsubVisibility();
     };
-  }, [preventRefreshOnVisibilityChange, debouncedRefreshSession, fetchUserProfile]);
+  }, []); // Empty dependency array to ensure this only runs once
 
   /**
    * Check if the user has admin role

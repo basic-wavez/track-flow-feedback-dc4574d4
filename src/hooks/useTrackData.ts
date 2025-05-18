@@ -3,55 +3,66 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { getTrack, getTrackVersions } from "@/services/trackQueryService";
 import { TrackData, TrackVersion } from "@/types/track";
 import { useAuth } from "@/context/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 
 export const useTrackData = (resolvedTrackId: string | undefined) => {
   const { user } = useAuth();
-  const [trackData, setTrackData] = useState<TrackData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [trackVersions, setTrackVersions] = useState<TrackVersion[]>([]);
   
   // Track whether this component is mounted
   const isMountedRef = useRef(true);
-  
-  // Track whether we've already loaded this track
-  const loadedTrackRef = useRef<string | null>(null);
 
-  const loadTrack = useCallback(async () => {
-    if (!resolvedTrackId) {
-      setIsLoading(false);
-      return;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
+  // Use React Query for data fetching with proper error handling
+  const { 
+    data: trackData, 
+    isLoading, 
+    error,
+    refetch
+  } = useQuery<TrackData | null, Error>({
+    queryKey: ['track', resolvedTrackId],
+    queryFn: async () => {
+      if (!resolvedTrackId) {
+        return null;
+      }
+      
       console.log("Fetching track data for ID:", resolvedTrackId);
       const track = await getTrack(resolvedTrackId);
       
       // Early exit if component unmounted during async operation
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) return null;
       
       if (!track) {
         throw new Error(`Track not found for ID: ${resolvedTrackId}`);
       }
       
       console.log("Track data loaded:", track.id);
-      setTrackData(track);
+      return track;
+    },
+    // Use React Query's built-in retry logic instead of custom cooldown
+    retry: 1,
+    retryDelay: 2000,
+    enabled: !!resolvedTrackId, // Only run query when we have a track ID
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Effect to set ownership status when track data changes
+  useEffect(() => {
+    if (trackData && user) {
+      setIsOwner(trackData.user_id === user.id);
+    } else {
+      setIsOwner(false);
+    }
+  }, [trackData, user]);
+
+  // Effect to load track versions when track data is available
+  useEffect(() => {
+    const loadVersions = async () => {
+      if (!trackData) return;
       
-      // Mark this track as loaded
-      loadedTrackRef.current = resolvedTrackId;
-      
-      if (track && user) {
-        setIsOwner(track.user_id === user.id);
-      }
-      
-      // Load track versions
-      if (track) {
-        console.log("Loading versions for track:", track.id);
-        const versions = await getTrackVersions(track.id);
+      try {
+        console.log("Loading versions for track:", trackData.id);
+        const versions = await getTrackVersions(trackData.id);
         console.log("Loaded versions:", versions.length, versions.map(v => ({ id: v.id, version: v.version_number })));
         
         // Convert TrackData[] to TrackVersion[]
@@ -66,24 +77,13 @@ export const useTrackData = (resolvedTrackId: string | undefined) => {
           
           setTrackVersions(versionsArray);
         }
+      } catch (err) {
+        console.error("Error loading track versions:", err);
       }
-    } catch (error: any) {
-      console.error("Error loading track:", error);
-      if (isMountedRef.current) {
-        setTrackData(null);
-        setError(error.message || "Error loading track");
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }, [resolvedTrackId, user]);
-
-  // Load track data when parameters change
-  useEffect(() => {
-    loadTrack();
-  }, [loadTrack]);
+    };
+    
+    loadVersions();
+  }, [trackData]);
 
   // Cleanup effect
   useEffect(() => {
@@ -93,14 +93,14 @@ export const useTrackData = (resolvedTrackId: string | undefined) => {
   }, []);
 
   const refreshTrack = useCallback(() => {
-    loadTrack();
-  }, [loadTrack]);
+    refetch();
+  }, [refetch]);
 
   return {
     trackData,
     isLoading,
     isOwner,
-    error,
+    error: error?.message || null,
     trackVersions,
     refreshTrack
   };

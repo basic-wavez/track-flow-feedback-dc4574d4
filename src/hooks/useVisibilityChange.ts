@@ -1,107 +1,106 @@
 
 /**
- * Central visibility state management for the entire application
- * This is implemented as a singleton to prevent circular dependencies
+ * Visibility State Manager Singleton
+ * 
+ * This singleton manages document visibility state across the application
+ * in a consistent way, preventing race conditions and duplicate listeners.
  */
 
-import { useEffect, useState } from "react";
-
-// Create a centralized visibility state manager (singleton pattern)
-// This prevents circular dependencies and ensures consistent state across the app
-export const VisibilityStateManager = {
-  isVisible: typeof document !== 'undefined' && document.visibilityState === 'visible',
-  lastChangeTime: Date.now(),
-  hasRecentChange: false,
-  listeners: new Set<(isVisible: boolean) => void>(),
+// Use a singleton pattern for the VisibilityStateManager
+export class VisibilityStateManager {
+  private static instance: VisibilityStateManager;
+  private lastVisibilityChangeTime: number = 0;
+  private currentVisibilityState: 'visible' | 'hidden' = 'visible';
+  private visibilityChangeListeners: Set<() => void> = new Set();
   
-  // Update visibility state
-  updateState(isNowVisible: boolean) {
-    const wasVisible = this.isVisible;
-    const now = Date.now();
-    
-    // Only mark as a change if visibility actually changed
-    if (wasVisible !== isNowVisible) {
-      this.isVisible = isNowVisible;
-      this.lastChangeTime = now;
+  private constructor() {
+    // Initialize with current document state if in browser environment
+    if (typeof document !== 'undefined') {
+      this.currentVisibilityState = document.visibilityState === 'visible' ? 'visible' : 'hidden';
+      document.addEventListener('visibilitychange', this.handleVisibilityChange);
       
-      // Mark as recent change - important for optimizing fetches
-      if (!wasVisible && isNowVisible) {
-        this.hasRecentChange = true;
-        
-        // Reset the change flag after a short delay
-        setTimeout(() => {
-          this.hasRecentChange = false;
-        }, 2000);
-      }
-      
-      // Notify all listeners
-      this.notifyListeners();
+      // Store initial state timestamp
+      this.lastVisibilityChangeTime = Date.now();
     }
-  },
-  
-  // Add listener
-  addListener(callback: (isVisible: boolean) => void) {
-    this.listeners.add(callback);
-    return () => this.listeners.delete(callback);
-  },
-  
-  // Notify all listeners
-  notifyListeners() {
-    this.listeners.forEach(listener => listener(this.isVisible));
-  },
-  
-  // Get current state
-  getState(): 'visible' | 'hidden' {
-    return this.isVisible ? 'visible' : 'hidden';
-  },
-  
-  // Check if there was a recent visibility change
-  isRecentChange(): boolean {
-    return this.hasRecentChange;
   }
-};
-
-// Set up event listener at module level
-if (typeof document !== 'undefined') {
-  document.addEventListener('visibilitychange', () => {
-    const isNowVisible = document.visibilityState === 'visible';
-    VisibilityStateManager.updateState(isNowVisible);
-  });
   
-  // Initial state setup
-  VisibilityStateManager.updateState(document.visibilityState === 'visible');
+  // Get the singleton instance
+  public static getInstance(): VisibilityStateManager {
+    if (!VisibilityStateManager.instance) {
+      VisibilityStateManager.instance = new VisibilityStateManager();
+    }
+    return VisibilityStateManager.instance;
+  }
+  
+  // Handle visibility changes
+  private handleVisibilityChange = (): void => {
+    this.lastVisibilityChangeTime = Date.now();
+    this.currentVisibilityState = document.visibilityState === 'visible' ? 'visible' : 'hidden';
+    
+    // Notify all listeners
+    this.visibilityChangeListeners.forEach(listener => {
+      try {
+        listener();
+      } catch (error) {
+        console.error('Error in visibility change listener:', error);
+      }
+    });
+  }
+  
+  // Get current visibility state
+  public static getState(): 'visible' | 'hidden' {
+    return VisibilityStateManager.getInstance().currentVisibilityState;
+  }
+  
+  // Check if visibility state changed recently
+  public static isRecentChange(withinMs: number = 3000): boolean {
+    const instance = VisibilityStateManager.getInstance();
+    return (Date.now() - instance.lastVisibilityChangeTime) < withinMs;
+  }
+  
+  // Add a visibility change listener
+  public static addListener(callback: () => void): () => void {
+    const instance = VisibilityStateManager.getInstance();
+    instance.visibilityChangeListeners.add(callback);
+    
+    // Return unsubscribe function
+    return () => {
+      instance.visibilityChangeListeners.delete(callback);
+    };
+  }
+  
+  // Clean up event listeners (useful for testing environments)
+  public static cleanup(): void {
+    const instance = VisibilityStateManager.getInstance();
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', instance.handleVisibilityChange);
+    }
+    instance.visibilityChangeListeners.clear();
+  }
 }
 
-/**
- * Hook that provides the current visibility state of the document
- * and subscribes to changes
- */
+// React hook for consuming the visibility state
 export const useVisibilityChange = () => {
-  const [isVisible, setIsVisible] = useState<boolean>(
+  const [isVisible, setIsVisible] = useState(
     typeof document !== 'undefined' ? document.visibilityState === 'visible' : true
   );
   
   useEffect(() => {
-    // Initial state
-    setIsVisible(VisibilityStateManager.isVisible);
+    const updateVisibility = () => {
+      setIsVisible(VisibilityStateManager.getState() === 'visible');
+    };
     
-    // Add listener for changes
-    const removeListener = VisibilityStateManager.addListener(newVisibility => {
-      setIsVisible(newVisibility);
-    });
+    // Subscribe to visibility changes
+    const unsubscribe = VisibilityStateManager.addListener(updateVisibility);
     
-    // Clean up listener on unmount
-    return removeListener;
+    return () => {
+      unsubscribe();
+    };
   }, []);
   
   return {
     isVisible,
-    isVisibilityChange: VisibilityStateManager.isRecentChange()
+    isHidden: !isVisible,
+    isRecentChange: (withinMs?: number) => VisibilityStateManager.isRecentChange(withinMs)
   };
 };
-
-// Helper function exports that directly use the singleton
-// This avoids issues with hooks being used in non-React components
-export const isRecentVisibilityChange = () => VisibilityStateManager.isRecentChange();
-export const getDocumentVisibilityState = () => VisibilityStateManager.getState();
-
