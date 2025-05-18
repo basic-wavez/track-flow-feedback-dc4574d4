@@ -1,3 +1,6 @@
+
+import { useEffect } from 'react';
+
 /**
  * Hook that provides event handlers for the audio player
  * Improved to handle background playback and tab visibility changes
