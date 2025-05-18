@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 interface ShareLink {
@@ -10,10 +11,6 @@ interface ShareLink {
   download_count: number; // This is now a real column in the database
   last_played_at: string | null;
 }
-
-// Cache for resolved share keys to avoid unnecessary DB calls
-const shareKeyCache = new Map<string, { trackId: string, timestamp: number }>();
-const CACHE_TTL_MS = 1000 * 60 * 10; // 10 minutes
 
 /**
  * Creates a new share link for a track
@@ -93,51 +90,26 @@ export const getShareLinks = async (trackId: string): Promise<ShareLink[]> => {
 };
 
 /**
- * Gets a track ID by share key with caching support
+ * Gets a track ID by share key
  * @param shareKey The unique share key
  * @returns The track ID or null if not found
  */
 export const getTrackIdByShareKey = async (shareKey: string): Promise<string | null> => {
   try {
-    if (!shareKey) {
-      console.error('Invalid share key (empty/undefined)');
-      return null;
-    }
-    
-    // Check cache first
-    const now = Date.now();
-    const cached = shareKeyCache.get(shareKey);
-    if (cached && now - cached.timestamp < CACHE_TTL_MS) {
-      console.log('Using cached trackId for share key:', shareKey);
-      return cached.trackId;
-    }
-    
     console.log('Looking up track ID by share key:', shareKey);
     
     const { data, error } = await supabase
       .from('share_links')
       .select('track_id')
       .eq('share_key', shareKey)
-      .maybeSingle(); // Use maybeSingle instead of single to avoid errors
+      .single();
     
-    if (error) {
+    if (error || !data) {
       console.error('Error fetching track by share key:', error);
       return null;
     }
     
-    if (!data) {
-      console.log('No track found for share key:', shareKey);
-      return null;
-    }
-    
     console.log('Found track ID:', data.track_id);
-    
-    // Cache the result
-    shareKeyCache.set(shareKey, { 
-      trackId: data.track_id,
-      timestamp: now
-    });
-    
     return data.track_id;
   } catch (error) {
     console.error('Error in getTrackIdByShareKey:', error);
@@ -145,7 +117,7 @@ export const getTrackIdByShareKey = async (shareKey: string): Promise<string | n
   }
 };
 
-// Server-side cooldown period in milliseconds
+// Server-side cooldown period in milliseconds - 1 minute for testing (was 0, before that 600000 - 10 minutes)
 const SERVER_COOLDOWN_PERIOD_MS = 60000;
 
 /**

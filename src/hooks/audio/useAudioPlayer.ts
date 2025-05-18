@@ -1,5 +1,5 @@
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect } from "react";
 import { useAudioState } from "./useAudioState";
 import { useBufferingState } from "./useBufferingState";
 import { useAudioEvents } from "./useAudioEvents";
@@ -16,9 +16,6 @@ export interface UseAudioPlayerProps {
   shareKey?: string;
 }
 
-// Track which audio we've already loaded to prevent double-loading on tab switch
-const loadedAudioCache = new Set<string>();
-
 export function useAudioPlayer({ 
   mp3Url, 
   defaultAudioUrl = "https://assets.mixkit.co/active_storage/sfx/5135/5135.wav",
@@ -30,9 +27,6 @@ export function useAudioPlayer({
   
   // Determine the audio URL to use - prefer MP3 if available
   const audioUrl = mp3Url || defaultAudioUrl;
-  
-  // Track whether we've restored state after tab switch
-  const [hasRestoredAfterTabSwitch, setHasRestoredAfterTabSwitch] = useState(false);
   
   // State for the audio player
   const {
@@ -61,15 +55,9 @@ export function useAudioPlayer({
   // Store the last known position for tab switching
   const lastKnownPositionRef = useRef<number>(0);
   const audioLoadedStateRef = useRef<boolean>(false);
-  const visibilityStateRef = useRef<'visible' | 'hidden'>(
-    document.visibilityState === 'visible' ? 'visible' : 'hidden'
-  );
   
-  // Track if this is the first load to avoid unnecessary localStorage operations
-  const isFirstLoadRef = useRef(true);
-  
-  // Save audio state to localStorage for persistence across page navigations
-  const saveAudioStateToStorage = () => {
+  // Save audio state to session storage for persistence across page navigations
+  const saveAudioStateToSession = () => {
     try {
       const audio = audioRef.current;
       if (!audio) return;
@@ -86,29 +74,26 @@ export function useAudioPlayer({
         timestamp: Date.now()
       };
       
-      // Use localStorage instead of sessionStorage for better persistence
-      localStorage.setItem(`audioState_${trackId || audioUrl}`, JSON.stringify(stateToSave));
+      sessionStorage.setItem(`audioState_${trackId || audioUrl}`, JSON.stringify(stateToSave));
     } catch (e) {
-      console.warn('Error saving audio state to localStorage:', e);
+      console.warn('Error saving audio state to session storage:', e);
     }
   };
   
-  // Restore audio state from localStorage
-  const restoreAudioStateFromStorage = () => {
+  // Restore audio state from session storage
+  const restoreAudioStateFromSession = () => {
     try {
-      const storedState = localStorage.getItem(`audioState_${trackId || audioUrl}`);
+      const storedState = sessionStorage.getItem(`audioState_${trackId || audioUrl}`);
       if (storedState) {
         const state = JSON.parse(storedState);
         
-        // Only restore if it's the same track and not too old (within last 4 hours)
+        // Only restore if it's the same track and not too old (within last hour)
         if (
           (state.trackId === trackId || state.audioUrl === audioUrl) &&
-          Date.now() - state.timestamp < 4 * 60 * 60 * 1000
+          Date.now() - state.timestamp < 60 * 60 * 1000
         ) {
           const audio = audioRef.current;
           if (!audio) return false;
-          
-          console.log('Restoring audio state from localStorage:', state.currentTime);
           
           // Restore the audio position
           if (isFinite(state.currentTime) && state.currentTime > 0) {
@@ -127,17 +112,11 @@ export function useAudioPlayer({
             setIsMuted(true);
           }
           
-          // Mark as loaded if we've loaded this URL before
-          if (loadedAudioCache.has(audioUrl)) {
-            console.log('Audio was previously loaded, restoring loaded state');
-            setAudioLoaded(true);
-          }
-          
           return true;
         }
       }
     } catch (e) {
-      console.warn('Error restoring audio state from localStorage:', e);
+      console.warn('Error restoring audio state from session storage:', e);
     }
     
     return false;
@@ -146,11 +125,6 @@ export function useAudioPlayer({
   // Handle visibility change to persist audio state between tab switches
   useEffect(() => {
     const handleVisibilityChange = () => {
-      const wasHidden = visibilityStateRef.current === 'hidden';
-      const isNowVisible = document.visibilityState === 'visible';
-      
-      visibilityStateRef.current = document.visibilityState === 'visible' ? 'visible' : 'hidden';
-      
       const audio = audioRef.current;
       if (!audio) return;
 
@@ -159,8 +133,8 @@ export function useAudioPlayer({
         lastKnownPositionRef.current = audio.currentTime;
         audioLoadedStateRef.current = audioLoaded;
         
-        // Save state to localStorage for persistence
-        saveAudioStateToStorage();
+        // Save state to session storage for persistence
+        saveAudioStateToSession();
         
         // If we're playing, pause the audio to save resources
         if (!audio.paused) {
@@ -168,21 +142,13 @@ export function useAudioPlayer({
           // We don't call setIsPlaying(false) here because we want to 
           // remember that the user intended to play this
         }
-      } else if (wasHidden && isNowVisible) {
-        // Tab is visible again after being hidden
-        console.log('Tab visible again, restoring audio state');
+      } else {
+        // Tab is visible again
+        const wasRestored = restoreAudioStateFromSession();
         
-        // Set flag to prevent unnecessary reloading
-        setHasRestoredAfterTabSwitch(true);
-        
-        // Always restore from localStorage first for most accurate state
-        const wasRestored = restoreAudioStateFromStorage();
-        
-        // If we couldn't restore from localStorage, use the in-memory reference
-        if (!wasRestored && lastKnownPositionRef.current > 0) {
-          console.log('Restoring from in-memory position:', lastKnownPositionRef.current);
+        // If we couldn't restore from session, use the in-memory reference
+        if (!wasRestored) {
           audio.currentTime = lastKnownPositionRef.current;
-          setCurrentTime(lastKnownPositionRef.current);
         }
         
         if (isPlaying && audio.paused) {
@@ -200,61 +166,25 @@ export function useAudioPlayer({
                 setPlaybackState('error');
                 setIsPlaying(false);
               });
-          }, 150);
+          }, 100);
         }
         
         // Restore loaded state if needed
         if (audioLoadedStateRef.current) {
           setAudioLoaded(true);
-          
-          // Also mark this URL as loaded in our cache
-          if (audioUrl) {
-            loadedAudioCache.add(audioUrl);
-          }
-        }
-      }
-    };
-    
-    // Handle pageshow event for back/forward cache
-    const handlePageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) {
-        console.log('Page was restored from bfcache');
-        
-        // Similar to visibility change but for back/forward navigation
-        const wasRestored = restoreAudioStateFromStorage();
-        
-        if (wasRestored) {
-          setHasRestoredAfterTabSwitch(true);
-          
-          // Mark audio as loaded if we restored successfully
-          setAudioLoaded(true);
-          
-          // Add to loaded cache
-          if (audioUrl) {
-            loadedAudioCache.add(audioUrl);
-          }
         }
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('pageshow', handlePageShow);
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pageshow', handlePageShow);
       
       // Save state when unmounting component
-      saveAudioStateToStorage();
+      saveAudioStateToSession();
     };
-  }, [isPlaying, setIsPlaying, setPlaybackState, audioLoaded, setAudioLoaded, audioUrl]);
-  
-  // Mark audio as loaded in cache when it's successfully loaded
-  useEffect(() => {
-    if (audioLoaded && audioUrl) {
-      loadedAudioCache.add(audioUrl);
-    }
-  }, [audioLoaded, audioUrl]);
+  }, [isPlaying, setIsPlaying, setPlaybackState, audioLoaded, setAudioLoaded]);
   
   // Save audio state periodically while playing
   useEffect(() => {
@@ -263,7 +193,7 @@ export function useAudioPlayer({
     if (isPlaying) {
       // Save state every 5 seconds while playing
       saveInterval = window.setInterval(() => {
-        saveAudioStateToStorage();
+        saveAudioStateToSession();
       }, 5000);
     }
     
@@ -273,22 +203,6 @@ export function useAudioPlayer({
       }
     };
   }, [isPlaying, trackId, audioUrl]);
-
-  // Only attempt to restore on first mount
-  useEffect(() => {
-    if (isFirstLoadRef.current && audioUrl) {
-      isFirstLoadRef.current = false;
-      
-      setTimeout(() => {
-        restoreAudioStateFromStorage();
-        
-        // If this URL is in our loaded cache, mark it as loaded
-        if (loadedAudioCache.has(audioUrl)) {
-          setAudioLoaded(true);
-        }
-      }, 200);
-    }
-  }, [audioUrl]);
 
   // Custom toggle play/pause handler for play count tracking
   const handleTogglePlayPause = () => {
@@ -328,6 +242,7 @@ export function useAudioPlayer({
           .then(incremented => {
             if (incremented) {
               console.log("Play count incremented successfully");
+              // We could dispatch an event or update some state here if needed
             }
           })
           .catch(error => {
@@ -375,8 +290,7 @@ export function useAudioPlayer({
     clearBufferingTimeout,
     loadRetries,
     lastSeekTimeRef,
-    onTrackEnd: handleTrackEnd,
-    hasRestoredAfterTabSwitch
+    onTrackEnd: handleTrackEnd
   });
   
   // Audio controls
@@ -416,9 +330,15 @@ export function useAudioPlayer({
     setIsGeneratingWaveform,
     playbackState,
     recentlySeekRef,
-    currentTime,
-    hasRestoredAfterTabSwitch
+    currentTime
   });
+  
+  // Attempt to restore audio state on mount
+  useEffect(() => {
+    setTimeout(() => {
+      restoreAudioStateFromSession();
+    }, 200);
+  }, []);
 
   return {
     audioRef,
@@ -428,11 +348,11 @@ export function useAudioPlayer({
     volume,
     isMuted,
     playbackState,
-    isGeneratingWaveform: false, // Force this to always be false after tab switch
+    isGeneratingWaveform,
     audioLoaded,
     showBufferingUI: false, // Always force this to false
     isBuffering: false, // Always force this to false
-    togglePlayPause: handleTogglePlayPause,
+    togglePlayPause: handleTogglePlayPause, // Use our custom handler
     handleSeek,
     toggleMute,
     handleVolumeChange,

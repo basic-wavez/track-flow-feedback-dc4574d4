@@ -1,4 +1,3 @@
-
 import { useToast } from "@/hooks/use-toast"
 import {
   Toast,
@@ -12,12 +11,9 @@ import {
 export function Toaster() {
   const { toasts } = useToast()
 
-  // Limit the number of toasts shown at once to prevent screen flooding
-  const limitedToasts = toasts.slice(0, 3); // Only show up to 3 toasts at once
-
   return (
     <ToastProvider>
-      {limitedToasts.map(function ({ id, title, description, action, ...props }) {
+      {toasts.map(function ({ id, title, description, action, ...props }) {
         return (
           <Toast key={id} {...props}>
             <div className="grid gap-1">
