@@ -1,22 +1,49 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { TrackData, TrackWithVersions, TrackVersion } from "@/types/track";
 import { cacheTrackData, getCachedTrackData, isRecentVisibilityChange } from "@/utils/trackDataCache";
 
+// Track failed attempts to prevent infinite loops
+const failedFetchAttempts = new Map<string, { count: number, lastAttempt: number }>();
+const MAX_FETCH_ATTEMPTS = 3;
+const FETCH_COOLDOWN_MS = 5000; // 5 seconds cooldown
+
 /**
- * Fetches a track by ID
+ * Fetches a track by ID with improved error handling
  */
 export const getTrack = async (trackId: string): Promise<TrackData | null> => {
   try {
+    // Reset fetch attempts if it's been more than the cooldown period
+    const now = Date.now();
+    const failRecord = failedFetchAttempts.get(trackId);
+    
+    if (failRecord) {
+      // If we've exceeded max attempts and we're still in cooldown, return null
+      if (failRecord.count >= MAX_FETCH_ATTEMPTS && 
+          now - failRecord.lastAttempt < FETCH_COOLDOWN_MS) {
+        console.log(`Too many failed attempts for track ${trackId}, in cooldown period`);
+        return null;
+      }
+      
+      // Reset fail count if we're out of cooldown
+      if (now - failRecord.lastAttempt > FETCH_COOLDOWN_MS) {
+        failedFetchAttempts.delete(trackId);
+      }
+    }
+    
     // Check cache first
     const cacheKey = `track_${trackId}`;
     const cachedData = getCachedTrackData(cacheKey);
     
-    // Return cached data if this is a tab visibility change
-    if (cachedData && isRecentVisibilityChange()) {
-      console.log('Using cached track data for tab switch:', trackId);
-      return cachedData;
+    // Return cached data if this is a tab visibility change or we have a cached version
+    if (cachedData) {
+      if (isRecentVisibilityChange()) {
+        console.log('Using cached track data for tab switch:', trackId);
+        return cachedData;
+      } else {
+        // Still return cache but don't log, will refetch in background
+        console.log('Using cached track data while fetching fresh data:', trackId);
+      }
     }
     
     const { data: track, error } = await supabase
@@ -26,19 +53,39 @@ export const getTrack = async (trackId: string): Promise<TrackData | null> => {
       .single();
       
     if (error) {
+      // Track the failed attempt
+      const currentFails = failedFetchAttempts.get(trackId);
+      failedFetchAttempts.set(trackId, {
+        count: currentFails ? currentFails.count + 1 : 1,
+        lastAttempt: now
+      });
+      
       throw error;
     }
+    
+    // Reset failed attempts on success
+    failedFetchAttempts.delete(trackId);
     
     // Cache the result
     cacheTrackData(cacheKey, track);
     
     return track;
   } catch (error: any) {
-    toast({
-      title: "Error Loading Track",
-      description: error.message || "Failed to load track details",
-      variant: "destructive",
-    });
+    console.error(`Failed to fetch track ${trackId}:`, error);
+    
+    // Don't show toast if we're in cooldown to avoid toast spam
+    const failRecord = failedFetchAttempts.get(trackId);
+    if (!failRecord || failRecord.count <= MAX_FETCH_ATTEMPTS) {
+      if (!isRecentVisibilityChange()) {
+        // Only show toast if not a tab switch
+        useToast().toast({
+          title: "Error Loading Track",
+          description: error.message || "Failed to load track details",
+          variant: "destructive",
+        });
+      }
+    }
+    
     return null;
   }
 };
@@ -284,7 +331,7 @@ export const getUserTracks = async (): Promise<TrackWithVersions[]> => {
     return groupedTracks;
   } catch (error: any) {
     console.error("Error loading tracks:", error);
-    toast({
+    useToast().toast({
       title: "Error Loading Tracks",
       description: error.message || "Failed to load your tracks",
       variant: "destructive",
@@ -322,7 +369,7 @@ export const getTrackVersions = async (trackId: string): Promise<TrackData[]> =>
     return familyTracks.sort((a, b) => b.version_number - a.version_number);
   } catch (error: any) {
     console.error("Error loading track versions:", error);
-    toast({
+    useToast().toast({
       title: "Error Loading Versions",
       description: error.message || "Failed to load track versions",
       variant: "destructive",

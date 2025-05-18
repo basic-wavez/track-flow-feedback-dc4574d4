@@ -19,6 +19,12 @@ import TrackVersionsDrawer from "@/components/track/TrackVersionsDrawer";
 import { getFileTypeFromUrl, needsProcessingIndicator, isWavFormat } from "@/lib/audioUtils";
 import { Button } from "@/components/ui/button";
 
+// This will store known bad track IDs to prevent repeated attempts to load them
+const INVALID_TRACK_IDS = new Set<string>();
+
+// Cooldown period in ms to prevent repeated fetch attempts
+const ERROR_RETRY_COOLDOWN_MS = 30000; // 30 seconds
+
 const TrackView = () => {
   const params = useParams<{ trackId?: string; shareKey?: string; "*"?: string }>();
   const location = useLocation();
@@ -34,6 +40,10 @@ const TrackView = () => {
   const [trackVersions, setTrackVersions] = useState<TrackVersion[]>([]);
   
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Track failure rate to prevent infinite loops
+  const failureCountRef = useRef(0);
+  const lastErrorTimeRef = useRef<number | null>(null);
   
   // Track whether we've already loaded this track
   const loadedTrackRef = useRef<string | null>(null);
@@ -99,11 +109,23 @@ const TrackView = () => {
     };
   }, []);
   
+  // Function to check if we're in error cooldown period
+  const isInErrorCooldown = useCallback(() => {
+    if (!lastErrorTimeRef.current) return false;
+    return (Date.now() - lastErrorTimeRef.current) < ERROR_RETRY_COOLDOWN_MS;
+  }, []);
+  
   // Memoized loadTrack function
   const loadTrack = useCallback(async () => {
     // Skip loading if we're in a visibility change and the track is already loaded
     if (isVisibilityChangeRef.current && loadedTrackRef.current) {
       console.log('TrackView: Skipping load on tab visibility change');
+      return;
+    }
+    
+    // Skip loading if we're in error cooldown and have exceeded failure threshold
+    if (isInErrorCooldown() && failureCountRef.current > 2) {
+      console.log('TrackView: Skipping load during error cooldown');
       return;
     }
     
@@ -144,28 +166,29 @@ const TrackView = () => {
       // If we're on a share route, get the track ID from the share key
       if (isShareRoute && shareKey) {
         console.log("Loading track by share key:", shareKey);
+        
+        // Check if this share key has previously failed
+        const cacheKey = `share_${shareKey}`;
+        if (INVALID_TRACK_IDS.has(cacheKey)) {
+          throw new Error(`Invalid share link: ${shareKey} (from cache)`);
+        }
+        
         actualTrackId = await getTrackIdByShareKey(shareKey);
         console.log("Resolved trackId from shareKey:", actualTrackId);
         
         if (!actualTrackId) {
-          console.error("No track ID found for share key:", shareKey);
-          if (isMountedRef.current) {
-            setError(`Invalid share link: ${shareKey}`);
-            setTrackData(null);
-            setIsLoading(false);
-          }
-          return;
+          INVALID_TRACK_IDS.add(cacheKey); // Remember this bad share key
+          throw new Error(`Invalid share link: ${shareKey}`);
         }
       }
 
       if (!actualTrackId) {
-        console.error("No track ID available after processing parameters");
-        if (isMountedRef.current) {
-          setError("Invalid track ID");
-          setTrackData(null);
-          setIsLoading(false);
-        }
-        return;
+        throw new Error("Invalid track ID");
+      }
+      
+      // Check if this track ID is known to be invalid
+      if (INVALID_TRACK_IDS.has(actualTrackId)) {
+        throw new Error(`Track not found (from cache): ${actualTrackId}`);
       }
 
       // Store the resolved track ID in state for use throughout the component
@@ -187,15 +210,16 @@ const TrackView = () => {
       if (!isMountedRef.current) return;
       
       if (!track) {
-        console.error("Track not found for ID:", actualTrackId);
-        setError("Track not found");
-        setTrackData(null);
-        setIsLoading(false);
-        return;
+        INVALID_TRACK_IDS.add(actualTrackId); // Remember this bad track ID
+        throw new Error(`Track not found for ID: ${actualTrackId}`);
       }
       
       console.log("Track data loaded:", track.id);
       setTrackData(track);
+      
+      // Reset error tracking on success
+      failureCountRef.current = 0;
+      lastErrorTimeRef.current = null;
       
       // Mark this track as loaded
       loadedTrackRef.current = actualTrackId;
@@ -223,18 +247,22 @@ const TrackView = () => {
           setTrackVersions(versionsArray);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Track error rate
+      failureCountRef.current += 1;
+      lastErrorTimeRef.current = Date.now();
+      
       console.error("Error loading track:", error);
       if (isMountedRef.current) {
         setTrackData(null);
-        setError("Error loading track");
+        setError(error.message || "Error loading track");
       }
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
       }
     }
-  }, [user]);
+  }, [user, isInErrorCooldown]);
 
   // Load track data when parameters change
   useEffect(() => {
