@@ -66,9 +66,10 @@ export function useAudioControls({
     const audio = audioRef.current;
     if (!audio || !audioUrl || !isFinite(time) || isNaN(time)) return;
     
-    // If we're in background playback mode, make sure we're synced before seeking
+    // If we're in background playback mode and we're now visible, 
+    // first synchronize the UI with the audio's actual position
     if (allowBackgroundPlayback && document.visibilityState === 'visible') {
-      // First ensure our state is in sync with the actual audio position
+      // Force sync our UI with the actual audio position before seeking
       syncCurrentTimeWithAudio();
     }
     

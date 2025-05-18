@@ -28,7 +28,7 @@ export function useAudioEvents({
   lastSeekTimeRef,
   onTrackEnd,
   hasRestoredAfterTabSwitch = false,
-  timeUpdateActiveRef = { current: true } // New ref to control time updates
+  timeUpdateActiveRef = { current: true } // Reference to control time updates
 }: any) {
   // Track if this hook has been initialized for the current audio URL
   const hasInitializedEventsRef = useRef(false);
@@ -172,6 +172,17 @@ export function useAudioEvents({
       setShowBufferingUI(false);
     };
     
+    const handlePlaying = () => {
+      // Enable time updates if they were disabled
+      if (!timeUpdateActiveRef.current && document.visibilityState === 'visible') {
+        console.log('Re-enabling time updates on playing event');
+        timeUpdateActiveRef.current = true;
+        
+        // Force a sync when playback starts/resumes
+        setCurrentTime(audio.currentTime || 0);
+      }
+    };
+    
     const handleError = (e: Event) => {
       // Skip error handling if we've already restored after tab switch
       if (hasRestoredAfterTabSwitch) {
@@ -217,9 +228,20 @@ export function useAudioEvents({
       if (wasHidden && isNowVisible) {
         console.log('Audio: Tab became visible, preserving audio state');
         
+        // Ensure we resume time updates
+        timeUpdateActiveRef.current = true;
+        
+        // Force a sync of the current time
+        if (audio && !audio.paused) {
+          setCurrentTime(audio.currentTime || 0);
+        }
+        
         // Ensure buffering UI is hidden after tab switch
         clearBufferingTimeout();
         setShowBufferingUI(false);
+      } else if (document.hidden) {
+        // If we're going into background, log that for debugging
+        console.log('Audio: Tab becoming hidden, may pause time updates');
       }
     };
     
@@ -230,6 +252,7 @@ export function useAudioEvents({
     audio.addEventListener("canplay", handleCanPlay);
     audio.addEventListener("waiting", handleWaiting);
     audio.addEventListener("error", handleError);
+    audio.addEventListener("playing", handlePlaying);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Set volume and muted state
@@ -244,6 +267,7 @@ export function useAudioEvents({
       audio.removeEventListener("canplay", handleCanPlay);
       audio.removeEventListener("waiting", handleWaiting);
       audio.removeEventListener("error", handleError);
+      audio.removeEventListener("playing", handlePlaying);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isPlaying, playbackState, hasRestoredAfterTabSwitch, audioUrl]);

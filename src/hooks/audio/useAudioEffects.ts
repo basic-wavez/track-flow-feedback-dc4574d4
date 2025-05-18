@@ -20,7 +20,8 @@ export function useAudioEffects({
   recentlySeekRef,
   currentTime,
   hasRestoredAfterTabSwitch = false,
-  allowBackgroundPlayback = false // New prop for background playback
+  allowBackgroundPlayback = false, // New prop for background playback
+  timeUpdateActiveRef = { current: true } // Ref to control time updates
 }: any) {
   // Track if this effect has already run for this URL
   const hasInitializedRef = useRef(false);
@@ -55,12 +56,25 @@ export function useAudioEffects({
         console.log('useAudioEffects: Tab becoming hidden, storing state');
         storeAudioState();
         
-        // If background playback is enabled, log it
-        if (allowBackgroundPlayback) {
-          console.log('useAudioEffects: Background playback enabled, audio will continue');
+        // If background playback is enabled, disable time updates but let audio continue
+        if (allowBackgroundPlayback && audioRef.current && !audioRef.current.paused) {
+          console.log('useAudioEffects: Background playback enabled, disabling UI updates');
+          timeUpdateActiveRef.current = false;
         }
       } else if (document.visibilityState === 'visible') {
         console.log('useAudioEffects: Tab became visible');
+        
+        // Always re-enable time updates when returning to visible state
+        timeUpdateActiveRef.current = true;
+        
+        // If we have background playback and audio is playing, force a sync
+        if (allowBackgroundPlayback && audioRef.current && !audioRef.current.paused) {
+          console.log('useAudioEffects: Syncing time after returning to visible tab');
+          setCurrentTime(audioRef.current.currentTime || 0);
+          
+          // Reset seeking state to ensure we can seek after returning
+          recentlySeekRef.current = false;
+        }
       }
     };
     
@@ -104,6 +118,9 @@ export function useAudioEffects({
     setShowBufferingUI(false);
     bufferingStartTimeRef.current = null;
     
+    // Always ensure time updates are enabled when loading new audio
+    timeUpdateActiveRef.current = true;
+    
     // Generate waveform visualization for this URL
     // Temporarily set this flag to show the loading state
     setIsGeneratingWaveform(true);
@@ -136,8 +153,8 @@ export function useAudioEffects({
       if (audioRef.current && prevAudioUrlRef.current === audioUrl) {
         audioRef.current.load();
         
-        // If we have stored state to restore, do that after loading
-        if (shouldRestoreState) {
+        // If we have stored state to restore and background playback isn't enabled
+        if (shouldRestoreState && !allowBackgroundPlayback) {
           try {
             const storedState = JSON.parse(sessionStorage.getItem('audioPlayerState') || '{}');
             if (storedState.currentTime > 0 && audioRef.current) {
