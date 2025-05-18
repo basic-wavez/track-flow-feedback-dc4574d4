@@ -1,4 +1,6 @@
 
+import { useState, useEffect } from 'react';
+
 /**
  * Visibility State Manager Singleton
  * 
