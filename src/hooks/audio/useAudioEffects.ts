@@ -1,10 +1,7 @@
-
-import { useEffect, useRef } from "react";
-import { getLastVisibilityState, didTabBecomeVisible } from "@/components/waveform/WaveformCache";
+import { useEffect } from "react";
 
 /**
- * Hook that handles audio-related side effects like loadedmetadata, timeupdate, etc.
- * Enhanced to properly handle tab switching
+ * Hook that provides audio effects for the audio player
  */
 export function useAudioEffects({
   audioRef,
@@ -19,89 +16,68 @@ export function useAudioEffects({
   playbackState,
   recentlySeekRef,
   currentTime,
-  setCurrentTime, // Add this parameter to fix the error
-  hasRestoredAfterTabSwitch = false,
-  allowBackgroundPlayback = false, // New prop for background playback
-  timeUpdateActiveRef = { current: true } // Ref to control time updates
+  setCurrentTime,
+  hasRestoredAfterTabSwitch,
+  allowBackgroundPlayback,
+  timeUpdateActiveRef
 }: any) {
-  // Track if this effect has already run for this URL
-  const hasInitializedRef = useRef(false);
-  const prevAudioUrlRef = useRef<string | undefined>(undefined);
-  const visibilityChangeRef = useRef<number>(0);
-  const sessionStartTime = useRef<number>(Date.now());
-  
-  // Effect to handle URL changes and reset state
+  // Reset state when audio URL changes
   useEffect(() => {
-    if (!audioUrl) return;
-    
-    // Skip reset if we've restored after tab switch
-    if (hasRestoredAfterTabSwitch) {
-      console.log('Skipping audio effects reset after tab switch');
-      return;
-    }
-    
-    // Skip if we've already initialized this URL and it hasn't changed
-    if (hasInitializedRef.current && prevAudioUrlRef.current === audioUrl) {
-      console.log(`Audio URL ${audioUrl} already initialized, skipping redundant reset`);
-      return;
-    }
-    
     const audio = audioRef.current;
     if (!audio) return;
-
-    // Update refs to prevent redundant initialization
-    hasInitializedRef.current = true;
-    prevAudioUrlRef.current = audioUrl;
-
-    // Reset state when URL changes
-    console.log(`Audio URL changed to: ${audioUrl}`);
-    setAudioLoaded(false);
-    setPlaybackState('loading');
-
-    // Reset any flags for buffering visualization
-    clearBufferingTimeout();
-    setShowBufferingUI(false);
-    bufferingStartTimeRef.current = null;
     
-    // Always ensure time updates are enabled
-    timeUpdateActiveRef.current = true;
-    
-    // Generate waveform visualization for this URL
-    // Temporarily set this flag to show the loading state
-    setIsGeneratingWaveform(true);
-    
-    // Give a short delay before attempting to load the audio
-    // This helps with browser performance and UI rendering
-    setTimeout(() => {
-      // Turn off waveform generation indicator after a delay
+    if (audioUrl) {
+      console.log(`Audio URL changed to ${audioUrl}`);
+      
+      // Reset state when audio URL changes
+      setAudioLoaded(false);
+      
+      if (playbackState !== 'error') {
+        setPlaybackState('idle');
+      }
+      
+      // Reset buffering indicators
+      clearBufferingTimeout();
+      bufferingStartTimeRef.current = null;
+      setShowBufferingUI(false);
+      
+      // Reset waveform generation
       setIsGeneratingWaveform(false);
       
-      // Load the audio if we're still mounted and the URL hasn't changed
-      if (audioRef.current && prevAudioUrlRef.current === audioUrl) {
-        audioRef.current.load();
-      }
-    }, 200);
-    
-    return () => {
-      clearBufferingTimeout();
-    };
-  }, [audioUrl, hasRestoredAfterTabSwitch]);
-
-  // Effect to handle visibility changes for tab switching
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      visibilityChangeRef.current++;
+      // Force load the audio to ensure metadata is loaded
+      audio.load();
       
+      // After a short delay, check if the audio has a valid duration
+      setTimeout(() => {
+        if (audio && isFinite(audio.duration) && audio.duration > 0) {
+          setDuration(audio.duration);
+        }
+      }, 200);
+    }
+  }, [audioUrl]);
+
+  // Keep audio element and state in sync
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    // Synchronize when tab becomes visible
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('useAudioEffects: Tab became visible');
+        console.log('Tab visible - syncing audio effects');
         
-        // When returning to visible state, read the current time from the audio element
-        if (audioRef.current) {
-          // Sync UI with actual audio position
-          setCurrentTime(audioRef.current.currentTime || 0);
-          
-          // Reset seeking state to ensure we can seek after returning
-          recentlySeekRef.current = false;
+        // When coming back to the tab, check if audio has loaded
+        // and update duration if needed
+        if (audio && audio.readyState >= 2) {
+          if (isFinite(audio.duration)) {
+            setDuration(audio.duration);
+          }
+          setAudioLoaded(true);
+        }
+        
+        // If audio is playing and we have a current position, sync with it
+        if (!audio.paused && !recentlySeekRef.current) {
+          setCurrentTime(audio.currentTime);
         }
       }
     };
@@ -111,16 +87,5 @@ export function useAudioEffects({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [audioUrl, playbackState]);
-
-  // Effect to log playback state changes
-  useEffect(() => {
-    console.log(`Playback state changed to: ${playbackState}`);
-  }, [playbackState]);
-
-  // Return a flag indicating if this is a restored session after tab switch
-  return { 
-    isRestoredSession: hasRestoredAfterTabSwitch,
-    visibilityChanges: visibilityChangeRef.current
-  };
+  }, [audioRef, setCurrentTime, recentlySeekRef, setDuration, setAudioLoaded]);
 }

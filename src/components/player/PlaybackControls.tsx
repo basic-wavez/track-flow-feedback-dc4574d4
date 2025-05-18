@@ -42,13 +42,17 @@ const PlaybackControls = ({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  // Determine if the button should be disabled
+  // Only disable if explicitly in error state or loading state
+  const isButtonDisabled = playbackState === 'error' || isLoading;
+
   return (
     <div className="flex items-center gap-4 mb-4">
       <Button 
         onClick={onPlayPause} 
         size="icon" 
         className="h-12 w-12 rounded-full gradient-bg hover:opacity-90"
-        disabled={isLoading || playbackState === 'error' || !isFinite(duration)}
+        disabled={isButtonDisabled}
       >
         {isLoading ? (
           <Play className="h-6 w-6 ml-1 opacity-50" />

@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 
 /**
@@ -36,22 +35,44 @@ export function useAudioEvents({
     const audio = audioRef.current;
     if (!audio) return;
 
+    // Explicitly load the audio when URL changes
+    audio.load();
+    
+    console.log(`Setting up audio events for URL: ${audioUrl}`);
+    
     // Handlers to set up for the audio element
     const handleLoadedMetadata = () => {
       if (!audio) return;
       
-      setDuration(audio.duration || 0);
+      console.log(`Audio loaded metadata: duration=${audio.duration}`);
+      
+      // Ensure we set a valid duration
+      if (isFinite(audio.duration)) {
+        setDuration(audio.duration || 0);
+      } else {
+        // If duration is not valid yet, we'll set a temporary value
+        console.log("Invalid duration from metadata, will try to get it later");
+      }
+      
       setAudioLoaded(true);
       
       // Reset buffering UI
       clearBufferingTimeout();
       setShowBufferingUI(false);
       
-      console.log(`Audio loaded metadata: duration=${audio.duration}`);
-      
       // Default to seeking to beginning for consistency
       audio.currentTime = 0;
       setCurrentTime(0);
+    };
+    
+    // Add a canplay handler to ensure we have valid metadata
+    const handleCanPlay = () => {
+      console.log(`Audio can play, duration=${audio.duration}`);
+      
+      // Double check if duration is now available and valid
+      if (isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
     };
     
     // Time update handler - keep this running in background tabs
@@ -60,6 +81,11 @@ export function useAudioEvents({
       
       // Always update time state from audio element to keep UI in sync
       setCurrentTime(audio.currentTime || 0);
+      
+      // If we don't have a valid duration yet, try to get it from the audio element
+      if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
       
       // Reset recent seek flag after a short delay
       if (recentlySeekRef.current && Date.now() - (lastSeekTimeRef.current || 0) > 500) {
@@ -138,6 +164,11 @@ export function useAudioEvents({
           // Update play state based on actual audio element state
           setIsPlaying(!audio.paused);
           setPlaybackState(!audio.paused ? 'playing' : 'paused');
+          
+          // Ensure we have the updated duration
+          if (isFinite(audio.duration) && audio.duration > 0) {
+            setDuration(audio.duration);
+          }
         }
       }
     };
@@ -163,6 +194,7 @@ export function useAudioEvents({
     
     // Add event listeners
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
@@ -175,6 +207,7 @@ export function useAudioEvents({
     return () => {
       // Clean up event listeners
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('canplay', handleCanPlay);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
