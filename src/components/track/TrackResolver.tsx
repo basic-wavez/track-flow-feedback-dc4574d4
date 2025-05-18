@@ -28,6 +28,7 @@ const TrackResolver = ({
   const lastErrorTimeRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
   const resolvedRef = useRef(false);
+  const resolvedTrackIdRef = useRef<string | null>(null);
   
   // Function to check if we're in error cooldown period
   const isInErrorCooldown = useCallback(() => {
@@ -37,8 +38,17 @@ const TrackResolver = ({
 
   // Resolve track ID from share key if necessary
   useEffect(() => {
-    // Prevent multiple resolution attempts for the same input
-    if (resolvedRef.current && !isRecentVisibilityChange()) {
+    // Prevent unnecessary resolution attempts
+    // Only resolve if:
+    // 1. Not already resolved OR
+    // 2. Inputs have changed OR
+    // 3. This is a visibility change and we don't have a resolved ID yet
+    const shouldResolve = 
+      !resolvedRef.current || 
+      (trackId && trackId !== resolvedTrackIdRef.current) ||
+      (isShareRoute && shareKey && !resolvedTrackIdRef.current);
+      
+    if (!shouldResolve) {
       return;
     }
     
@@ -92,6 +102,7 @@ const TrackResolver = ({
         failureCountRef.current = 0;
         lastErrorTimeRef.current = null;
         resolvedRef.current = true;
+        resolvedTrackIdRef.current = actualTrackId;
         
         // Call the onResolve callback with the resolved track ID
         if (isMountedRef.current) {

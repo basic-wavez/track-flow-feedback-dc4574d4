@@ -3,8 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { TrackData, TrackWithVersions, TrackVersion } from "@/types/track";
 import { cacheTrackData, getCachedTrackData } from "@/utils/trackDataCache";
 import { isRecentVisibilityChange } from "@/hooks/useVisibilityChange";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast"; // Fixed import path
 import { findRootParentId } from "./trackQueryUtils";
+
+// Store last toast time for rate limiting
+const TOAST_COOLDOWN_MS = 10000;
+let lastErrorToastTime = 0;
 
 /**
  * Fetches all tracks for the current user with version grouping
@@ -154,11 +158,18 @@ export const getUserTracks = async (): Promise<TrackWithVersions[]> => {
     return groupedTracks;
   } catch (error: any) {
     console.error("Error loading tracks:", error);
-    useToast().toast({
-      title: "Error Loading Tracks",
-      description: error.message || "Failed to load your tracks",
-      variant: "destructive",
-    });
+    
+    // Rate limit toasts to prevent flood
+    const now = Date.now();
+    if (now - lastErrorToastTime > TOAST_COOLDOWN_MS) {
+      lastErrorToastTime = now;
+      toast({
+        title: "Error Loading Tracks",
+        description: error.message || "Failed to load your tracks",
+        variant: "destructive",
+      });
+    }
+    
     return [];
   }
 };

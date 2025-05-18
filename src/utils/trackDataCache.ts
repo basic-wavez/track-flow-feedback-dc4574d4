@@ -1,4 +1,3 @@
-
 /**
  * Track Data Cache Utility
  * 
@@ -104,4 +103,3 @@ export const shouldFetchData = (key: string): boolean => {
 
 // Re-export visibility functions to avoid circular dependencies
 export { getDocumentVisibilityState, isRecentVisibilityChange };
-
