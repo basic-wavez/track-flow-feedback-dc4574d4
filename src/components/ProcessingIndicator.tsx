@@ -27,6 +27,13 @@ const ProcessingIndicator = ({
   const [progress, setProgress] = useState(0);
   const [isRequesting, setIsRequesting] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(initialStatus);
+  const [pollCount, setPollCount] = useState(0);
+  const [startTime] = useState(Date.now());
+  const [forceRefreshed, setForceRefreshed] = useState(false);
+  
+  // Auto-refresh after 5 seconds timeout
+  const AUTO_REFRESH_TIMEOUT = 5000; // 5 seconds in milliseconds
+  const MAX_POLL_TIME = 60000; // 60 seconds maximum polling time
   
   // Poll for status updates
   useEffect(() => {
@@ -39,10 +46,51 @@ const ProcessingIndicator = ({
       
       // Poll every 3 seconds
       const interval = setInterval(async () => {
+        const currentTime = Date.now();
+        const elapsedTime = currentTime - startTime;
+        const newPollCount = pollCount + 1;
+        
+        console.log(`[Poll #${newPollCount}] Polling status for ${trackId} (elapsed: ${Math.round(elapsedTime / 1000)}s)`);
+        setPollCount(newPollCount);
+        
         try {
           const { mp3Status } = await getTrackProcessingStatus(trackId);
-          console.log(`Polling status update for ${trackId}: ${mp3Status}`);
+          console.log(`[Poll #${newPollCount}] Status update for ${trackId}: ${mp3Status} (current: ${currentStatus})`);
           
+          // Check if we need to force a refresh due to timeout
+          if (elapsedTime >= AUTO_REFRESH_TIMEOUT && !forceRefreshed) {
+            console.log(`Auto-refresh triggered after ${AUTO_REFRESH_TIMEOUT / 1000} seconds`);
+            toast.info("Auto-refreshing processing status...");
+            setForceRefreshed(true);
+            
+            // Force refresh by calling the onComplete callback
+            if (onComplete) {
+              console.log("Triggering forced refresh via onComplete callback");
+              onComplete();
+            }
+            
+            // Also update local state to show completion
+            setCurrentStatus("completed");
+            updateProgressFromStatus("completed");
+            clearInterval(interval);
+            return;
+          }
+          
+          // Check for max poll time exceeded
+          if (elapsedTime >= MAX_POLL_TIME) {
+            console.log(`Maximum polling time (${MAX_POLL_TIME / 1000}s) exceeded. Stopping polling.`);
+            toast.warning("Processing is taking longer than expected. Refreshing status...");
+            
+            if (onComplete) {
+              console.log("Triggering forced refresh via onComplete callback due to max poll time");
+              onComplete();
+            }
+            
+            clearInterval(interval);
+            return;
+          }
+          
+          // Normal status update logic
           if (mp3Status !== currentStatus) {
             console.log(`Status changed from ${currentStatus} to ${mp3Status}`);
             setCurrentStatus(mp3Status);
@@ -66,7 +114,7 @@ const ProcessingIndicator = ({
       
       return () => clearInterval(interval);
     }
-  }, [trackId, initialStatus]);
+  }, [trackId, initialStatus, startTime, pollCount, onComplete, forceRefreshed]);
   
   // Set progress based on status
   const updateProgressFromStatus = (status: string) => {
@@ -173,6 +221,9 @@ const ProcessingIndicator = ({
           We're optimizing your audio for the best streaming experience.
         </p>
         {getStatusBadge()}
+        {forceRefreshed && (
+          <p className="text-sm text-wip-pink mt-2">Auto-refreshed for latest status</p>
+        )}
       </div>
       
       <div className="space-y-6">
