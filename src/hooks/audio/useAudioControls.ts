@@ -20,7 +20,9 @@ export function useAudioControls({
   setIsMuted,
   setVolume,
   isPlaying,
-  setShowBufferingUI
+  setShowBufferingUI,
+  allowBackgroundPlayback = false, // New prop for background playback
+  syncCurrentTimeWithAudio = () => {} // New prop for syncing time
 }: any) {
   
   const togglePlayPause = () => {
@@ -63,6 +65,12 @@ export function useAudioControls({
   const handleSeek = (time: number) => {
     const audio = audioRef.current;
     if (!audio || !audioUrl || !isFinite(time) || isNaN(time)) return;
+    
+    // If we're in background playback mode, make sure we're synced before seeking
+    if (allowBackgroundPlayback && document.visibilityState === 'visible') {
+      // First ensure our state is in sync with the actual audio position
+      syncCurrentTimeWithAudio();
+    }
     
     // Mark that we recently performed a seek operation
     lastSeekTimeRef.current = Date.now();

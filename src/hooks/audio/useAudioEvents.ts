@@ -27,7 +27,8 @@ export function useAudioEvents({
   loadRetries,
   lastSeekTimeRef,
   onTrackEnd,
-  hasRestoredAfterTabSwitch = false
+  hasRestoredAfterTabSwitch = false,
+  timeUpdateActiveRef = { current: true } // New ref to control time updates
 }: any) {
   // Track if this hook has been initialized for the current audio URL
   const hasInitializedEventsRef = useRef(false);
@@ -62,7 +63,11 @@ export function useAudioEvents({
     prevAudioUrlRef.current = audioUrl;
 
     const updateTime = () => {
-      setCurrentTime(audio.currentTime || 0);
+      // Only update the UI time if the timeUpdateActiveRef flag is true
+      // This prevents updating the UI when in the background but still allows the audio to play
+      if (timeUpdateActiveRef.current) {
+        setCurrentTime(audio.currentTime || 0);
+      }
     };
     
     const handleEnd = () => {
