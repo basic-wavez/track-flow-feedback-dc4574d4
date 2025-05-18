@@ -1,3 +1,4 @@
+
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
@@ -74,9 +75,7 @@ serve(async (req: Request) => {
     }
 
     console.log(`Received request to process track ${trackId} in format ${format}`);
-    console.log(`FFMPEG_SERVICE_URL is configured with length: ${FFMPEG_SERVICE_URL.length}`);
-    console.log(`AWS_LAMBDA_API_KEY is configured with length: ${AWS_LAMBDA_API_KEY.length}`);
-
+    
     // Process the audio file using FFmpeg service
     // @ts-ignore: EdgeRuntime exists in Supabase Edge Functions
     EdgeRuntime.waitUntil(processAudioWithFFmpeg(supabase, trackId, format, originalUrl));
@@ -128,45 +127,21 @@ async function processAudioWithFFmpeg(supabase: any, trackId: string, format: st
       .update(updateData)
       .eq("id", trackId);
     
-    // IMPROVED URL PARSING: More robust extraction of bucket name and file path from Supabase storage URL
+    // Create signed URL for the original file
+    // Extract bucket and path from the original URL
     let bucketName = '';
     let filePath = '';
-    let success = false;
     
-    console.log(`Parsing storage URL: ${originalUrl}`);
-
     try {
-      // Regular expression to match Supabase storage URLs and extract bucket and path
-      // This pattern looks for the 'public/{bucket}/{path}' pattern in the URL
-      const storageUrlPattern = /\/storage\/v1\/object\/public\/([^\/]+)\/(.+)$/;
-      const match = originalUrl.match(storageUrlPattern);
+      // Parse storage URL to extract bucket and path
+      const urlPattern = /\/storage\/v1\/object\/public\/([^\/]+)\/(.+)$/;
+      const match = originalUrl.match(urlPattern);
       
       if (match && match.length === 3) {
         bucketName = match[1]; // First capture group is the bucket name
         filePath = match[2];   // Second capture group is the file path
-        success = true;
-        console.log(`Successfully extracted using regex pattern - bucket: ${bucketName}, path: ${filePath}`);
-      } 
-      // If regex pattern didn't match, try URL parsing as fallback
-      else {
-        const url = new URL(originalUrl);
-        const pathSegments = url.pathname.split('/');
-        
-        // Look for the 'public' segment which indicates the start of the bucket/path pattern
-        const publicIndex = pathSegments.findIndex(segment => segment === 'public');
-        
-        if (publicIndex >= 0 && publicIndex < pathSegments.length - 2) {
-          bucketName = pathSegments[publicIndex + 1];
-          filePath = pathSegments.slice(publicIndex + 2).join('/');
-          success = true;
-          console.log(`Successfully extracted using URL parsing - bucket: ${bucketName}, path: ${filePath}`);
-        }
-      }
-      
-      if (!success) {
-        console.error(`Failed to extract bucket and path from URL: ${originalUrl}`);
-        await updateTrackStatusToFailed(supabase, trackId, format);
-        return;
+      } else {
+        throw new Error("Invalid storage URL format");
       }
     } catch (error) {
       console.error(`Error parsing URL ${originalUrl}:`, error);
@@ -176,7 +151,7 @@ async function processAudioWithFFmpeg(supabase: any, trackId: string, format: st
     
     console.log(`Creating signed URL for bucket: ${bucketName}, file path: ${filePath}`);
     
-    // Create signed URL for FFmpeg service to download the original file
+    // Create signed URL for FFmpeg service
     const { data: { signedURL }, error: signedUrlError } = await supabase.storage
       .from(bucketName)
       .createSignedUrl(filePath, 60 * 10); // 10 minute expiry
@@ -189,145 +164,60 @@ async function processAudioWithFFmpeg(supabase: any, trackId: string, format: st
     
     console.log(`Successfully created signed URL with length: ${signedURL.length}`);
     
-    // Call the FFmpeg service to process the audio with improved error handling and logging
-    const processResults = await callFFmpegService(signedURL, trackId, format);
-    
-    if (!processResults.success) {
-      console.error("Failed to process audio:", processResults.error);
+    // Call the FFmpeg Lambda service with the correct parameter name (signedUrl)
+    try {
+      console.log(`Calling FFmpeg Lambda at ${FFMPEG_SERVICE_URL}`);
+      
+      const response = await fetch(FFMPEG_SERVICE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': AWS_LAMBDA_API_KEY
+        },
+        body: JSON.stringify({
+          trackId,
+          format,
+          signedUrl: signedURL  // IMPORTANT: Using signedUrl parameter name to match Lambda expectations
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`FFmpeg Lambda service responded with status ${response.status}: ${errorText}`);
+      }
+      
+      const responseData = await response.json();
+      console.log(`FFmpeg Lambda service response:`, responseData);
+      
+      // Update track with new URLs and status
+      const finalUpdateData: any = {};
+      
+      if ((format === 'all' || format === 'mp3') && responseData.mp3Url) {
+        finalUpdateData.mp3_url = responseData.mp3Url;
+        finalUpdateData.processing_status = 'completed';
+        console.log(`MP3 processing completed for track: ${trackId}`);
+      }
+      
+      if ((format === 'all' || format === 'opus') && responseData.opusUrl) {
+        finalUpdateData.opus_url = responseData.opusUrl;
+        finalUpdateData.opus_processing_status = 'completed';
+        console.log(`Opus processing completed for track: ${trackId}`);
+      }
+      
+      if (Object.keys(finalUpdateData).length > 0) {
+        await supabase
+          .from("tracks")
+          .update(finalUpdateData)
+          .eq("id", trackId);
+      }
+      
+    } catch (error) {
+      console.error(`Error calling FFmpeg Lambda service:`, error);
       await updateTrackStatusToFailed(supabase, trackId, format);
-      return;
     }
-    
-    // Update track with new URLs and status
-    const finalUpdateData: any = {};
-    
-    if ((format === 'all' || format === 'mp3') && processResults.mp3Url) {
-      finalUpdateData.mp3_url = processResults.mp3Url;
-      finalUpdateData.processing_status = 'completed';
-      console.log(`MP3 processing completed for track: ${trackId}`);
-    }
-    
-    if ((format === 'all' || format === 'opus') && processResults.opusUrl) {
-      finalUpdateData.opus_url = processResults.opusUrl;
-      finalUpdateData.opus_processing_status = 'completed';
-      console.log(`Opus processing completed for track: ${trackId}`);
-    }
-    
-    if (Object.keys(finalUpdateData).length > 0) {
-      await supabase
-        .from("tracks")
-        .update(finalUpdateData)
-        .eq("id", trackId);
-    }
-    
-    console.log(`Processing completed for track: ${trackId}, formats: ${format}`);
   } catch (error) {
     console.error(`Error processing audio for track ${trackId}:`, error);
     await updateTrackStatusToFailed(supabase, trackId, format);
-  }
-}
-
-async function callFFmpegService(signedUrl: string, trackId: string, format: string): Promise<{
-  success: boolean;
-  mp3Url?: string;
-  opusUrl?: string;
-  error?: string;
-}> {
-  try {
-    console.log(`Calling FFmpeg service at ${FFMPEG_SERVICE_URL} for track ${trackId}`);
-    
-    // First attempt: Call the FFmpeg service with the signed URL and include the API key in headers
-    let retries = 2;
-    let response;
-    let lastError;
-    
-    while (retries >= 0) {
-      try {
-        console.log(`FFmpeg API call attempt ${2-retries} for track ${trackId}`);
-        
-        response = await fetch(FFMPEG_SERVICE_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': AWS_LAMBDA_API_KEY
-          },
-          body: JSON.stringify({
-            trackId,
-            format,
-            signedUrl // Changed back to signedUrl to match Lambda expectation
-          })
-        });
-        
-        // If the request was successful, break out of the retry loop
-        if (response.ok) {
-          break;
-        }
-        
-        // If we got a non-OK response, log it and retry
-        const errorText = await response.text();
-        console.error(`FFmpeg service responded with status ${response.status}: ${errorText}`);
-        lastError = `Status ${response.status}: ${errorText}`;
-        
-        // Decrease retry count
-        retries--;
-        
-        // If we have retries left, wait before trying again
-        if (retries >= 0) {
-          console.log(`Retrying FFmpeg API call in 2 seconds...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-      } catch (error) {
-        console.error(`Network error calling FFmpeg service: ${error.message}`);
-        lastError = error.message;
-        
-        // Decrease retry count
-        retries--;
-        
-        // If we have retries left, wait before trying again
-        if (retries >= 0) {
-          console.log(`Retrying FFmpeg API call in 2 seconds...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-      }
-    }
-    
-    // If we exhausted retries and still have no successful response
-    if (!response || !response.ok) {
-      console.error(`All FFmpeg service call attempts failed for track ${trackId}`);
-      return {
-        success: false,
-        error: lastError || `FFmpeg service call failed after multiple attempts`
-      };
-    }
-    
-    console.log(`FFmpeg service responded successfully for track ${trackId}`);
-    const responseData = await response.json();
-    console.log(`FFmpeg service response data:`, responseData);
-    
-    // Check if the response has the expected structure
-    if (responseData && typeof responseData === 'object') {
-      const result = {
-        success: true,
-        mp3Url: responseData.mp3Url,
-        opusUrl: responseData.opusUrl
-      };
-      
-      // Log the result for debugging
-      console.log(`FFmpeg processing result:`, result);
-      return result;
-    } else {
-      console.error(`FFmpeg service returned unexpected response format:`, responseData);
-      return {
-        success: false,
-        error: `Unexpected response format from FFmpeg service`
-      };
-    }
-  } catch (error) {
-    console.error(`Error in callFFmpegService:`, error);
-    return {
-      success: false,
-      error: `Error calling FFmpeg service: ${error.message}`
-    };
   }
 }
 
