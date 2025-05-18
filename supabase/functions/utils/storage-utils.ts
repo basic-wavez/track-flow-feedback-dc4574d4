@@ -18,17 +18,36 @@ export interface ParsedStorageUrl {
  */
 export function parseStorageUrl(url: string): ParsedStorageUrl {
   try {
+    if (!url) {
+      throw new Error("URL is empty or undefined");
+    }
+    
+    console.log(`Attempting to parse URL: ${url}`);
+    
     // Parse storage URL to extract bucket and path
-    const urlPattern = /\/storage\/v1\/object\/public\/([^\/]+)\/(.+)$/;
-    const match = url.match(urlPattern);
+    // This supports both the standard format and variations
+    const standardPattern = /\/storage\/v1\/object\/public\/([^\/]+)\/(.+)$/;
+    const alternatePattern = /\/storage\/v1\/object\/sign\/([^\/]+)\/(.+)$/;
+    
+    let match = url.match(standardPattern);
+    
+    if (!match || match.length !== 3) {
+      // Try alternate pattern
+      match = url.match(alternatePattern);
+    }
     
     if (match && match.length === 3) {
-      return {
+      const result = {
         bucketName: match[1], // First capture group is the bucket name
         filePath: match[2],   // Second capture group is the file path
       };
+      
+      console.log(`Successfully parsed URL. Bucket: ${result.bucketName}, Path: ${result.filePath}`);
+      return result;
     }
     
+    // If we reach here, no pattern matched
+    console.error(`URL format not recognized: ${url}`);
     throw new Error(`Invalid storage URL format: ${url}`);
   } catch (error) {
     console.error(`Error parsing URL ${url}:`, error);
@@ -43,11 +62,31 @@ export function parseStorageUrl(url: string): ParsedStorageUrl {
  * @returns Full URL
  */
 export function ensureFullUrl(url: string, baseUrl: string): string {
-  if (url.startsWith('http')) {
+  try {
+    if (!url) {
+      throw new Error("URL is empty or undefined");
+    }
+    
+    // If it's already a full URL, return it
+    if (url.startsWith('http')) {
+      return url;
+    }
+    
+    // If the url starts with a slash, remove it for consistency
+    const normalizedPath = url.startsWith('/') ? url.substring(1) : url;
+    
+    // Ensure baseUrl doesn't end with a slash
+    const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    
+    // Construct the full URL
+    const fullUrl = `${normalizedBaseUrl}/storage/v1/object/public/${normalizedPath}`;
+    console.log(`Converted relative URL to full URL: ${fullUrl}`);
+    return fullUrl;
+  } catch (error) {
+    console.error(`Error ensuring full URL (${url}):`, error);
+    // Return the original URL as a fallback
     return url;
   }
-  // If it's just a path, construct the full URL
-  return `${baseUrl}/storage/v1/object/public/${url}`;
 }
 
 /**

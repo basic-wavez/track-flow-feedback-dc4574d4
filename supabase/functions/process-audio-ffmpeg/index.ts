@@ -19,12 +19,14 @@ interface RequestBody {
   trackId: string;
   format: ProcessingFormat;
   originalUrl: string;
+  useDirectUrl?: boolean;
 }
 
 const SUPABASE_URL = "https://qzykfyavenplpxpdnfxh.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const FFMPEG_SERVICE_URL = Deno.env.get("FFMPEG_SERVICE_URL") || "";
 const AWS_LAMBDA_API_KEY = Deno.env.get("AWS_LAMBDA_API_KEY") || "";
+const USE_DIRECT_URL = true; // Default to using direct URL approach
 
 // Define CORS headers for cross-origin requests
 const corsHeaders = {
@@ -61,7 +63,7 @@ serve(async (req: Request) => {
 
     // Parse request body
     const requestBody = await req.json() as RequestBody;
-    const { trackId, format, originalUrl } = requestBody;
+    const { trackId, format, originalUrl, useDirectUrl = USE_DIRECT_URL } = requestBody;
     
     if (!trackId || !format || !originalUrl) {
       return new Response(JSON.stringify({ error: "Missing required parameters" }), {
@@ -86,14 +88,16 @@ serve(async (req: Request) => {
     }
 
     console.log(`Received request to process track ${trackId} in format ${format}`);
+    console.log(`Using ${useDirectUrl ? 'direct URL' : 'signed URL'} approach for processing`);
     
     // Process the audio file using FFmpeg service
     // @ts-ignore: EdgeRuntime exists in Supabase Edge Functions
-    EdgeRuntime.waitUntil(processAudioFile(supabase, trackId, format, originalUrl));
+    EdgeRuntime.waitUntil(processAudioFile(supabase, trackId, format, originalUrl, useDirectUrl));
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: `Audio processing started for track ${trackId} in format ${format}` 
+      message: `Audio processing started for track ${trackId} in format ${format}`,
+      approach: useDirectUrl ? 'direct URL' : 'signed URL'
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -110,7 +114,13 @@ serve(async (req: Request) => {
 /**
  * Main processing function that handles the audio processing workflow
  */
-async function processAudioFile(supabase: any, trackId: string, format: ProcessingFormat, originalUrl: string) {
+async function processAudioFile(
+  supabase: any, 
+  trackId: string, 
+  format: ProcessingFormat, 
+  originalUrl: string,
+  useDirectUrl: boolean = true
+) {
   try {
     // Get the track record to work with
     const { data: track, error: trackError } = await supabase
@@ -126,42 +136,52 @@ async function processAudioFile(supabase: any, trackId: string, format: Processi
     }
 
     console.log(`Processing audio for track ${trackId} in format ${format}, original URL: ${originalUrl}`);
+    console.log(`Using ${useDirectUrl ? 'direct URL' : 'signed URL'} approach for processing`);
     
     // Update track status to processing
     await updateTrackStatusToProcessing(supabase, trackId, format);
     
-    // Parse the storage URL to extract bucket and path
-    let parsedUrl;
-    try {
-      parsedUrl = parseStorageUrl(originalUrl);
-    } catch (error) {
-      console.error(`Error parsing URL:`, error);
-      await updateTrackStatusToFailed(supabase, trackId, format);
-      return;
+    let urlForLambda: string = originalUrl;
+    
+    // Only attempt signed URL generation if not using direct URL approach
+    if (!useDirectUrl) {
+      try {
+        // Parse the storage URL to extract bucket and path
+        const parsedUrl = parseStorageUrl(originalUrl);
+        const { bucketName, filePath } = parsedUrl;
+        
+        console.log(`Creating signed URL for bucket: ${bucketName}, file path: ${filePath}`);
+        
+        // Create signed URL for FFmpeg service
+        const { data: { signedURL }, error: signedUrlError } = await supabase.storage
+          .from(bucketName)
+          .createSignedUrl(filePath, 60 * 10); // 10 minute expiry
+        
+        if (!signedURL || signedUrlError) {
+          console.error("Failed to create signed URL for original audio:", signedUrlError);
+          console.log("Falling back to direct URL approach");
+          urlForLambda = originalUrl;
+        } else {
+          console.log(`Successfully created signed URL with length: ${signedURL.length}`);
+          urlForLambda = signedURL;
+        }
+      } catch (error) {
+        console.error(`Error parsing URL or creating signed URL:`, error);
+        console.log("Falling back to direct URL approach");
+        urlForLambda = originalUrl;
+      }
+    } else {
+      console.log(`Using direct URL approach: ${originalUrl}`);
     }
-    
-    const { bucketName, filePath } = parsedUrl;
-    console.log(`Creating signed URL for bucket: ${bucketName}, file path: ${filePath}`);
-    
-    // Create signed URL for FFmpeg service
-    const { data: { signedURL }, error: signedUrlError } = await supabase.storage
-      .from(bucketName)
-      .createSignedUrl(filePath, 60 * 10); // 10 minute expiry
-    
-    if (!signedURL || signedUrlError) {
-      console.error("Failed to create signed URL for original audio:", signedUrlError);
-      await updateTrackStatusToFailed(supabase, trackId, format);
-      return;
-    }
-    
-    console.log(`Successfully created signed URL with length: ${signedURL.length}`);
     
     // Prepare request for Lambda service
     const lambdaRequest: LambdaProcessingRequest = {
       trackId,
       format,
-      signedUrl: signedURL // This is the key parameter name that Lambda expects
+      signedUrl: urlForLambda // This is the key parameter name that Lambda expects
     };
+    
+    console.log(`Calling Lambda service with URL of length: ${urlForLambda.length}`);
     
     // Call the FFmpeg Lambda service
     try {
@@ -170,6 +190,8 @@ async function processAudioFile(supabase: any, trackId: string, format: Processi
         AWS_LAMBDA_API_KEY,
         lambdaRequest
       );
+      
+      console.log(`Lambda service response:`, responseData);
       
       // Update track with new URLs and status
       await updateTrackWithProcessedUrls(

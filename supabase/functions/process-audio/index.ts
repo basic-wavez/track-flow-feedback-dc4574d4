@@ -193,7 +193,7 @@ async function callProcessAudioFFmpeg(
   try {
     console.log(`Starting FFmpeg audio processing for track: ${trackId}, format: ${format}`);
 
-    // Call our new FFmpeg edge function
+    // Call our new FFmpeg edge function with the direct URL approach
     const ffmpegFunctionUrl = `${SUPABASE_URL}/functions/v1/process-audio-ffmpeg`;
     const response = await fetch(ffmpegFunctionUrl, {
       method: 'POST',
@@ -204,7 +204,8 @@ async function callProcessAudioFFmpeg(
       body: JSON.stringify({
         trackId,
         format,
-        originalUrl
+        originalUrl,
+        useDirectUrl: true // Explicitly enable direct URL approach
       })
     });
 
