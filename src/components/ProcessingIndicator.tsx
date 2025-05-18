@@ -31,8 +31,8 @@ const ProcessingIndicator = ({
   const [startTime] = useState(Date.now());
   const [forceRefreshed, setForceRefreshed] = useState(false);
   
-  // Auto-refresh after 5 seconds timeout
-  const AUTO_REFRESH_TIMEOUT = 5000; // 5 seconds in milliseconds
+  // Auto-refresh after 12 seconds timeout (changed from 5 seconds)
+  const AUTO_REFRESH_TIMEOUT = 12000; // 12 seconds in milliseconds
   const MAX_POLL_TIME = 60000; // 60 seconds maximum polling time
   
   // Poll for status updates
