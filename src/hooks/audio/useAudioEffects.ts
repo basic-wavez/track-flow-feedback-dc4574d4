@@ -19,6 +19,7 @@ export function useAudioEffects({
   playbackState,
   recentlySeekRef,
   currentTime,
+  setCurrentTime, // Add this parameter to fix the error
   hasRestoredAfterTabSwitch = false,
   allowBackgroundPlayback = false, // New prop for background playback
   timeUpdateActiveRef = { current: true } // Ref to control time updates

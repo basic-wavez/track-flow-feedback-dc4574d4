@@ -488,6 +488,7 @@ export function useAudioPlayer({
     playbackState,
     recentlySeekRef,
     currentTime,
+    setCurrentTime, // Pass setCurrentTime to useAudioEffects
     hasRestoredAfterTabSwitch,
     allowBackgroundPlayback, // Pass the new option to useAudioEffects
     timeUpdateActiveRef // Pass the time update control ref
