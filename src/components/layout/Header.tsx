@@ -56,13 +56,7 @@ const Header = () => {
                 My Demos
               </Link>
               
-              <Link
-                to="/playlists"
-                className="inline-flex items-center px-3 py-1 text-sm font-medium text-white hover:text-wip-pink transition-colors"
-              >
-                <ListMusic className="h-4 w-4 mr-1" />
-                Playlists
-              </Link>
+              {/* Removed the Playlists link here */}
             </>
           )}
           

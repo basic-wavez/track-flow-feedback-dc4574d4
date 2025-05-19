@@ -2,7 +2,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
-import { Home, ListMusic, Menu, Upload, User, X } from "lucide-react";
+import { Home, Menu, Upload, User, X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
@@ -76,14 +76,7 @@ const MobileNav = () => {
                     
                     {user ? (
                       <>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start px-2"
-                          onClick={() => handleNavigation("/playlists")}
-                        >
-                          <ListMusic className="h-4 w-4 mr-2" />
-                          Playlists
-                        </Button>
+                        {/* Removed the Playlists button here */}
                         
                         <Button
                           variant="ghost"
