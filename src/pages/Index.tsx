@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import AudioUploader from "@/components/AudioUploader";
 import AuthModal from "@/components/auth/AuthModal";
@@ -15,9 +16,16 @@ const Index = () => {
   const [uploadedTrackId, setUploadedTrackId] = useState("");
   const [uploadedTrackName, setUploadedTrackName] = useState("");
   const [shouldNavigate, setShouldNavigate] = useState(false);
+  const initializedRef = useRef(false);
   
   // Add effect to log authentication state when component mounts
   useEffect(() => {
+    // Skip re-initialization on visibility changes
+    if (initializedRef.current) {
+      return;
+    }
+    initializedRef.current = true;
+    
     console.log("Index - Initial auth state:", { 
       isAuthenticated: !!user, 
       userId: user?.id,
@@ -33,16 +41,22 @@ const Index = () => {
   
   // Monitor auth state changes
   useEffect(() => {
-    console.log("Index - Auth state updated:", { 
-      isAuthenticated: !!user, 
-      userId: user?.id,
-      email: user?.email,
-      isAuthModalOpen,
-      path: window.location.pathname
-    });
+    // Only log when visible to avoid unnecessary operations
+    if (document.visibilityState === 'visible') {
+      console.log("Index - Auth state updated:", { 
+        isAuthenticated: !!user, 
+        userId: user?.id,
+        email: user?.email,
+        isAuthModalOpen,
+        path: window.location.pathname
+      });
+    }
   }, [user, isAuthModalOpen]);
   
   useEffect(() => {
+    // Only process navigation when the tab is visible
+    if (document.visibilityState === 'hidden') return;
+    
     // Handle navigation in an effect to ensure it happens only once
     if (shouldNavigate && uploadedTrackId) {
       // Use a timeout to ensure all state updates are processed

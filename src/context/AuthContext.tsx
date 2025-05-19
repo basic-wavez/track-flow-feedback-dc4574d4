@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -38,9 +39,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const { toast } = useToast();
+  
+  // Create refs to store subscription and initialization state
+  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const initializedRef = useRef(false);
 
-  // Fetch user profile function
-  const fetchUserProfile = async (userId: string) => {
+  // Fetch user profile function - memoized to prevent recreation
+  const fetchUserProfile = useMemo(() => async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -53,13 +58,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return null;
       }
 
-      console.log("Profile fetched:", data);
       return data as Profile;
     } catch (error) {
       console.error("Failed to fetch profile:", error);
       return null;
     }
-  };
+  }, []);
 
   // Function to refresh profile data
   const refreshProfile = async () => {
@@ -74,42 +78,57 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    console.log("AuthProvider - Initializing auth state listener");
+    // Only initialize once
+    if (initializedRef.current) {
+      return;
+    }
     
-    // Set up the auth state listener first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("AuthProvider - Auth state changed:", { 
-          event, 
-          user: session?.user?.email,
-          path: window.location.pathname
-        });
-        
-        // Update auth state synchronously
-        setSession(session);
-        setUser(session?.user ?? null);
-        setIsAuthenticated(!!session?.user); // Update explicit auth state
-        
-        // Check if the user is an admin
-        if (session?.user) {
-          setTimeout(() => {
-            checkAdminRole().then(isAdmin => {
-              setIsAdmin(isAdmin);
-            });
-            
-            // Fetch profile data
-            fetchUserProfile(session.user.id).then(profileData => {
-              setProfile(profileData);
-            });
-          }, 0);
-        } else {
-          setIsAdmin(false);
-          setProfile(null);
+    console.log("AuthProvider - Initializing auth state listener (one-time setup)");
+    initializedRef.current = true;
+    
+    // Set up the auth state listener first - only once per app lifetime
+    if (!subscriptionRef.current) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          if (document.visibilityState === 'hidden') {
+            // Don't update state when tab is hidden to prevent re-renders
+            return;
+          }
+          
+          console.log("AuthProvider - Auth state changed:", { 
+            event, 
+            user: session?.user?.email,
+            path: window.location.pathname
+          });
+          
+          // Update auth state synchronously
+          setSession(session);
+          setUser(session?.user ?? null);
+          setIsAuthenticated(!!session?.user); // Update explicit auth state
+          
+          // Check if the user is an admin
+          if (session?.user) {
+            setTimeout(() => {
+              checkAdminRole().then(isAdmin => {
+                setIsAdmin(isAdmin);
+              });
+              
+              // Fetch profile data
+              fetchUserProfile(session.user.id).then(profileData => {
+                setProfile(profileData);
+              });
+            }, 0);
+          } else {
+            setIsAdmin(false);
+            setProfile(null);
+          }
         }
-      }
-    );
+      );
+      
+      subscriptionRef.current = subscription;
+    }
 
-    // Then check for existing session
+    // Check for existing session - only once during initialization
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log("AuthProvider - Initial session check:", { 
         hasSession: !!session,
@@ -134,11 +153,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
 
-    return () => {
-      console.log("AuthProvider - Unsubscribing from auth state changes");
-      subscription.unsubscribe();
+    // Visibility change handler to resume functionality without remounting
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Refresh session data without remounting components
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user && session?.user?.id !== user?.id) {
+            // Only update if the user has actually changed
+            setSession(session);
+            setUser(session.user);
+            setIsAuthenticated(true);
+            
+            // Update admin status and profile if user changed
+            checkAdminRole().then(isAdmin => setIsAdmin(isAdmin));
+            fetchUserProfile(session.user.id).then(profileData => setProfile(profileData));
+          }
+        });
+      }
     };
-  }, []);
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      // Only unsubscribe when component is truly unmounted, not on visibility change
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
+      // We intentionally do NOT unsubscribe from auth here
+      // This prevents the cycle of subscribe -> unsubscribe -> subscribe
+      // subscriptionRef.current?.unsubscribe();
+    };
+  }, []); // Empty dependency array to ensure this only runs once
 
   // Check if the user has admin role
   const checkAdminRole = async (): Promise<boolean> => {
@@ -166,23 +210,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const refreshSession = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      console.log("AuthProvider - Manual session refresh:", {
-        hasSession: !!session,
-        user: session?.user?.email
-      });
       
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsAuthenticated(!!session?.user); // Update explicit auth state
-      
-      // Check if the user is an admin
-      if (session?.user) {
-        const adminStatus = await checkAdminRole();
-        setIsAdmin(adminStatus);
+      // Only update state when tab is visible to prevent re-renders
+      if (document.visibilityState === 'visible') {
+        console.log("AuthProvider - Manual session refresh:", {
+          hasSession: !!session,
+          user: session?.user?.email
+        });
         
-        // Refresh profile
-        const profileData = await fetchUserProfile(session.user.id);
-        setProfile(profileData);
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsAuthenticated(!!session?.user); // Update explicit auth state
+        
+        // Check if the user is an admin
+        if (session?.user) {
+          const adminStatus = await checkAdminRole();
+          setIsAdmin(adminStatus);
+          
+          // Refresh profile
+          const profileData = await fetchUserProfile(session.user.id);
+          setProfile(profileData);
+        }
       }
       
       return Promise.resolve();
@@ -372,13 +420,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const value = {
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
     user,
     session,
     loading,
     signUp,
     signIn,
-    signInWithGoogle, // Add the new method to context
+    signInWithGoogle,
     signOut,
     refreshSession,
     isAuthenticated,
@@ -388,9 +437,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     updatePassword,
     profile,
     refreshProfile,
-  };
+  }), [
+    user, 
+    session, 
+    loading, 
+    isAuthenticated, 
+    isAdmin, 
+    profile
+  ]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

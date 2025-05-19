@@ -1,5 +1,4 @@
-
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { useAudioState } from "./useAudioState";
 import { useBufferingState } from "./useBufferingState";
 import { useAudioEvents } from "./useAudioEvents";
@@ -25,8 +24,11 @@ export function useAudioPlayer({
   // Create audio element reference
   const audioRef = useRef<HTMLAudioElement>(null);
   
+  // Store visibility-related state
+  const wasPlayingBeforeHideRef = useRef(false);
+  
   // Determine the audio URL to use - prefer MP3 if available
-  const audioUrl = mp3Url || defaultAudioUrl;
+  const audioUrl = useMemo(() => mp3Url || defaultAudioUrl, [mp3Url, defaultAudioUrl]);
   
   // State for the audio player
   const {
@@ -180,6 +182,42 @@ export function useAudioPlayer({
     recentlySeekRef,
     currentTime
   });
+
+  // Effect to handle tab visibility changes
+  useMemo(() => {
+    if (typeof document === 'undefined') return () => {};
+    
+    const handleVisibilityChange = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      
+      if (document.visibilityState === 'hidden') {
+        // Store the current playing state before hiding
+        wasPlayingBeforeHideRef.current = isPlaying;
+        
+        // Don't pause audio when tab is hidden - keep playing
+      } else if (document.visibilityState === 'visible') {
+        // Resume audio context if it was suspended
+        if (audio.paused && wasPlayingBeforeHideRef.current) {
+          // Only attempt to resume if it was playing before
+          audio.play().catch(() => {
+            // If auto-resume fails, update the state to match reality
+            setIsPlaying(false);
+            setPlaybackState('paused');
+          });
+        }
+        
+        // Update current time display to match actual audio element time
+        setCurrentTime(audio.currentTime);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isPlaying, setCurrentTime, setIsPlaying, setPlaybackState]);
 
   return {
     audioRef,

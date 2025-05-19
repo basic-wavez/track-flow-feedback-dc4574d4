@@ -1,5 +1,5 @@
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, useRef } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
@@ -11,19 +11,25 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   const location = useLocation();
   const [authChecked, setAuthChecked] = useState(false);
+  const initialCheckDoneRef = useRef(false);
   
   useEffect(() => {
-    // Debug logging to help troubleshoot auth state issues
-    console.log("ProtectedRoute - Auth state:", { 
-      user: user ? `User: ${user.email}` : "No user", 
-      loading, 
-      path: location.pathname,
-      authChecked
-    });
-    
-    // Only set authChecked after loading is complete
-    if (!loading) {
-      setAuthChecked(true);
+    // Only log and set authChecked if this is the first check or if visibility is visible
+    if (!initialCheckDoneRef.current || document.visibilityState === 'visible') {
+      // Debug logging to help troubleshoot auth state issues
+      console.log("ProtectedRoute - Auth state:", { 
+        user: user ? `User: ${user.email}` : "No user", 
+        loading, 
+        path: location.pathname,
+        authChecked,
+        visibilityState: document.visibilityState
+      });
+      
+      // Only set authChecked after loading is complete
+      if (!loading) {
+        setAuthChecked(true);
+        initialCheckDoneRef.current = true;
+      }
     }
   }, [user, loading, location, authChecked]);
   

@@ -1,5 +1,6 @@
 
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { useMemo } from 'react';
 import Index from './pages/Index';
 import AuthPage from './pages/AuthPage';
 import NotFound from './pages/NotFound';
@@ -21,45 +22,57 @@ import BugReportPage from './pages/BugReportPage';
 import CookieConsent from './components/CookieConsent';
 import AdminDashboard from './pages/admin/AdminDashboard';
 
-// Create a client
-const queryClient = new QueryClient();
+// Create a client with stabilized configuration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // Prevent refetch on tab focus
+      staleTime: 60000, // 1 minute
+    },
+  },
+});
 
 function App() {
+  // Memoize component trees to prevent recreation on visibility changes
+  const authProvider = useMemo(() => (
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<AuthPage />} />
+          {/* Important: The more specific route (with shareKey) must come BEFORE the more general route */}
+          <Route path="/track/share/:shareKey" element={<TrackView />} />
+          <Route path="/track/:trackId" element={<TrackView />} />
+          
+          {/* Protected routes */}
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/track/:trackId/version" element={<ProtectedRoute><NewVersionPage /></ProtectedRoute>} />
+          
+          {/* Admin routes */}
+          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          
+          {/* Legal & Information pages */}
+          <Route path="/terms" element={<TermsOfServicePage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/cookies" element={<CookiePolicyPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          
+          {/* Support pages */}
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/faq" element={<FAQPage />} />
+          <Route path="/bug-report" element={<BugReportPage />} />
+          
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        <CookieConsent />
+        <Toaster />
+      </Router>
+    </AuthProvider>
+  ), []);
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<AuthPage />} />
-            {/* Important: The more specific route (with shareKey) must come BEFORE the more general route */}
-            <Route path="/track/share/:shareKey" element={<TrackView />} />
-            <Route path="/track/:trackId" element={<TrackView />} />
-            
-            {/* Protected routes */}
-            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            <Route path="/track/:trackId/version" element={<ProtectedRoute><NewVersionPage /></ProtectedRoute>} />
-            
-            {/* Admin routes */}
-            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-            
-            {/* Legal & Information pages */}
-            <Route path="/terms" element={<TermsOfServicePage />} />
-            <Route path="/privacy" element={<PrivacyPolicyPage />} />
-            <Route path="/cookies" element={<CookiePolicyPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            
-            {/* Support pages */}
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/faq" element={<FAQPage />} />
-            <Route path="/bug-report" element={<BugReportPage />} />
-            
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <CookieConsent />
-          <Toaster />
-        </Router>
-      </AuthProvider>
+      {authProvider}
     </QueryClientProvider>
   );
 }
