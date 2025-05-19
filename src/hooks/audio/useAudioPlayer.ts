@@ -1,5 +1,5 @@
 
-import { useRef, useEffect, useState } from "react";
+import { useRef } from "react";
 import { useAudioState } from "./useAudioState";
 import { useBufferingState } from "./useBufferingState";
 import { useAudioEvents } from "./useAudioEvents";
@@ -14,30 +14,19 @@ export interface UseAudioPlayerProps {
   defaultAudioUrl?: string;
   trackId?: string;
   shareKey?: string;
-  allowBackgroundPlayback?: boolean; // Option to allow background playback
 }
-
-// Track which audio we've already loaded to prevent double-loading on tab switch
-const loadedAudioCache = new Set<string>();
 
 export function useAudioPlayer({ 
   mp3Url, 
   defaultAudioUrl = "https://assets.mixkit.co/active_storage/sfx/5135/5135.wav",
   trackId,
-  shareKey,
-  allowBackgroundPlayback = false // Default to false for backward compatibility
+  shareKey
 }: UseAudioPlayerProps) {
   // Create audio element reference
   const audioRef = useRef<HTMLAudioElement>(null);
   
   // Determine the audio URL to use - prefer MP3 if available
   const audioUrl = mp3Url || defaultAudioUrl;
-  
-  // Track current source to prevent reload loops
-  const currentSrcRef = useRef<string | null>(null);
-  
-  // Track whether we've restored state after tab switch
-  const [hasRestoredAfterTabSwitch, setHasRestoredAfterTabSwitch] = useState(false);
   
   // State for the audio player
   const {
@@ -62,109 +51,6 @@ export function useAudioPlayer({
     playClickTimeRef,
     clearBufferingTimeout
   } = useBufferingState();
-
-  // Store the last known position for tab switching
-  const lastKnownPositionRef = useRef<number>(0);
-  const audioLoadedStateRef = useRef<boolean>(false);
-  const visibilityStateRef = useRef<'visible' | 'hidden'>(
-    document.visibilityState === 'visible' ? 'visible' : 'hidden'
-  );
-  
-  // Track if this is the first load to avoid unnecessary localStorage operations
-  const isFirstLoadRef = useRef(true);
-
-  // Add a new flag to track if the timeupdate event handler is active
-  const timeUpdateActiveRef = useRef(true);
-
-  // Debug logging for source changes
-  useEffect(() => {
-    if (!audioUrl) return;
-    
-    // Only log if the source URL changed to prevent spamming
-    if (currentSrcRef.current !== audioUrl) {
-      console.log(`Loading audio URL: ${audioUrl}`);
-      currentSrcRef.current = audioUrl;
-    }
-  }, [audioUrl]);
-
-  // Sync current time function - gets the time directly from the audio element
-  const syncCurrentTimeWithAudio = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    
-    // Get the current position directly from the audio element
-    const currentAudioTime = audio.currentTime;
-    
-    // Update the UI state to match the audio's actual position
-    console.log(`Syncing UI time with audio time: ${currentAudioTime}`);
-    setCurrentTime(currentAudioTime);
-    
-    // Reset seeking flag to ensure seeking works correctly
-    recentlySeekRef.current = false;
-  };
-
-  // Handle visibility change to manage background playback
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      const wasHidden = visibilityStateRef.current === 'hidden';
-      const isNowVisible = document.visibilityState === 'visible';
-      
-      visibilityStateRef.current = document.visibilityState === 'visible' ? 'visible' : 'hidden';
-      
-      const audio = audioRef.current;
-      if (!audio) return;
-
-      if (document.visibilityState === 'visible' && wasHidden) {
-        console.log('Tab visible again, syncing with audio');
-        
-        // Set flag to prevent unnecessary reloading
-        setHasRestoredAfterTabSwitch(true);
-        
-        // When returning to visible state, ALWAYS read the current state from the audio element
-        // This is critical for background playback
-        if (allowBackgroundPlayback) {
-          // Sync the UI with the actual audio position
-          syncCurrentTimeWithAudio();
-          
-          // Reset any flags that could interfere with seeking
-          recentlySeekRef.current = false;
-        }
-        
-        // Ensure buffering UI is hidden after tab switch
-        setShowBufferingUI(false);
-        clearBufferingTimeout();
-      }
-    };
-    
-    // Handle pageshow event for back/forward cache
-    const handlePageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) {
-        console.log('Page was restored from bfcache');
-        
-        // When returning from bfcache, sync with the audio's actual position
-        const audio = audioRef.current;
-        if (audio && !audio.paused && allowBackgroundPlayback) {
-          // Sync UI with real audio position
-          syncCurrentTimeWithAudio();
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('pageshow', handlePageShow);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pageshow', handlePageShow);
-    };
-  }, [isPlaying, setIsPlaying, setPlaybackState, audioLoaded, setAudioLoaded, audioUrl, allowBackgroundPlayback]);
-  
-  // Mark audio as loaded in cache when it's successfully loaded
-  useEffect(() => {
-    if (audioLoaded && audioUrl) {
-      loadedAudioCache.add(audioUrl);
-    }
-  }, [audioLoaded, audioUrl]);
 
   // Custom toggle play/pause handler for play count tracking
   const handleTogglePlayPause = () => {
@@ -204,6 +90,7 @@ export function useAudioPlayer({
           .then(incremented => {
             if (incremented) {
               console.log("Play count incremented successfully");
+              // We could dispatch an event or update some state here if needed
             }
           })
           .catch(error => {
@@ -251,9 +138,7 @@ export function useAudioPlayer({
     clearBufferingTimeout,
     loadRetries,
     lastSeekTimeRef,
-    onTrackEnd: handleTrackEnd,
-    hasRestoredAfterTabSwitch,
-    timeUpdateActiveRef // Pass the ref to control time updates
+    onTrackEnd: handleTrackEnd
   });
   
   // Audio controls
@@ -277,9 +162,7 @@ export function useAudioPlayer({
     setIsMuted,
     setVolume,
     isPlaying,
-    setShowBufferingUI,
-    allowBackgroundPlayback,
-    syncCurrentTimeWithAudio
+    setShowBufferingUI
   });
   
   // Setup audio effects
@@ -295,11 +178,7 @@ export function useAudioPlayer({
     setIsGeneratingWaveform,
     playbackState,
     recentlySeekRef,
-    currentTime,
-    setCurrentTime,
-    hasRestoredAfterTabSwitch,
-    allowBackgroundPlayback,
-    timeUpdateActiveRef
+    currentTime
   });
 
   return {
@@ -310,11 +189,11 @@ export function useAudioPlayer({
     volume,
     isMuted,
     playbackState,
-    isGeneratingWaveform: false, // Force this to always be false after tab switch
+    isGeneratingWaveform,
     audioLoaded,
     showBufferingUI: false, // Always force this to false
     isBuffering: false, // Always force this to false
-    togglePlayPause: handleTogglePlayPause,
+    togglePlayPause: handleTogglePlayPause, // Use our custom handler
     handleSeek,
     toggleMute,
     handleVolumeChange,

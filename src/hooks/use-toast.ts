@@ -1,10 +1,9 @@
-
 import * as React from "react"
 
 import { ToastActionElement, ToastProps } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 5
-const TOAST_REMOVE_DELAY = 5000 // Reduced from 1000000 to 5000ms (5 seconds)
+const TOAST_REMOVE_DELAY = 1000000
 
 type ToasterToast = ToastProps & {
   id: string
@@ -51,14 +50,7 @@ interface State {
   toasts: ToasterToast[]
 }
 
-// Track shown toasts to prevent duplicates
-const shownToastMessages = new Set<string>();
-const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
-
-// Clear old toast messages periodically
-setInterval(() => {
-  shownToastMessages.clear();
-}, 30000); // Clear every 30 seconds
+const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
 const reducer = (state: State, action: Action): State => {
   switch (action.type) {
@@ -133,22 +125,6 @@ function dispatch(action: Action) {
 type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
-  // Check for duplicate toast messages to prevent spam
-  const messageKey = `${props.title}_${props.description}`;
-  
-  if (shownToastMessages.has(messageKey)) {
-    // Skip duplicate toasts
-    console.log('Suppressing duplicate toast:', messageKey);
-    return {
-      id: 'duplicate',
-      dismiss: () => {},
-      update: () => {},
-    };
-  }
-  
-  // Mark this message as shown
-  shownToastMessages.add(messageKey);
-  
   const id = genId()
 
   const update = (props: ToasterToast) =>
@@ -156,7 +132,6 @@ function toast({ ...props }: Toast) {
       type: actionTypes.UPDATE_TOAST,
       toast: { ...props, id },
     })
-    
   const dismiss = () => dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id })
 
   dispatch({
@@ -171,12 +146,8 @@ function toast({ ...props }: Toast) {
     },
   })
 
-  // Auto-dismiss after a reasonable time
-  const timeout = setTimeout(dismiss, TOAST_REMOVE_DELAY);
-  toastTimeouts.set(id, timeout);
-
   return {
-    id,
+    id: id,
     dismiss,
     update,
   }

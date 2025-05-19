@@ -7,8 +7,7 @@ export {
 export {
   getTrack,
   getTrackChunkUrls,
-  getUserTracks,
-  getTrackVersions
+  getUserTracks
 } from './trackQueryService';
 
 export {

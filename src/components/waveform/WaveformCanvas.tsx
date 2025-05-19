@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface WaveformCanvasProps {
   waveformData: number[];
@@ -20,89 +20,47 @@ const WaveformCanvas = ({
   onSeek 
 }: WaveformCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // Track visibility state
-  const [isTabVisible, setIsTabVisible] = useState(document.visibilityState === 'visible');
-  // Track animation frame for proper cleanup
-  const animationFrameRef = useRef<number | null>(null);
   
-  // Handle visibility changes
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      const isVisible = document.visibilityState === 'visible';
-      setIsTabVisible(isVisible);
+    const drawWaveform = () => {
+      const canvas = canvasRef.current;
+      if (!canvas || waveformData.length === 0) return;
       
-      // If becoming visible and playback is active, ensure animation restarts
-      if (isVisible && (isPlaying || isBuffering)) {
-        // Cancel any existing animation frame to prevent duplicates
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current);
-          animationFrameRef.current = null;
-        }
-        
-        // Force a redraw immediately when becoming visible
-        drawWaveform();
-        
-        // Restart animation loop
-        const animate = () => {
-          drawWaveform();
-          animationFrameRef.current = requestAnimationFrame(animate);
-        };
-        animationFrameRef.current = requestAnimationFrame(animate);
-      }
-    };
-    
-    // Set up visibility change listener
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      // Clean up any running animation
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-    };
-  }, [isPlaying, isBuffering, currentTime, duration, waveformData, isMp3Available]);
-  
-  const drawWaveform = () => {
-    const canvas = canvasRef.current;
-    if (!canvas || waveformData.length === 0) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    // Clear the canvas
-    ctx.clearRect(0, 0, width, height);
-    
-    // Calculate the progress position
-    const isValidDuration = isFinite(duration) && duration > 0;
-    const progress = isValidDuration ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
-    const progressPixel = width * progress;
-    
-    // Draw the waveform bars with enhanced styling
-    const barWidth = width / waveformData.length;
-    const barMargin = barWidth * 0.25; // Increased spacing for more distinct bars
-    const effectiveBarWidth = barWidth - barMargin;
-    
-    // Add a subtle background glow effect
-    if (isPlaying) {
-      const glowGradient = ctx.createRadialGradient(
-        progressPixel, height/2, 5, 
-        progressPixel, height/2, height * 0.8
-      );
-      glowGradient.addColorStop(0, 'rgba(241, 132, 200, 0.3)');
-      glowGradient.addColorStop(1, 'rgba(241, 132, 200, 0)');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
       
-      ctx.fillStyle = glowGradient;
-      ctx.fillRect(0, 0, width, height);
-    }
-    
-    // Draw each bar with enhanced styling and reduced height
-    for (let i = 0; i < waveformData.length; i++) {
-      const x = i * barWidth;
+      const width = canvas.width;
+      const height = canvas.height;
+      
+      // Clear the canvas
+      ctx.clearRect(0, 0, width, height);
+      
+      // Calculate the progress position
+      const isValidDuration = isFinite(duration) && duration > 0;
+      const progress = isValidDuration ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
+      const progressPixel = width * progress;
+      
+      // Draw the waveform bars with enhanced styling
+      const barWidth = width / waveformData.length;
+      const barMargin = barWidth * 0.25; // Increased spacing for more distinct bars
+      const effectiveBarWidth = barWidth - barMargin;
+      
+      // Add a subtle background glow effect
+      if (isPlaying) {
+        const glowGradient = ctx.createRadialGradient(
+          progressPixel, height/2, 5, 
+          progressPixel, height/2, height * 0.8
+        );
+        glowGradient.addColorStop(0, 'rgba(241, 132, 200, 0.3)');
+        glowGradient.addColorStop(1, 'rgba(241, 132, 200, 0)');
+        
+        ctx.fillStyle = glowGradient;
+        ctx.fillRect(0, 0, width, height);
+      }
+      
+      // Draw each bar with enhanced styling and reduced height
+      for (let i = 0; i < waveformData.length; i++) {
+        const x = i * barWidth;
         
         // Use the amplitude with a power curve for more pronounced peaks
         const amplitude = Math.pow(waveformData[i], 0.9); 
@@ -244,29 +202,29 @@ const WaveformCanvas = ({
           }
         }
       }
-    
-    // Only draw progress line if duration is valid
-    if (isValidDuration && progressPixel > 0) {
-      // Draw a more visible playhead with glow effect
-      const playheadGlow = ctx.createLinearGradient(
-        progressPixel - 8, 0, 
-        progressPixel + 8, 0
-      );
-      playheadGlow.addColorStop(0, 'rgba(255, 255, 255, 0)');
-      playheadGlow.addColorStop(0.5, 'rgba(255, 255, 255, 0.8)');
-      playheadGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
       
-      ctx.fillStyle = playheadGlow;
-      ctx.fillRect(progressPixel - 8, 0, 16, height);
+      // Only draw progress line if duration is valid
+      if (isValidDuration && progressPixel > 0) {
+        // Draw a more visible playhead with glow effect
+        const playheadGlow = ctx.createLinearGradient(
+          progressPixel - 8, 0, 
+          progressPixel + 8, 0
+        );
+        playheadGlow.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        playheadGlow.addColorStop(0.5, 'rgba(255, 255, 255, 0.8)');
+        playheadGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        
+        ctx.fillStyle = playheadGlow;
+        ctx.fillRect(progressPixel - 8, 0, 16, height);
+        
+        // Draw the actual playhead line
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(progressPixel - 1, 0, 2, height);
+      }
       
-      // Draw the actual playhead line
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(progressPixel - 1, 0, 2, height);
-    }
-    
-    // Add buffering indicator with enhanced animation
-    if (isBuffering) {
-      const bufferingWidth = 30;
+      // Add buffering indicator with enhanced animation
+      if (isBuffering) {
+        const bufferingWidth = 30;
         const bufferingX = Math.min(progressPixel + 2, width - bufferingWidth);
         
         // Draw buffering animation pulse with time-based animation
@@ -284,37 +242,29 @@ const WaveformCanvas = ({
         
         ctx.fillStyle = bufferGradient;
         ctx.fillRect(bufferingX, 0, bufferingWidth, height);
-    }
-  };
-  
-  // Set up animation if playing or buffering
-  useEffect(() => {
-    // Clean up any existing animation
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-
-    // Draw the waveform immediately on any prop change
+      }
+    };
+    
+    // Draw the waveform
     drawWaveform();
     
-    // Set up animation if playing, buffering, and tab is visible
-    if ((isPlaying || isBuffering) && isTabVisible) {
+    // Set up animation if playing or buffering
+    let animationFrame: number;
+    if (isPlaying || isBuffering) {
       const animate = () => {
         drawWaveform();
-        animationFrameRef.current = requestAnimationFrame(animate);
+        animationFrame = requestAnimationFrame(animate);
       };
       
-      animationFrameRef.current = requestAnimationFrame(animate);
+      animationFrame = requestAnimationFrame(animate);
     }
     
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
       }
     };
-  }, [isPlaying, isBuffering, currentTime, duration, waveformData, isMp3Available, isTabVisible]);
+  }, [isPlaying, isBuffering, currentTime, duration, waveformData, isMp3Available]);
   
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     // Don't allow seeking if duration is invalid

@@ -1,20 +1,17 @@
 
-import { useState, useCallback, memo } from "react";
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 
-const Profile = memo(() => {
-  const { signOut, session } = useAuth();
+const Profile = () => {
+  const { signOut } = useAuth();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { toast } = useToast();
 
-  // Memoize the signout function to prevent unnecessary rerenders
-  const handleSignOut = useCallback(async () => {
-    if (isSigningOut) return; // Prevent multiple sign-out attempts
-    
+  const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
       await signOut();
@@ -32,11 +29,7 @@ const Profile = memo(() => {
     } finally {
       setIsSigningOut(false);
     }
-  }, [signOut, navigate, toast, isSigningOut]);
-
-  // More efficient rendering that depends only on session.access_token
-  // instead of the entire user object
-  const isLoggedIn = !!session?.access_token;
+  };
 
   return (
     <Button 
@@ -44,14 +37,11 @@ const Profile = memo(() => {
       size="sm" 
       className="border-wip-pink text-wip-pink hover:bg-wip-pink/10"
       onClick={handleSignOut}
-      disabled={isSigningOut || !isLoggedIn}
+      disabled={isSigningOut}
     >
       {isSigningOut ? "Signing out..." : "Sign out"}
     </Button>
   );
-});
-
-// Add display name for better debugging
-Profile.displayName = "Profile";
+};
 
 export default Profile;
