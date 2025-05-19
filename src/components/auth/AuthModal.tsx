@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -85,7 +84,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess }: AuthModalProps) => {
       <DialogContent className={`sm:max-w-md ${isMobile ? "pt-10" : ""}`}>
         <DialogHeader>
           <DialogTitle className="text-center gradient-text text-2xl font-bold">
-            {tab === "login" ? "Welcome Back" : "Join WIP Manager"}
+            {tab === "login" ? "Welcome Back" : "Join Demo Manager"}
           </DialogTitle>
         </DialogHeader>
         

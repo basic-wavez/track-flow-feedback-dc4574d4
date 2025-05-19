@@ -34,7 +34,7 @@ const TracksTab = ({ tracks, isLoading, handleShareTrack, handleDeletePrompt }: 
       <CardHeader>
         <CardTitle>My Uploaded Tracks</CardTitle>
         <CardDescription>
-          All the tracks you've uploaded to WIP Manager
+          All the tracks you've uploaded to Demo Manager
         </CardDescription>
       </CardHeader>
       <CardContent>

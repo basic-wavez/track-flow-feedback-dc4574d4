@@ -68,7 +68,7 @@ const AuthPage = () => {
       <header className="py-6 px-8 flex justify-between items-center border-b border-wip-gray/30">
         <div className="flex items-center">
           <h1 className="text-3xl font-bold gradient-text">
-            WIP Manager
+            Demo Manager
           </h1>
         </div>
       </header>
@@ -76,7 +76,7 @@ const AuthPage = () => {
       <main className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-md mx-auto bg-wip-gray/5 p-8 rounded-xl border border-wip-gray/30">
           <h2 className="text-center gradient-text text-2xl font-bold mb-8">
-            {tab === "login" ? "Welcome Back" : "Join WIP Manager"}
+            {tab === "login" ? "Welcome Back" : "Join Demo Manager"}
           </h2>
           
           <Tabs defaultValue="login" value={tab} onValueChange={(val) => setTab(val as "login" | "signup")} className="w-full">
