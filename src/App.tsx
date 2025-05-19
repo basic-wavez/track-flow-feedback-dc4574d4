@@ -1,3 +1,4 @@
+
 import {
   BrowserRouter as Router,
   Routes,
@@ -70,13 +71,11 @@ function App() {
             </PlaylistPlayerProvider>
           }
         />
-        {/* Keep the route temporarily for backward compatibility */}
+        {/* Legacy route remains temporarily for backward compatibility */}
         <Route
           path="/shared/playlist/:shareKey/play"
           element={
-            <PlaylistPlayerProvider>
-              <PlaylistSharedView />
-            </PlaylistPlayerProvider>
+            <Navigate to={location => `/shared/playlist/${location.pathname.split('/')[3]}`} replace />
           }
         />
         {/* Track Routes - Note: More specific routes come first */}

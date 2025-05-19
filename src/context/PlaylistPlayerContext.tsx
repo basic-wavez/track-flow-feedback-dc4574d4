@@ -52,31 +52,42 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
 
   // Set the playlist and optionally start playing a track
   const setPlaylist = (newPlaylist: PlaylistWithTracks) => {
+    console.log("PlaylistContext: Setting playlist with", newPlaylist.tracks.length, "tracks");
     setPlaylistState(newPlaylist);
   };
 
   // Play a specific track by index
   const playTrack = (index: number) => {
-    if (!playlist || index < 0 || index >= playlist.tracks.length) return;
+    if (!playlist || index < 0 || index >= playlist.tracks.length) {
+      console.error("PlaylistContext: Cannot play track at index", index, "- invalid index or no playlist");
+      return;
+    }
     
     console.log("PlaylistContext: Playing track at index:", index);
     setCurrentTrackIndex(index);
-    setIsPlaying(true);
+    // No auto-play - user must manually start playback
+    setIsPlaying(false);
   };
 
   // Play the next track in the playlist
   const playNextTrack = () => {
-    if (!playlist || playlist.tracks.length === 0) return;
+    if (!playlist || playlist.tracks.length === 0) {
+      console.error("PlaylistContext: Cannot play next track - no playlist or tracks");
+      return;
+    }
     
     const nextIndex = (currentTrackIndex + 1) % playlist.tracks.length;
     console.log("PlaylistContext: Playing next track:", nextIndex);
     setCurrentTrackIndex(nextIndex);
-    setIsPlaying(true);
+    // Maintain current playing state when changing tracks
   };
 
   // Play the previous track in the playlist
   const playPreviousTrack = () => {
-    if (!playlist || playlist.tracks.length === 0) return;
+    if (!playlist || playlist.tracks.length === 0) {
+      console.error("PlaylistContext: Cannot play previous track - no playlist or tracks");
+      return;
+    }
     
     const prevIndex = currentTrackIndex <= 0 
       ? playlist.tracks.length - 1 
@@ -84,7 +95,7 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
     
     console.log("PlaylistContext: Playing previous track:", prevIndex);
     setCurrentTrackIndex(prevIndex);
-    setIsPlaying(true);
+    // Maintain current playing state when changing tracks
   };
 
   // Toggle play/pause state

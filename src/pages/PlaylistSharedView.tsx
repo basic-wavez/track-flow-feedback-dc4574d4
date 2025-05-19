@@ -11,6 +11,7 @@ import { PlaylistWithTracks } from "@/types/playlist";
 import Header from "@/components/layout/Header";
 import TrackPlayer from "@/components/TrackPlayer";
 import { getTrack } from "@/services/trackQueryService";
+import { handleError } from "@/utils/errorHandler";
 
 const PlaylistSharedView = () => {
   const { shareKey } = useParams<{ shareKey: string }>();
@@ -27,17 +28,26 @@ const PlaylistSharedView = () => {
   useEffect(() => {
     const fetchPlaylist = async () => {
       try {
+        console.log("Fetching shared playlist with shareKey:", shareKey);
         setIsLoadingPlaylist(true);
         const data = await getPlaylistByShareKey(shareKey || "");
+        
+        console.log("Playlist data received:", data);
+        console.log("Tracks in playlist:", data?.tracks?.length || 0);
+        
         setPlaylistData(data);
         
         // Set the playlist in context
         if (data) {
+          console.log("Setting playlist in context");
           setPlaylist(data);
+        } else {
+          console.error("No playlist data returned for shareKey:", shareKey);
+          setError("The shared playlist could not be loaded.");
         }
       } catch (err) {
         console.error("Error fetching shared playlist:", err);
-        setError("Failed to load the shared playlist.");
+        setError(`Failed to load the shared playlist: ${err instanceof Error ? err.message : 'Unknown error'}`);
       } finally {
         setIsLoadingPlaylist(false);
       }
@@ -45,6 +55,10 @@ const PlaylistSharedView = () => {
 
     if (shareKey) {
       fetchPlaylist();
+    } else {
+      console.error("No shareKey provided in URL parameters");
+      setError("Invalid share link: No key provided");
+      setIsLoadingPlaylist(false);
     }
   }, [shareKey, setPlaylist]);
 
@@ -52,9 +66,12 @@ const PlaylistSharedView = () => {
   useEffect(() => {
     const loadTrackData = async () => {
       if (currentTrack?.track_id) {
+        console.log("Loading track data for track_id:", currentTrack.track_id);
         setIsLoadingTrack(true);
         try {
           const trackData = await getTrack(currentTrack.track_id);
+          console.log("Track data loaded:", trackData);
+          
           if (trackData) {
             // Use the best available URL - prefer mp3, then opus, then compressed, then original
             const audioUrl = trackData.mp3_url || 
@@ -65,11 +82,21 @@ const PlaylistSharedView = () => {
             // Set the waveform URL - prefer mp3, then compressed
             const waveformAnalysisUrl = trackData.mp3_url || trackData.compressed_url;
             
+            console.log("Using audio URL:", audioUrl);
+            console.log("Using waveform URL:", waveformAnalysisUrl);
+            
             setTrackAudioUrl(audioUrl);
             setWaveformUrl(waveformAnalysisUrl);
+            
+            if (!audioUrl) {
+              console.error("No audio URL available for track:", currentTrack.track_id);
+            }
+          } else {
+            console.error("No track data returned for track_id:", currentTrack.track_id);
           }
         } catch (error) {
           console.error("Error loading track data:", error);
+          handleError(error, "Track Loading Error", "Could not load track data");
         } finally {
           setIsLoadingTrack(false);
         }
@@ -81,7 +108,9 @@ const PlaylistSharedView = () => {
 
   // Handle play all button click
   const handlePlayAllClick = () => {
+    console.log("Play All button clicked");
     if (playlist && playlist.tracks.length > 0) {
+      console.log("Starting playback of first track");
       playTrack(0);
     }
   };
@@ -92,7 +121,11 @@ const PlaylistSharedView = () => {
         <Header />
         <div className="container max-w-6xl mx-auto px-4 py-8">
           <div className="flex justify-center py-12">
-            <div className="animate-pulse">Loading shared playlist...</div>
+            <div className="animate-pulse flex flex-col items-center">
+              <div className="h-8 w-64 bg-gray-700 rounded mb-4"></div>
+              <div className="h-4 w-40 bg-gray-700 rounded"></div>
+              <div className="mt-8 text-gray-400">Loading shared playlist...</div>
+            </div>
           </div>
         </div>
       </>
@@ -106,7 +139,7 @@ const PlaylistSharedView = () => {
         <div className="container max-w-6xl mx-auto px-4 py-8">
           <div className="text-center py-12">
             <h2 className="text-xl font-medium mb-2 text-red-500">Error loading shared playlist</h2>
-            <p className="text-gray-400 mb-6">This playlist might not exist or has been deleted.</p>
+            <p className="text-gray-400 mb-6">{error || "This playlist might not exist or has been deleted."}</p>
             <Button onClick={() => navigate('/')}>
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back to Home
@@ -137,8 +170,11 @@ const PlaylistSharedView = () => {
             </p>
           </div>
 
-          <Button onClick={handlePlayAllClick} size="lg" 
-                  disabled={playlist.tracks.length === 0}>
+          <Button 
+            onClick={handlePlayAllClick} 
+            size="lg" 
+            disabled={playlist.tracks.length === 0}
+          >
             <ListMusic className="h-4 w-4 mr-1" />
             Play All
           </Button>
