@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { ListMusic, Upload } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import Profile from "@/components/auth/Profile";
 
 // Simple Logo component since it's missing
 const Logo = ({ className }: { className?: string }) => (
@@ -66,7 +65,9 @@ const Navigation = () => {
                   <Upload className="h-4 w-4 mr-1" />
                   Upload
                 </Button>
-                <Profile />
+                <Link to="/auth/signout">
+                  <Button variant="outline" size="sm">Sign Out</Button>
+                </Link>
               </>
             ) : (
               <Button onClick={() => navigate("/auth")}>Sign In</Button>

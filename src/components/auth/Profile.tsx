@@ -4,12 +4,17 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Profile = () => {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+
+  // Only show in mobile view when there's a logged-in user
+  if (!isMobile || !user) return null;
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
