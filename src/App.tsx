@@ -76,11 +76,11 @@ function App() {
             </PlaylistPlayerProvider>
           }
         />
-        {/* New Track Routes */}
-        <Route path="/track/:trackId" element={<TrackView />} />
+        {/* Track Routes - Note: More specific routes come first */}
+        <Route path="/track/share/:shareKey" element={<TrackView />} />
         <Route path="/track/:trackId/version" element={<NewVersionPage />} />
         <Route path="/track/:trackId/feedback" element={<FeedbackView />} />
-        <Route path="/track/share/:shareKey" element={<TrackView />} />
+        <Route path="/track/:trackId" element={<TrackView />} />
       </Routes>
     </Router>
   );
