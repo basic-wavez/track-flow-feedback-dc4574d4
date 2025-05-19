@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Playlist, PlaylistCreateInput, PlaylistTrack, PlaylistUpdateInput, PlaylistWithTracks } from "@/types/playlist";
 
@@ -181,10 +182,10 @@ export const removeTrackFromPlaylist = async (
   // Update positions for tracks after the removed one
   const removedPosition = trackData.position;
   
-  // Use direct update with expression
+  // Use a proper number expression for position update
   const { error: updateError } = await supabase
     .from('playlist_tracks')
-    .update({ position: supabase.sql`position - 1` })
+    .update({ position: supabase.from('playlist_tracks').select('position').limit(1).single().then(data => data - 1) })
     .eq('playlist_id', playlistId)
     .gt('position', removedPosition);
 
@@ -223,32 +224,48 @@ export const reorderPlaylistTrack = async (
     throw new Error('Position cannot be negative');
   }
 
-  // Update the position of other tracks directly using SQL queries
+  // Update the position of other tracks directly using individual updates
   if (oldPosition < newPosition) {
     // Moving down: decrease position of tracks between old and new
-    const { error: updateError } = await supabase
+    const tracksToUpdate = await supabase
       .from('playlist_tracks')
-      .update({ position: supabase.sql`position - 1` })
+      .select('id, position')
       .eq('playlist_id', playlistId)
       .gt('position', oldPosition)
       .lte('position', newPosition);
-
-    if (updateError) {
-      console.error('Error updating positions:', updateError);
-      throw updateError;
+      
+    if (tracksToUpdate.error) {
+      console.error('Error fetching tracks to update:', tracksToUpdate.error);
+      throw tracksToUpdate.error;
+    }
+    
+    // Update each track position individually
+    for (const track of tracksToUpdate.data || []) {
+      await supabase
+        .from('playlist_tracks')
+        .update({ position: track.position - 1 })
+        .eq('id', track.id);
     }
   } else {
     // Moving up: increase position of tracks between new and old
-    const { error: updateError } = await supabase
+    const tracksToUpdate = await supabase
       .from('playlist_tracks')
-      .update({ position: supabase.sql`position + 1` })
+      .select('id, position')
       .eq('playlist_id', playlistId)
       .gte('position', newPosition)
       .lt('position', oldPosition);
-
-    if (updateError) {
-      console.error('Error updating positions:', updateError);
-      throw updateError;
+      
+    if (tracksToUpdate.error) {
+      console.error('Error fetching tracks to update:', tracksToUpdate.error);
+      throw tracksToUpdate.error;
+    }
+    
+    // Update each track position individually
+    for (const track of tracksToUpdate.data || []) {
+      await supabase
+        .from('playlist_tracks')
+        .update({ position: track.position + 1 })
+        .eq('id', track.id);
     }
   }
 

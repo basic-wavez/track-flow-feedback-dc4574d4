@@ -9,21 +9,11 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-// Extend the SupabaseClient type to include our SQL helper
-declare module '@supabase/supabase-js' {
-  interface SupabaseClient<
-    Database = any,
-    SchemaName extends string & keyof Database = 'public',
-    Schema extends Database[SchemaName] = Database[SchemaName]
-  > {
-    sql: (strings: TemplateStringsArray, ...values: any[]) => string;
-  }
-}
-
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-// Add SQL tag to Supabase 
-supabase.sql = (strings: TemplateStringsArray, ...values: any[]) => {
+// Add SQL helper function to Supabase client
+// This is a workaround to use SQL expressions in queries
+(supabase as any).sql = (strings: TemplateStringsArray, ...values: any[]) => {
   let result = strings[0];
   for (let i = 0; i < values.length; i++) {
     result += values[i] + strings[i + 1];

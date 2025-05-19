@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -36,8 +35,9 @@ const AddTracksToPlaylist = () => {
       setIsLoading(true);
       try {
         const userTracks = await getUserTracks();
-        // Map each track to ensure it has all required TrackData properties
-        setTracks(userTracks.map(track => ({
+        
+        // Convert tracks to TrackData format
+        const trackDataArray: TrackData[] = userTracks.map(track => ({
           id: track.id,
           title: track.title,
           original_filename: track.original_filename,
@@ -45,7 +45,9 @@ const AddTracksToPlaylist = () => {
           user_id: track.user_id || '',
           version_number: track.version_number || 1,
           is_latest_version: track.is_latest_version || false
-        })));
+        }));
+        
+        setTracks(trackDataArray);
       } catch (error) {
         console.error("Error fetching tracks:", error);
       } finally {
@@ -130,6 +132,7 @@ const AddTracksToPlaylist = () => {
   }
 
   return (
+    // ... keep existing code (component UI)
     <div className="container max-w-6xl mx-auto px-4 py-8">
       <Button
         variant="ghost"
@@ -168,6 +171,7 @@ const AddTracksToPlaylist = () => {
         </Button>
       </div>
       
+      {/* ... keep existing code (tracks rendering) */}
       {isLoading ? (
         <div className="flex justify-center py-12">
           <div className="animate-pulse">Loading tracks...</div>
