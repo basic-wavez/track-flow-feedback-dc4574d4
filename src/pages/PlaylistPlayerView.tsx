@@ -25,6 +25,7 @@ const PlaylistPlayerView = () => {
   const [initialLoad, setInitialLoad] = useState(true);
   const [isLoadingTrack, setIsLoadingTrack] = useState(false);
   const [trackAudioUrl, setTrackAudioUrl] = useState<string | undefined>();
+  const [waveformUrl, setWaveformUrl] = useState<string | undefined>();
   
   // Log status for debugging
   useEffect(() => {
@@ -65,7 +66,11 @@ const PlaylistPlayerView = () => {
                             trackData.compressed_url || 
                             trackData.original_url;
             
+            // Set the waveform URL - prefer mp3, then compressed
+            const waveformAnalysisUrl = trackData.mp3_url || trackData.compressed_url;
+            
             setTrackAudioUrl(audioUrl);
+            setWaveformUrl(waveformAnalysisUrl);
             
             console.log("Loaded track data:", { 
               trackId: trackData.id,
@@ -74,7 +79,8 @@ const PlaylistPlayerView = () => {
               opusUrl: trackData.opus_url,
               compressedUrl: trackData.compressed_url,
               originalUrl: trackData.original_url,
-              selectedUrl: audioUrl
+              selectedUrl: audioUrl,
+              waveformUrl: waveformAnalysisUrl
             });
           }
         } catch (error) {
@@ -142,6 +148,7 @@ const PlaylistPlayerView = () => {
             trackId={currentTrack.track_id}
             trackName={currentTrack.track?.title || "Unknown Track"}
             audioUrl={trackAudioUrl}
+            waveformAnalysisUrl={waveformUrl}
             isPlaylistMode={true}
             currentIndex={currentTrackIndex}
             totalTracks={playlistData.tracks.length}
