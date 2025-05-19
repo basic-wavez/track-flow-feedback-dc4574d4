@@ -1,3 +1,4 @@
+
 export interface TrackData {
   id: string;
   title: string;
@@ -50,4 +51,10 @@ export interface TrackWithVersions {
   versions: TrackVersion[];
   feedbackCount: number;
   showVersions?: boolean; // UI state to track expanded/collapsed view
+  
+  // Adding the missing properties needed by AddTracksToPlaylist
+  compressed_url: string;
+  user_id: string;
+  version_number: number;
+  is_latest_version: boolean;
 }

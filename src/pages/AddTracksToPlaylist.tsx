@@ -132,7 +132,6 @@ const AddTracksToPlaylist = () => {
   }
 
   return (
-    // ... keep existing code (component UI)
     <div className="container max-w-6xl mx-auto px-4 py-8">
       <Button
         variant="ghost"
@@ -171,7 +170,6 @@ const AddTracksToPlaylist = () => {
         </Button>
       </div>
       
-      {/* ... keep existing code (tracks rendering) */}
       {isLoading ? (
         <div className="flex justify-center py-12">
           <div className="animate-pulse">Loading tracks...</div>
