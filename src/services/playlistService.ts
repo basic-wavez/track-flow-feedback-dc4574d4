@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Playlist, PlaylistCreateInput, PlaylistTrack, PlaylistUpdateInput, PlaylistWithTracks } from "@/types/playlist";
 
@@ -181,12 +182,12 @@ export const removeTrackFromPlaylist = async (
   // Update positions for tracks after the removed one
   const removedPosition = trackData.position;
   
-  // Call database function to update positions
+  // Use manual SQL update instead of RPC
   const { error: updateError } = await supabase
-    .rpc('reorder_after_remove', { 
-      p_playlist_id: playlistId, 
-      p_removed_position: removedPosition 
-    });
+    .from('playlist_tracks')
+    .update({ position: supabase.sql`position - 1` })
+    .eq('playlist_id', playlistId)
+    .gt('position', removedPosition);
 
   if (updateError) {
     console.error('Error updating positions:', updateError);
@@ -223,32 +224,32 @@ export const reorderPlaylistTrack = async (
     throw new Error('Position cannot be negative');
   }
 
-  // Update the position of other tracks using database functions
+  // Update the position of other tracks using direct SQL updates
   if (oldPosition < newPosition) {
-    // Moving down: call the reorder_move_down function
-    const { error: moveError } = await supabase
-      .rpc('reorder_move_down', {
-        p_playlist_id: playlistId,
-        p_old_position: oldPosition,
-        p_new_position: newPosition
-      });
+    // Moving down: decrease position of tracks between old+1 and new
+    const { error: moveDownError } = await supabase
+      .from('playlist_tracks')
+      .update({ position: supabase.sql`position - 1` })
+      .eq('playlist_id', playlistId)
+      .gt('position', oldPosition)
+      .lte('position', newPosition);
       
-    if (moveError) {
-      console.error('Error updating positions when moving down:', moveError);
-      throw moveError;
+    if (moveDownError) {
+      console.error('Error updating positions when moving down:', moveDownError);
+      throw moveDownError;
     }
   } else {
-    // Moving up: call the reorder_move_up function
-    const { error: moveError } = await supabase
-      .rpc('reorder_move_up', {
-        p_playlist_id: playlistId,
-        p_old_position: oldPosition,
-        p_new_position: newPosition
-      });
+    // Moving up: increase position of tracks between new and old-1
+    const { error: moveUpError } = await supabase
+      .from('playlist_tracks')
+      .update({ position: supabase.sql`position + 1` })
+      .eq('playlist_id', playlistId)
+      .gte('position', newPosition)
+      .lt('position', oldPosition);
       
-    if (moveError) {
-      console.error('Error updating positions when moving up:', moveError);
-      throw moveError;
+    if (moveUpError) {
+      console.error('Error updating positions when moving up:', moveUpError);
+      throw moveUpError;
     }
   }
 

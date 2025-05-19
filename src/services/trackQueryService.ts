@@ -221,7 +221,7 @@ export const getUserTracks = async (): Promise<TrackWithVersions[]> => {
       // Find the latest version
       const latestVersion = versions.find(v => v.is_latest_version) || versions[0];
       
-      // Create the TrackWithVersions object
+      // Create the TrackWithVersions object with all required properties
       groupedTracks.push({
         id: rootTrack.id,
         title: rootTrack.title,
@@ -232,7 +232,12 @@ export const getUserTracks = async (): Promise<TrackWithVersions[]> => {
         processing_status: rootTrack.processing_status,
         versions,
         feedbackCount: feedbackCounts[rootTrack.id] || 0,
-        showVersions: false
+        showVersions: false,
+        // Add the missing properties
+        compressed_url: rootTrack.compressed_url,
+        user_id: rootTrack.user_id,
+        version_number: latestVersion.version_number,
+        is_latest_version: true
       });
     }
     
