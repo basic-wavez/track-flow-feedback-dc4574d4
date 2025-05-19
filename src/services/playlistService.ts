@@ -182,7 +182,7 @@ export const removeTrackFromPlaylist = async (
   // Update positions for tracks after the removed one
   const removedPosition = trackData.position;
   
-  // Use a direct SQL query instead of rpc for reordering
+  // Use string interpolation for raw SQL
   const { error: updateError } = await supabase
     .from('playlist_tracks')
     .update({ position: supabase.sql`position - 1` })
