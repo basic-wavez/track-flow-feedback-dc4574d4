@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-// Create a share link for a playlist
+// Create a share link for a playlist (requires authentication)
 export const createPlaylistShareLink = async (playlistId: string, name: string): Promise<any> => {
   // Get the current user ID
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,7 +28,7 @@ export const createPlaylistShareLink = async (playlistId: string, name: string):
   return data;
 };
 
-// Get all share links for a specific playlist
+// Get all share links for a specific playlist (requires authentication)
 export const getPlaylistShareLinks = async (playlistId: string): Promise<any[]> => {
   const { data, error } = await supabase
     .from('playlist_share_links')
@@ -44,7 +44,7 @@ export const getPlaylistShareLinks = async (playlistId: string): Promise<any[]> 
   return data || [];
 };
 
-// Delete a share link
+// Delete a share link (requires authentication)
 export const deletePlaylistShareLink = async (linkId: string): Promise<void> => {
   const { error } = await supabase
     .from('playlist_share_links')
@@ -57,7 +57,7 @@ export const deletePlaylistShareLink = async (linkId: string): Promise<void> => 
   }
 };
 
-// Get playlist by share key for public access
+// Get playlist by share key for public access (no authentication required)
 export const getPlaylistByShareKey = async (shareKey: string): Promise<any> => {
   // First, get the share link data
   const { data: shareData, error: shareError } = await supabase
@@ -101,4 +101,26 @@ export const getPlaylistByShareKey = async (shareKey: string): Promise<any> => {
     .eq('id', shareData.id);
 
   return playlist;
+};
+
+// Function to check if a share key is in server-enforced cooldown (no auth required)
+export const isInServerCooldown = async (shareKey: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('playlist_share_links')
+      .select('last_played_at')
+      .eq('share_key', shareKey)
+      .single();
+
+    if (error || !data || !data.last_played_at) return false;
+
+    const lastPlayed = new Date(data.last_played_at);
+    const cooldownPeriod = 5 * 60 * 1000; // 5 minutes in milliseconds
+    const now = new Date();
+
+    return now.getTime() - lastPlayed.getTime() < cooldownPeriod;
+  } catch (error) {
+    console.error('Error checking server cooldown:', error);
+    return false;
+  }
 };

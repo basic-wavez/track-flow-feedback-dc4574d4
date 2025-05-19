@@ -45,11 +45,17 @@ const Header = () => {
               </Button>
             </>
           ) : (
-            <Link to="/auth">
-              <Button variant="outline" size="sm">
-                Sign In
-              </Button>
-            </Link>
+            <>
+              {isSharedRoute ? (
+                <div className="text-sm text-gray-300">Listening to shared content</div>
+              ) : (
+                <Link to="/auth">
+                  <Button variant="outline" size="sm">
+                    Sign In
+                  </Button>
+                </Link>
+              )}
+            </>
           )}
         </div>
       </div>

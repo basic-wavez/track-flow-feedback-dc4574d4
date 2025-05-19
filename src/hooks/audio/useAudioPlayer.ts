@@ -6,6 +6,8 @@ import { useAudioEvents } from "./useAudioEvents";
 import { useAudioControls } from "./useAudioControls";
 import { useAudioEffects } from "./useAudioEffects";
 import { startPlayTracking, endPlayTracking, cancelPlayTracking } from "@/services/playCountService";
+import { useLocation } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
@@ -27,6 +29,13 @@ export function useAudioPlayer({
   
   // Store visibility-related state
   const wasPlayingBeforeHideRef = useRef(false);
+  
+  // Get location to check if we're in a shared route
+  const location = useLocation();
+  const isSharedRoute = location.pathname.includes('/shared/');
+  
+  // Get authentication status
+  const { user } = useAuth();
   
   // Determine the audio URL to use - prefer MP3 if available
   const audioUrl = useMemo(() => mp3Url || defaultAudioUrl, [mp3Url, defaultAudioUrl]);
@@ -69,8 +78,12 @@ export function useAudioPlayer({
           console.log("useAudioPlayer: Play successful");
           setIsPlaying(true);
           setPlaybackState('playing');
-          // Start tracking play time for this track
-          startPlayTracking(trackId || null, shareKey || null);
+          
+          // Only track plays if user is logged in or if we're not on a shared route
+          if (user || isSharedRoute) {
+            // Start tracking play time for this track
+            startPlayTracking(trackId || null, shareKey || null);
+          }
         })
         .catch(error => {
           console.error('Error playing audio:', error);
@@ -90,37 +103,43 @@ export function useAudioPlayer({
       setIsPlaying(false);
       setPlaybackState('paused');
       
-      // Only end tracking when pausing if we've played for some time
-      // This avoids unnecessary calls when rapidly toggling play/pause
-      if (audio.currentTime > 2) {
-        endPlayTracking()
-          .then(incremented => {
-            if (incremented) {
-              console.log("Play count incremented successfully");
-              // We could dispatch an event or update some state here if needed
-            }
-          })
-          .catch(error => {
-            console.error("Error handling play count:", error);
-          });
-      } else {
-        cancelPlayTracking();
+      // Only end tracking when user is authenticated or we're on a shared route
+      if (user || isSharedRoute) {
+        // Only end tracking when pausing if we've played for some time
+        // This avoids unnecessary calls when rapidly toggling play/pause
+        if (audio.currentTime > 2) {
+          endPlayTracking()
+            .then(incremented => {
+              if (incremented) {
+                console.log("Play count incremented successfully");
+                // We could dispatch an event or update some state here if needed
+              }
+            })
+            .catch(error => {
+              console.error("Error handling play count:", error);
+            });
+        } else {
+          cancelPlayTracking();
+        }
       }
     }
   };
 
   // Handle reaching the end of the track
   const handleTrackEnd = () => {
-    // Track has finished playing naturally, check if we should increment
-    endPlayTracking()
-      .then(incremented => {
-        if (incremented) {
-          console.log("Play count incremented after track finished");
-        }
-      })
-      .catch(error => {
-        console.error("Error handling play count at track end:", error);
-      });
+    // Only track plays if user is logged in or if we're on a shared route
+    if (user || isSharedRoute) {
+      // Track has finished playing naturally, check if we should increment
+      endPlayTracking()
+        .then(incremented => {
+          if (incremented) {
+            console.log("Play count incremented after track finished");
+          }
+        })
+        .catch(error => {
+          console.error("Error handling play count at track end:", error);
+        });
+    }
   };
   
   // Setup audio event listeners

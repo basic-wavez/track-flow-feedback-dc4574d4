@@ -1,7 +1,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { PlaylistTrack, PlaylistWithTracks } from "@/types/playlist";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface PlaylistPlayerContextType {
   playlist: PlaylistWithTracks | null;
@@ -22,6 +22,10 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if we're on a shared route
+  const isSharedRoute = location.pathname.includes('/shared/');
 
   // Calculate the current track based on the index
   const currentTrack = playlist && currentTrackIndex >= 0 && currentTrackIndex < playlist.tracks.length
@@ -66,7 +70,18 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
     setIsPlaying(true);
     
     // Navigate to the player view if not already there
-    navigate(`/playlist/${playlist.id}/play`);
+    // Handle different routes for shared vs. logged-in users
+    if (isSharedRoute) {
+      // Extract share key from the URL
+      const pathParts = location.pathname.split('/');
+      const shareKeyIndex = pathParts.indexOf('playlist') + 1;
+      if (shareKeyIndex > 0 && shareKeyIndex < pathParts.length) {
+        const shareKey = pathParts[shareKeyIndex];
+        navigate(`/shared/playlist/${shareKey}/play`);
+      }
+    } else {
+      navigate(`/playlist/${playlist.id}/play`);
+    }
   };
 
   // Play the next track in the playlist

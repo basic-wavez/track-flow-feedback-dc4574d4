@@ -4,6 +4,7 @@ import { PlaylistTrack } from "@/types/playlist";
 import { Play, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
+import { useLocation } from "react-router-dom";
 
 interface PlaylistTrackListProps {
   tracks: PlaylistTrack[];
@@ -16,6 +17,9 @@ const PlaylistTrackList: React.FC<PlaylistTrackListProps> = ({ tracks }) => {
     isPlaying, 
     togglePlayPause 
   } = usePlaylistPlayer();
+  
+  const location = useLocation();
+  const isSharedRoute = location.pathname.includes('/shared/');
 
   const formatDuration = (seconds: number) => {
     if (!seconds || isNaN(seconds)) return "--:--";
