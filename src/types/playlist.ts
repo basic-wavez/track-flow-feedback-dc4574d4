@@ -15,6 +15,7 @@ export interface PlaylistTrack {
   track_id: string;
   position: number;
   created_at: string;
+  duration?: number;
   track?: {
     title: string;
     original_filename: string;

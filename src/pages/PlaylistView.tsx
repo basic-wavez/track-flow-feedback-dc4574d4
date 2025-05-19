@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { usePlaylists } from "@/hooks/usePlaylists";
@@ -13,7 +12,8 @@ import {
   GripVertical, 
   ExternalLink, 
   Globe, 
-  Lock
+  Lock,
+  Play
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
@@ -109,40 +109,53 @@ const PlaylistView = () => {
           )}
         </div>
         
-        {isOwner && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-1" />
-                Manage
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48 bg-wip-dark border-wip-gray">
-              <DropdownMenuItem onClick={() => navigate(`/playlist/${playlist.id}/edit`)}>
-                Edit Details
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/playlist/${playlist.id}/add-tracks`)}>
-                Add Tracks
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                className="text-red-500 focus:text-red-500"
-                onClick={() => {
-                  if (confirm("Are you sure you want to delete this playlist?")) {
-                    // Delete functionality to be implemented
-                  }
-                }}
-              >
-                Delete Playlist
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        <div className="flex gap-2">
+          {playlist.tracks.length > 0 && (
+            <Button 
+              variant="secondary"
+              onClick={() => navigate(`/playlist/${playlist.id}/play`)}
+            >
+              <Play className="h-4 w-4 mr-1" />
+              Play Playlist
+            </Button>
+          )}
+          
+          {isOwner && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-1" />
+                  Manage
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-48 bg-wip-dark border-wip-gray">
+                <DropdownMenuItem onClick={() => navigate(`/playlist/${playlist.id}/edit`)}>
+                  Edit Details
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate(`/playlist/${playlist.id}/add-tracks`)}>
+                  Add Tracks
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  className="text-red-500 focus:text-red-500"
+                  onClick={() => {
+                    if (confirm("Are you sure you want to delete this playlist?")) {
+                      // Delete functionality to be implemented
+                    }
+                  }}
+                >
+                  Delete Playlist
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
       
       <Separator className="my-4" />
       
       {playlist.tracks.length === 0 ? (
+        
         <div className="text-center py-16 border border-dashed border-wip-gray rounded-lg bg-wip-darker">
           <h3 className="text-xl font-medium mb-2">This Playlist is Empty</h3>
           <p className="text-gray-400 mb-6">Add some tracks to get started.</p>
@@ -170,6 +183,7 @@ const PlaylistView = () => {
 };
 
 // Component for displaying a track in the playlist
+
 interface PlaylistTrackItemProps {
   track: PlaylistTrack;
   isOwner: boolean;

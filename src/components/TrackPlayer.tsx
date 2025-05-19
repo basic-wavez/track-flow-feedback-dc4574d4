@@ -8,6 +8,7 @@ import TrackActions from "./player/TrackActions";
 import { isInServerCooldown } from "@/services/trackShareService";
 import { isWavFormat, getFileTypeFromUrl } from "@/lib/audioUtils";
 import { TrackVersion } from "@/types/track";
+import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
 
 interface TrackPlayerProps {
   trackId: string;
@@ -26,6 +27,9 @@ interface TrackPlayerProps {
   downloadsEnabled?: boolean;
   versionNumber?: number;
   trackVersions?: TrackVersion[];
+  isPlaylistMode?: boolean;
+  currentIndex?: number;
+  totalTracks?: number;
 }
 
 const TrackPlayer = ({ 
@@ -44,11 +48,27 @@ const TrackPlayer = ({
   inCooldownPeriod = false,
   downloadsEnabled = false,
   versionNumber = 1,
-  trackVersions = []
+  trackVersions = [],
+  isPlaylistMode = false,
+  currentIndex = -1,
+  totalTracks = 0
 }: TrackPlayerProps) => {
   // Local states
   const [serverCooldown, setServerCooldown] = useState(false);
   const [playedRecently, setPlayedRecently] = useState(false);
+  
+  // Access playlist context when in playlist mode
+  const { 
+    playNextTrack: contextPlayNext, 
+    playPreviousTrack: contextPlayPrevious, 
+    togglePlayPause: contextTogglePlayPause,
+    isPlaying: contextIsPlaying
+  } = isPlaylistMode ? usePlaylistPlayer() : { 
+    playNextTrack: () => {}, 
+    playPreviousTrack: () => {},
+    togglePlayPause: () => {},
+    isPlaying: false
+  };
   
   // Determine which URL to use for playback - prefer Opus if available, then MP3, then audioUrl
   const playbackUrl = opusUrl || mp3Url || audioUrl;
@@ -81,7 +101,7 @@ const TrackPlayer = ({
     audioLoaded,
     showBufferingUI,
     isBuffering,
-    togglePlayPause,
+    togglePlayPause: localTogglePlayPause,
     handleSeek,
     toggleMute,
     handleVolumeChange,
@@ -90,6 +110,41 @@ const TrackPlayer = ({
     trackId,
     shareKey 
   });
+  
+  // Sync with playlist context when in playlist mode
+  useEffect(() => {
+    if (isPlaylistMode && audioRef.current) {
+      if (contextIsPlaying && !isPlaying) {
+        audioRef.current.play().catch(console.error);
+      } else if (!contextIsPlaying && isPlaying) {
+        audioRef.current.pause();
+      }
+    }
+  }, [contextIsPlaying, isPlaying, isPlaylistMode]);
+  
+  // Handle track end for playlist autoplay
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !isPlaylistMode) return;
+    
+    const handleTrackEnd = () => {
+      contextPlayNext();
+    };
+    
+    audio.addEventListener('ended', handleTrackEnd);
+    
+    return () => {
+      audio.removeEventListener('ended', handleTrackEnd);
+    };
+  }, [contextPlayNext, isPlaylistMode]);
+  
+  // Combined toggle play function
+  const handleTogglePlayPause = () => {
+    if (isPlaylistMode) {
+      contextTogglePlayPause();
+    }
+    localTogglePlayPause();
+  };
   
   // Update playedRecently when a track finishes playing
   useEffect(() => {
@@ -123,21 +178,6 @@ const TrackPlayer = ({
   // Determine combined cooldown state
   const isCooldown = inCooldownPeriod || serverCooldown;
   
-  // Determine whether to display processing message - only for WAV files now
-  const showProcessingMessage = isPlayingWav && processingStatus === 'pending';
-  
-  // Log which URLs we're using to help with debugging
-  useEffect(() => {
-    console.log('TrackPlayer URLs:', {
-      playbackUrl,
-      waveformUrl,
-      originalUrl,
-      mp3Url,
-      opusUrl,
-      isPlayingWav
-    });
-  }, [playbackUrl, waveformUrl, originalUrl, mp3Url, opusUrl, isPlayingWav]);
-
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
       {/* Main audio element */}
@@ -169,10 +209,19 @@ const TrackPlayer = ({
         volume={volume}
         isMuted={isMuted}
         isLoading={isLoading}
-        onPlayPause={togglePlayPause}
+        onPlayPause={handleTogglePlayPause}
         onVolumeChange={handleVolumeChange}
         onToggleMute={toggleMute}
+        isPlaylistMode={isPlaylistMode}
+        onPrevious={isPlaylistMode ? contextPlayPrevious : undefined}
+        onNext={isPlaylistMode ? contextPlayNext : undefined}
       />
+      
+      {isPlaylistMode && currentIndex >= 0 && totalTracks > 0 && (
+        <div className="text-sm text-gray-400 mb-3">
+          Track {currentIndex + 1} of {totalTracks}
+        </div>
+      )}
       
       {isPlayingWav && processingStatus === 'pending' ? (
         <div className="text-blue-400 text-sm mb-2 bg-blue-900/20 p-2 rounded">
@@ -196,16 +245,18 @@ const TrackPlayer = ({
         audioLoaded={audioLoaded}
       />
       
-      <TrackActions 
-        isOwner={isOwner}
-        originalUrl={originalUrl}
-        originalFilename={originalFilename}
-        trackId={trackId}
-        downloadsEnabled={downloadsEnabled}
-        shareKey={shareKey}
-        trackVersions={trackVersions}
-        trackTitle={trackName}
-      />
+      {!isPlaylistMode && (
+        <TrackActions 
+          isOwner={isOwner}
+          originalUrl={originalUrl}
+          originalFilename={originalFilename}
+          trackId={trackId}
+          downloadsEnabled={downloadsEnabled}
+          shareKey={shareKey}
+          trackVersions={trackVersions}
+          trackTitle={trackName}
+        />
+      )}
     </div>
   );
 };

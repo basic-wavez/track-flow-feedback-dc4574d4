@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -12,9 +12,12 @@ interface PlaybackControlsProps {
   volume: number;
   isMuted: boolean;
   isLoading?: boolean;
+  isPlaylistMode?: boolean;
   onPlayPause: () => void;
   onVolumeChange: (volume: number) => void;
   onToggleMute: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
 }
 
 const PlaybackControls = ({
@@ -25,9 +28,12 @@ const PlaybackControls = ({
   volume,
   isMuted,
   isLoading = false,
+  isPlaylistMode = false,
   onPlayPause,
   onVolumeChange,
-  onToggleMute
+  onToggleMute,
+  onPrevious,
+  onNext
 }: PlaybackControlsProps) => {
   const isMobile = useIsMobile();
   
@@ -43,7 +49,18 @@ const PlaybackControls = ({
   };
 
   return (
-    <div className="flex items-center gap-4 mb-4">
+    <div className="flex items-center gap-2 md:gap-4 mb-4">
+      {isPlaylistMode && onPrevious && (
+        <Button 
+          onClick={onPrevious}
+          size="icon"
+          variant="ghost"
+          className="text-white"
+        >
+          <SkipBack className="h-5 w-5" />
+        </Button>
+      )}
+      
       <Button 
         onClick={onPlayPause} 
         size="icon" 
@@ -58,6 +75,17 @@ const PlaybackControls = ({
           <Play className="h-6 w-6 ml-1" />
         )}
       </Button>
+      
+      {isPlaylistMode && onNext && (
+        <Button 
+          onClick={onNext}
+          size="icon"
+          variant="ghost"
+          className="text-white"
+        >
+          <SkipForward className="h-5 w-5" />
+        </Button>
+      )}
       
       <div className="text-sm font-mono">
         {formatTime(currentTime)} / {formatTime(duration)}
