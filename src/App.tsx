@@ -4,6 +4,8 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
+  useParams
 } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { PlaylistPlayerProvider } from "./context/PlaylistPlayerContext";
@@ -19,6 +21,12 @@ import TrackView from "./pages/TrackView";
 import NewVersionPage from "./pages/NewVersionPage";
 import FeedbackView from "./pages/FeedbackView";
 import Index from "./pages/Index";
+
+// Helper component to handle the redirect with parameters
+function LegacyPlaylistRedirect() {
+  const { shareKey } = useParams();
+  return <Navigate to={`/shared/playlist/${shareKey}`} replace />;
+}
 
 function App() {
   const { user } = useAuth();
@@ -74,9 +82,7 @@ function App() {
         {/* Legacy route remains temporarily for backward compatibility */}
         <Route
           path="/shared/playlist/:shareKey/play"
-          element={
-            <Navigate to={(params) => `/shared/playlist/${params.params.shareKey}`} replace />
-          }
+          element={<LegacyPlaylistRedirect />}
         />
         {/* Track Routes - Note: More specific routes come first */}
         <Route path="/track/share/:shareKey" element={<TrackView />} />
