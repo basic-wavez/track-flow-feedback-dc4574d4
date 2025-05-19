@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import TrackHeader from "./player/TrackHeader";
@@ -11,6 +10,7 @@ import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
 import AudioStatusIndicator from "./player/AudioStatusIndicator";
 import WaveformSection from "./player/WaveformSection";
 import PlaylistModeIndicator from "./player/PlaylistModeIndicator";
+import AudioVisualizer from "./visualizers/AudioVisualizer";
 
 interface TrackPlayerProps {
   trackId: string;
@@ -234,6 +234,12 @@ const TrackPlayer = ({
         usingOpus={usingOpus}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
+      />
+      
+      {/* New Audio Visualizer */}
+      <AudioVisualizer 
+        audioRef={audioRef}
+        isPlaying={isPlaylistMode ? contextIsPlaying : isPlaying}
       />
       
       {!isPlaylistMode && (
