@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,16 @@ const AddTracksToPlaylist = () => {
       setIsLoading(true);
       try {
         const userTracks = await getUserTracks();
-        setTracks(userTracks);
+        // Ensure we get TrackData compatible objects
+        setTracks(userTracks.map(track => ({
+          id: track.id,
+          title: track.title,
+          original_filename: track.original_filename,
+          compressed_url: track.compressed_url || '',
+          user_id: track.user_id || '',
+          version_number: track.version_number || 1,
+          is_latest_version: track.is_latest_version || false
+        })));
       } catch (error) {
         console.error("Error fetching tracks:", error);
       } finally {
