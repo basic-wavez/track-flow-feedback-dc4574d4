@@ -2,7 +2,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, LogOut, User as UserIcon, LayoutDashboard, Music, Menu } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon, LayoutDashboard, Music, ListMusic } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,13 +47,23 @@ const Header = () => {
 
         <div className="flex items-center space-x-4">
           {!isMobile && user && (
-            <Link
-              to="/profile"
-              className="inline-flex items-center px-3 py-1 text-sm font-medium text-white hover:text-wip-pink transition-colors"
-            >
-              <Music className="h-4 w-4 mr-1" />
-              My Demos
-            </Link>
+            <>
+              <Link
+                to="/profile"
+                className="inline-flex items-center px-3 py-1 text-sm font-medium text-white hover:text-wip-pink transition-colors"
+              >
+                <Music className="h-4 w-4 mr-1" />
+                My Demos
+              </Link>
+              
+              <Link
+                to="/playlists"
+                className="inline-flex items-center px-3 py-1 text-sm font-medium text-white hover:text-wip-pink transition-colors"
+              >
+                <ListMusic className="h-4 w-4 mr-1" />
+                Playlists
+              </Link>
+            </>
           )}
           
           {!isMobile && isAdmin && (
@@ -97,6 +107,15 @@ const Header = () => {
                     <Link to="/profile" className="flex items-center">
                       <UserIcon className="mr-2 h-4 w-4" />
                       <span>Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="cursor-pointer text-white hover:bg-wip-gray/10"
+                    asChild
+                  >
+                    <Link to="/playlists" className="flex items-center">
+                      <ListMusic className="mr-2 h-4 w-4" />
+                      <span>Playlists</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem 

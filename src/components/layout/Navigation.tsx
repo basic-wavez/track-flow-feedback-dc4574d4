@@ -33,12 +33,10 @@ const Navigation = () => {
                 <>
                   <Link
                     to="/playlists"
-                    className="text-sm font-medium hover:text-wip-pink transition-colors"
+                    className="text-sm font-medium hover:text-wip-pink transition-colors flex items-center"
                   >
-                    <span className="flex items-center gap-1">
-                      <ListMusic className="h-4 w-4" />
-                      Playlists
-                    </span>
+                    <ListMusic className="h-4 w-4 mr-1" />
+                    <span>Playlists</span>
                   </Link>
                   <Link
                     to="/profile"
