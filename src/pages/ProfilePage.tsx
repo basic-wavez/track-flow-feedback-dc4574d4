@@ -1,66 +1,33 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { getUserTracks, deleteTrack } from "@/services/trackService";
-import { formatDistanceToNow } from "date-fns";
-import { 
-  Clock, 
-  ExternalLink, 
-  Share2, 
-  Music, 
-  MessageSquare, 
-  Settings, 
-  Trash2, 
-  ChevronRight, 
-  ChevronDown, 
-  History,
-  FilePlus,
-  ListMusic, 
-  Plus 
-} from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Music, MessageSquare, Settings, ListMusic } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { TrackData, TrackWithVersions } from "@/types/track";
 import { supabase } from "@/integrations/supabase/client";
 import AccountSettings from "@/components/auth/AccountSettings";
-import TrackVersionsDrawer from "@/components/track/TrackVersionsDrawer";
-import MobileTrackCard from "@/components/track/MobileTrackCard";
-import MobileFeedbackCard from "@/components/track/MobileFeedbackCard";
-import CreatePlaylistDialog from "@/components/playlist/CreatePlaylistDialog";
-import PlaylistCard from "@/components/playlist/PlaylistCard";
 import { usePlaylists } from "@/hooks/usePlaylists";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { FeedbackSummary } from "@/types/feedback";
 
-interface FeedbackSummary {
-  id: string;
-  trackId: string;
-  trackTitle: string;
-  averageScore: number;
-  feedbackCount: number;
-  createdAt: Date;
-}
+// Import refactored components
+import TracksTab from "@/components/profile/TracksTab";
+import FeedbackTab from "@/components/profile/FeedbackTab";
+import PlaylistsTab from "@/components/profile/PlaylistsTab";
+import DeleteTrackDialog from "@/components/profile/DeleteTrackDialog";
+import DeletePlaylistDialog from "@/components/profile/DeletePlaylistDialog";
 
 const ProfilePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const isMobile = useIsMobile();
   const [tracks, setTracks] = useState<TrackWithVersions[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<FeedbackSummary[]>([]);
@@ -74,10 +41,10 @@ const ProfilePage = () => {
     deletePlaylist 
   } = usePlaylists();
   
-  // New state for playlist deletion
+  // State for playlist deletion
   const [playlistToDelete, setPlaylistToDelete] = useState<string | null>(null);
   
-  // New state for track deletion
+  // State for track deletion
   const [trackToDelete, setTrackToDelete] = useState<TrackData | null>(null);
   const [isDeletingTrack, setIsDeletingTrack] = useState(false);
   
@@ -169,10 +136,6 @@ const ProfilePage = () => {
     }
   }, [user, toast]);
   
-  const handleOpenTrack = (trackId: string) => {
-    navigate(`/track/${trackId}`);
-  };
-  
   const handleShareTrack = (trackId: string) => {
     const shareUrl = `${window.location.origin}/track/${trackId}`;
     navigator.clipboard.writeText(shareUrl)
@@ -207,7 +170,7 @@ const ProfilePage = () => {
     setTrackToDelete(trackData);
   };
   
-  // New function to handle track deletion
+  // Function to handle track deletion
   const handleDeleteTrack = async () => {
     if (!trackToDelete) return;
     
@@ -243,15 +206,6 @@ const ProfilePage = () => {
       setIsDeletingTrack(false);
       setTrackToDelete(null); // Close dialog
     }
-  };
-
-  // Toggle showing versions for a track
-  const toggleTrackVersions = (trackId: string) => {
-    setTracks(tracks.map(track => 
-      track.id === trackId 
-        ? { ...track, showVersions: !track.showVersions } 
-        : track
-    ));
   };
 
   // Handle playlist deletion
@@ -334,7 +288,7 @@ const ProfilePage = () => {
                 </Badge>
               </TabsTrigger>
               
-              {/* New Playlists Tab */}
+              {/* Playlists Tab */}
               <TabsTrigger value="playlists" className="flex gap-2 items-center flex-1 md:flex-none">
                 <ListMusic className="h-4 w-4" />
                 <span>My Playlists</span>
@@ -357,302 +311,35 @@ const ProfilePage = () => {
               </TabsTrigger>
             </TabsList>
             
-            {/* Keep existing Tracks TabContent */}
+            {/* Tracks Tab */}
             <TabsContent value="tracks">
-              <Card className="bg-wip-darker border-wip-gray">
-                <CardHeader>
-                  <CardTitle>My Uploaded Tracks</CardTitle>
-                  <CardDescription>
-                    All the tracks you've uploaded to WIP Manager
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="py-8 text-center">
-                      <div className="animate-spin h-8 w-8 border-4 border-wip-pink border-t-transparent rounded-full mx-auto mb-4"></div>
-                      <p>Loading your tracks...</p>
-                    </div>
-                  ) : tracks.length > 0 ? (
-                    <>
-                      {/* Desktop View */}
-                      {!isMobile && (
-                        <div className="hidden md:block">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Title</TableHead>
-                                <TableHead>Uploaded</TableHead>
-                                <TableHead>Feedback</TableHead>
-                                <TableHead>Versions</TableHead>
-                                <TableHead>Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {tracks.map((track) => (
-                                <TableRow key={track.id} className={track.versions.length > 1 ? "border-b-0" : ""}>
-                                  <TableCell className="font-medium">
-                                    <div className="flex items-center">
-                                      {track.title}
-                                      {track.versions.length > 1 && (
-                                        <Badge variant="outline" className="ml-2">
-                                          {track.versions.length} versions
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-gray-400">
-                                    <div className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      {formatDistanceToNow(new Date(track.created_at || ""), { addSuffix: true })}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline">
-                                      {track.feedbackCount} {track.feedbackCount === 1 ? 'review' : 'reviews'}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    {track.versions.length > 1 ? (
-                                      <TrackVersionsDrawer 
-                                        trackId={track.id}
-                                        trackTitle={track.title}
-                                        versions={track.versions}
-                                      >
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm"
-                                          className="flex items-center gap-1"
-                                        >
-                                          <History className="h-3.5 w-3.5" />
-                                          View All
-                                        </Button>
-                                      </TrackVersionsDrawer>
-                                    ) : (
-                                      <Badge variant="outline">v{track.versions[0]?.version_number || 1}</Badge>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex gap-2">
-                                      <Button 
-                                        size="sm"
-                                        variant="outline"
-                                        className="flex gap-2 items-center"
-                                        onClick={() => handleOpenTrack(track.versions.find(v => v.is_latest_version)?.id || track.id)}
-                                      >
-                                        <ExternalLink className="h-4 w-4" />
-                                        Open
-                                      </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        className="flex gap-2 items-center"
-                                        onClick={() => handleShareTrack(track.versions.find(v => v.is_latest_version)?.id || track.id)}
-                                      >
-                                        <Share2 className="h-4 w-4" />
-                                        Share
-                                      </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        className="flex gap-2 items-center"
-                                        onClick={() => navigate(`/track/${track.versions.find(v => v.is_latest_version)?.id || track.id}/version`)}
-                                      >
-                                        <FilePlus className="h-4 w-4" />
-                                        New Version
-                                      </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        className="flex gap-2 items-center text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                        onClick={() => handleDeletePrompt(track.id, track.title)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                        Delete
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
-                      
-                      {/* Mobile View */}
-                      <div className={`${isMobile ? 'block' : 'hidden'} md:hidden`}>
-                        {tracks.map((track) => (
-                          <MobileTrackCard 
-                            key={track.id}
-                            track={track}
-                            onShareTrack={handleShareTrack}
-                            onDeletePrompt={handleDeletePrompt}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="py-8 md:py-12 text-center border border-dashed border-wip-gray/30 rounded-md">
-                      <p className="text-base md:text-lg text-gray-400 mb-4">You haven't uploaded any tracks yet</p>
-                      <Button onClick={() => navigate("/")}>
-                        Upload Your First Track
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <TracksTab 
+                tracks={tracks}
+                isLoading={isLoading}
+                handleShareTrack={handleShareTrack}
+                handleDeletePrompt={handleDeletePrompt}
+              />
             </TabsContent>
             
-            {/* New Playlists TabContent */}
+            {/* Playlists Tab */}
             <TabsContent value="playlists">
-              <Card className="bg-wip-darker border-wip-gray">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>My Playlists</CardTitle>
-                    <CardDescription>
-                      Organize your tracks into playlists
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => refetchPlaylists()}
-                      disabled={isLoadingPlaylists}
-                    >
-                      <Clock className={`h-4 w-4 mr-1 ${isLoadingPlaylists ? 'animate-spin' : ''}`} />
-                      Refresh
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingPlaylists ? (
-                    <div className="py-8 text-center">
-                      <div className="animate-spin h-8 w-8 border-4 border-wip-pink border-t-transparent rounded-full mx-auto mb-4"></div>
-                      <p>Loading your playlists...</p>
-                    </div>
-                  ) : playlists.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {playlists.map((playlist) => (
-                        <PlaylistCard
-                          key={playlist.id}
-                          playlist={playlist}
-                          onDelete={openDeletePlaylistDialog}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-16 border border-dashed border-wip-gray rounded-lg bg-wip-dark">
-                      <h3 className="text-xl font-medium mb-2">No Playlists Yet</h3>
-                      <p className="text-gray-400 mb-6">Create your first playlist to organize your tracks.</p>
-                      <CreatePlaylistDialog onPlaylistCreated={(id) => navigate(`/playlist/${id}`)}>
-                        <Button>
-                          <Plus className="h-4 w-4 mr-1" />
-                          Create Your First Playlist
-                        </Button>
-                      </CreatePlaylistDialog>
-                    </div>
-                  )}
-                  
-                  <div className="mt-6 flex justify-center">
-                    <CreatePlaylistDialog onPlaylistCreated={(id) => navigate(`/playlist/${id}`)}>
-                      <Button size="lg" className="px-8">
-                        <Plus className="h-4 w-4 mr-1" />
-                        Create New Playlist
-                      </Button>
-                    </CreatePlaylistDialog>
-                  </div>
-                </CardContent>
-              </Card>
+              <PlaylistsTab 
+                playlists={playlists}
+                isLoadingPlaylists={isLoadingPlaylists}
+                refetchPlaylists={refetchPlaylists}
+                openDeletePlaylistDialog={openDeletePlaylistDialog}
+              />
             </TabsContent>
             
-            {/* Keep existing Feedback TabContent */}
+            {/* Feedback Tab */}
             <TabsContent value="feedback">
-              <Card className="bg-wip-darker border-wip-gray">
-                <CardHeader>
-                  <CardTitle>Feedback Received</CardTitle>
-                  <CardDescription>
-                    Feedback summary for your tracks
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="py-8 text-center">
-                      <div className="animate-spin h-8 w-8 border-4 border-wip-pink border-t-transparent rounded-full mx-auto mb-4"></div>
-                      <p>Loading feedback data...</p>
-                    </div>
-                  ) : feedback.length > 0 ? (
-                    <>
-                      {/* Desktop View */}
-                      {!isMobile && (
-                        <div className="hidden md:block">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Track</TableHead>
-                                <TableHead>Average Rating</TableHead>
-                                <TableHead>Feedback Count</TableHead>
-                                <TableHead>Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {feedback.map((item) => (
-                                <TableRow key={item.id}>
-                                  <TableCell className="font-medium">{item.trackTitle}</TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <span className={
-                                        item.averageScore >= 8 ? "text-green-400" :
-                                        item.averageScore >= 6 ? "text-yellow-400" : 
-                                        "text-red-400"
-                                      }>
-                                        {item.averageScore.toFixed(1)}
-                                      </span>
-                                      <span className="text-xs text-gray-500">/10</span>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline">
-                                      {item.feedbackCount} {item.feedbackCount === 1 ? 'review' : 'reviews'}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => handleOpenTrack(item.trackId)}
-                                    >
-                                      Open
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
-                      
-                      {/* Mobile View */}
-                      <div className={`${isMobile ? 'block' : 'hidden'} md:hidden`}>
-                        {feedback.map((item) => (
-                          <MobileFeedbackCard 
-                            key={item.id}
-                            feedback={item}
-                            onOpenTrack={handleOpenTrack}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="py-8 md:py-12 text-center border border-dashed border-wip-gray/30 rounded-md">
-                      <p className="text-base md:text-lg text-gray-400 mb-4">No feedback received yet</p>
-                      <p className="text-gray-500 mb-4">Share your tracks with other producers to get feedback</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <FeedbackTab 
+                feedback={feedback}
+                isLoading={isLoading}
+              />
             </TabsContent>
             
-            {/* Keep existing Account TabContent */}
+            {/* Account Tab */}
             <TabsContent value="account">
               <AccountSettings />
             </TabsContent>
@@ -661,63 +348,19 @@ const ProfilePage = () => {
       </main>
       
       {/* Track Delete Confirmation Dialog */}
-      <AlertDialog open={!!trackToDelete} onOpenChange={(open) => !open && setTrackToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Track</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{trackToDelete?.title}"? This action cannot be undone.
-              <p className="mt-2 text-red-300">
-                All feedback associated with this track will also be permanently deleted.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0">
-            <AlertDialogCancel disabled={isDeletingTrack}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault(); // Prevent the default close behavior
-                handleDeleteTrack();
-              }}
-              className="bg-red-500 text-white hover:bg-red-600"
-              disabled={isDeletingTrack}
-            >
-              {isDeletingTrack ? (
-                <>
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                  Deleting...
-                </>
-              ) : (
-                'Delete Track'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteTrackDialog 
+        trackToDelete={trackToDelete}
+        isDeletingTrack={isDeletingTrack}
+        onClose={() => setTrackToDelete(null)}
+        onDelete={handleDeleteTrack}
+      />
       
       {/* Playlist Delete Confirmation Dialog */}
-      <AlertDialog open={!!playlistToDelete} onOpenChange={() => setPlaylistToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Playlist</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this playlist? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0">
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDeletePlaylist();
-              }}
-              className="bg-red-500 text-white hover:bg-red-600"
-            >
-              Delete Playlist
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeletePlaylistDialog
+        playlistId={playlistToDelete}
+        onClose={() => setPlaylistToDelete(null)}
+        onDelete={handleDeletePlaylist}
+      />
       
       <Footer />
     </div>
