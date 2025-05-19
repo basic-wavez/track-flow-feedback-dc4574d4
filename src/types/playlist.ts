@@ -20,6 +20,10 @@ export interface PlaylistTrack {
     title: string;
     original_filename: string;
     version_number: number;
+    mp3_url?: string;
+    opus_url?: string;
+    original_url?: string;
+    compressed_url?: string;
   };
 }
 

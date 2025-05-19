@@ -9,6 +9,7 @@ import TrackPlayer from "@/components/TrackPlayer";
 import PlaylistTrackList from "@/components/playlist/PlaylistTrackList";
 import { PlaylistWithTracks } from "@/types/playlist";
 import { Separator } from "@/components/ui/separator";
+import { getTrack } from "@/services/trackQueryService";
 
 const PlaylistPlayerView = () => {
   const { playlistId } = useParams<{ playlistId: string }>();
@@ -23,6 +24,8 @@ const PlaylistPlayerView = () => {
   } = usePlaylistPlayer();
   
   const [initialLoad, setInitialLoad] = useState(true);
+  const [isLoadingTrack, setIsLoadingTrack] = useState(false);
+  const [trackAudioUrl, setTrackAudioUrl] = useState<string | undefined>();
   
   // Fetch the playlist data
   const { 
@@ -38,6 +41,43 @@ const PlaylistPlayerView = () => {
       setInitialLoad(false);
     }
   }, [playlistData, setPlaylist, initialLoad]);
+
+  // Load detailed track data when current track changes
+  useEffect(() => {
+    const loadTrackData = async () => {
+      if (currentTrack?.track_id) {
+        setIsLoadingTrack(true);
+        try {
+          const trackData = await getTrack(currentTrack.track_id);
+          if (trackData) {
+            // Use the best available URL - prefer mp3, then opus, then compressed, then original
+            const audioUrl = trackData.mp3_url || 
+                            trackData.opus_url || 
+                            trackData.compressed_url || 
+                            trackData.original_url;
+            
+            setTrackAudioUrl(audioUrl);
+            
+            console.log("Loaded track data:", { 
+              trackId: trackData.id,
+              title: trackData.title,
+              mp3Url: trackData.mp3_url,
+              opusUrl: trackData.opus_url,
+              compressedUrl: trackData.compressed_url,
+              originalUrl: trackData.original_url,
+              selectedUrl: audioUrl
+            });
+          }
+        } catch (error) {
+          console.error("Error loading track data:", error);
+        } finally {
+          setIsLoadingTrack(false);
+        }
+      }
+    };
+    
+    loadTrackData();
+  }, [currentTrack]);
 
   // Handle loading and error states
   if (isLoading) {
@@ -92,10 +132,11 @@ const PlaylistPlayerView = () => {
           <TrackPlayer
             trackId={currentTrack.track_id}
             trackName={currentTrack.track?.title || "Unknown Track"}
-            mp3Url={`/api/tracks/${currentTrack.track_id}/mp3`} // This is a placeholder, replace with actual URL
+            audioUrl={trackAudioUrl}
             isPlaylistMode={true}
             currentIndex={currentTrackIndex}
             totalTracks={playlistData.tracks.length}
+            isLoading={isLoadingTrack}
           />
         </div>
       )}
