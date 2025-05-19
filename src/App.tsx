@@ -16,6 +16,7 @@ import PlaylistPlayerView from "./pages/PlaylistPlayerView";
 import PlaylistSharedView from "./pages/PlaylistSharedView";
 import PlaylistSharedPlayerView from "./pages/PlaylistSharedPlayerView";
 import AddTracksToPlaylist from "./pages/AddTracksToPlaylist";
+import Index from "./pages/Index";
 
 function App() {
   const { user } = useAuth();
@@ -23,7 +24,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Navigate to="/playlists" />} />
+        <Route path="/" element={<Index />} />
         <Route
           path="/auth"
           element={!user ? <AuthPage /> : <Navigate to="/profile" />}
