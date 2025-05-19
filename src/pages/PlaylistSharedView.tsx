@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import PlaylistTrackList from "@/components/playlist/PlaylistTrackList";
 import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
 import { PlaylistWithTracks } from "@/types/playlist";
+import Header from "@/components/layout/Header";
 
 const PlaylistSharedView = () => {
   const { shareKey } = useParams<{ shareKey: string }>();
@@ -45,65 +46,74 @@ const PlaylistSharedView = () => {
 
   if (isLoading) {
     return (
-      <div className="container max-w-6xl mx-auto px-4 py-8">
-        <div className="flex justify-center py-12">
-          <div className="animate-pulse">Loading shared playlist...</div>
+      <>
+        <Header />
+        <div className="container max-w-6xl mx-auto px-4 py-8">
+          <div className="flex justify-center py-12">
+            <div className="animate-pulse">Loading shared playlist...</div>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (error || !playlist) {
     return (
-      <div className="container max-w-6xl mx-auto px-4 py-8">
-        <div className="text-center py-12">
-          <h2 className="text-xl font-medium mb-2 text-red-500">Error loading shared playlist</h2>
-          <p className="text-gray-400 mb-6">This playlist might not exist or has been deleted.</p>
-          <Button onClick={() => navigate('/')}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to Home
-          </Button>
+      <>
+        <Header />
+        <div className="container max-w-6xl mx-auto px-4 py-8">
+          <div className="text-center py-12">
+            <h2 className="text-xl font-medium mb-2 text-red-500">Error loading shared playlist</h2>
+            <p className="text-gray-400 mb-6">This playlist might not exist or has been deleted.</p>
+            <Button onClick={() => navigate('/')}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back to Home
+            </Button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="container max-w-6xl mx-auto px-4 py-8">
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <ListMusic className="text-wip-pink h-6 w-6" />
-            <h1 className="text-2xl font-bold">{playlist.name}</h1>
+    <>
+      <Header />
+      <div className="container max-w-6xl mx-auto px-4 py-8">
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <ListMusic className="text-wip-pink h-6 w-6" />
+              <h1 className="text-2xl font-bold">{playlist.name}</h1>
+            </div>
+            
+            {playlist.description && (
+              <p className="text-gray-300 mb-2">{playlist.description}</p>
+            )}
+            
+            <p className="text-sm text-gray-400">
+              {playlist.tracks.length} tracks
+            </p>
           </div>
-          
-          {playlist.description && (
-            <p className="text-gray-300 mb-2">{playlist.description}</p>
-          )}
-          
-          <p className="text-sm text-gray-400">
-            {playlist.tracks.length} tracks
-          </p>
+
+          <Button onClick={handlePlayPlaylist} size="lg">
+            <ListMusic className="h-4 w-4 mr-1" />
+            Play All
+          </Button>
         </div>
 
-        <Button onClick={handlePlayPlaylist} size="lg">
-          <ListMusic className="h-4 w-4 mr-1" />
-          Play All
-        </Button>
+        <Separator className="my-4" />
+
+        {/* Show message when the playlist is empty */}
+        {playlist.tracks.length === 0 ? (
+          <div className="text-center py-16 border border-dashed border-wip-gray rounded-lg bg-wip-darker">
+            <h3 className="text-xl font-medium mb-2">This Playlist is Empty</h3>
+            <p className="text-gray-400">The owner hasn't added any tracks yet.</p>
+          </div>
+        ) : (
+          <PlaylistTrackList tracks={playlist.tracks} />
+        )}
       </div>
-
-      <Separator className="my-4" />
-
-      {/* Show message when the playlist is empty */}
-      {playlist.tracks.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-wip-gray rounded-lg bg-wip-darker">
-          <h3 className="text-xl font-medium mb-2">This Playlist is Empty</h3>
-          <p className="text-gray-400">The owner hasn't added any tracks yet.</p>
-        </div>
-      ) : (
-        <PlaylistTrackList tracks={playlist.tracks} />
-      )}
-    </div>
+    </>
   );
 };
 

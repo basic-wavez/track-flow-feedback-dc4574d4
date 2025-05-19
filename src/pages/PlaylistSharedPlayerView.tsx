@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { getTrack } from "@/services/trackQueryService";
 import { getPlaylistByShareKey } from "@/services/playlistShareService";
 import { PlaylistWithTracks } from "@/types/playlist";
+import Header from "@/components/layout/Header";
 
 const PlaylistSharedPlayerView = () => {
   const { shareKey } = useParams<{ shareKey: string }>();
@@ -90,78 +91,87 @@ const PlaylistSharedPlayerView = () => {
   // Handle loading and error states
   if (isLoadingPlaylist) {
     return (
-      <div className="container max-w-6xl mx-auto px-4 py-8">
-        <div className="flex justify-center py-12">
-          <div className="animate-pulse">Loading shared playlist...</div>
+      <>
+        <Header />
+        <div className="container max-w-6xl mx-auto px-4 py-8">
+          <div className="flex justify-center py-12">
+            <div className="animate-pulse">Loading shared playlist...</div>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (error || !playlistData) {
     return (
-      <div className="container max-w-6xl mx-auto px-4 py-8">
-        <div className="text-center py-12">
-          <h2 className="text-xl font-medium mb-2 text-red-500">Error loading shared playlist</h2>
-          <p className="text-gray-400 mb-6">This playlist might not exist or has been deleted.</p>
-          <Button onClick={() => navigate('/')}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to Home
-          </Button>
+      <>
+        <Header />
+        <div className="container max-w-6xl mx-auto px-4 py-8">
+          <div className="text-center py-12">
+            <h2 className="text-xl font-medium mb-2 text-red-500">Error loading shared playlist</h2>
+            <p className="text-gray-400 mb-6">This playlist might not exist or has been deleted.</p>
+            <Button onClick={() => navigate('/')}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back to Home
+            </Button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="container max-w-6xl mx-auto px-4 py-8">
-      <div className="flex items-center mb-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mr-2"
-          onClick={() => navigate(`/shared/playlist/${shareKey}`)}
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back
-        </Button>
+    <>
+      <Header />
+      <div className="container max-w-6xl mx-auto px-4 py-8">
+        <div className="flex items-center mb-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mr-2"
+            onClick={() => navigate(`/shared/playlist/${shareKey}`)}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back
+          </Button>
+          
+          <div>
+            <h1 className="text-xl font-bold">{playlistData.name}</h1>
+            <p className="text-sm text-gray-400">
+              {playlistData.tracks.length} tracks
+            </p>
+          </div>
+        </div>
         
-        <div>
-          <h1 className="text-xl font-bold">{playlistData.name}</h1>
-          <p className="text-sm text-gray-400">
-            {playlistData.tracks.length} tracks
-          </p>
-        </div>
+        {/* Show the player only when a track is selected */}
+        {currentTrack && (
+          <div className="mb-8">
+            <TrackPlayer
+              trackId={currentTrack.track_id}
+              trackName={currentTrack.track?.title || "Unknown Track"}
+              audioUrl={trackAudioUrl}
+              waveformAnalysisUrl={waveformUrl}
+              isPlaylistMode={true}
+              currentIndex={currentTrackIndex}
+              totalTracks={playlistData.tracks.length}
+              isLoading={isLoadingTrack}
+            />
+          </div>
+        )}
+        
+        <Separator className="my-4" />
+        
+        {/* Show message when the playlist is empty */}
+        {playlistData.tracks.length === 0 ? (
+          <div className="text-center py-16 border border-dashed border-wip-gray rounded-lg bg-wip-darker">
+            <h3 className="text-xl font-medium mb-2">This Playlist is Empty</h3>
+            <p className="text-gray-400">The owner hasn't added any tracks yet.</p>
+          </div>
+        ) : (
+          <PlaylistTrackList tracks={playlistData.tracks} />
+        )}
       </div>
-      
-      {/* Show the player only when a track is selected */}
-      {currentTrack && (
-        <div className="mb-8">
-          <TrackPlayer
-            trackId={currentTrack.track_id}
-            trackName={currentTrack.track?.title || "Unknown Track"}
-            audioUrl={trackAudioUrl}
-            waveformAnalysisUrl={waveformUrl}
-            isPlaylistMode={true}
-            currentIndex={currentTrackIndex}
-            totalTracks={playlistData.tracks.length}
-            isLoading={isLoadingTrack}
-          />
-        </div>
-      )}
-      
-      <Separator className="my-4" />
-      
-      {/* Show message when the playlist is empty */}
-      {playlistData.tracks.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-wip-gray rounded-lg bg-wip-darker">
-          <h3 className="text-xl font-medium mb-2">This Playlist is Empty</h3>
-          <p className="text-gray-400">The owner hasn't added any tracks yet.</p>
-        </div>
-      ) : (
-        <PlaylistTrackList tracks={playlistData.tracks} />
-      )}
-    </div>
+    </>
   );
 };
 
