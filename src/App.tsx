@@ -9,7 +9,7 @@ import { useAuth } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
 import ProfilePage from "./pages/ProfilePage";
 import PlaylistsPage from "./pages/PlaylistsPage";
-import PlaylistPage from "./pages/PlaylistPage";
+import PlaylistPage from "./pages/PlaylistView"; // Fixed import path
 import EditPlaylistPage from "./pages/EditPlaylistPage";
 import PlaylistPlayerView from "./pages/PlaylistPlayerView";
 import PlaylistSharedView from "./pages/PlaylistSharedView";

@@ -1,6 +1,5 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
 
 // Create a share link for a playlist
 export const createPlaylistShareLink = async (playlistId: string, name: string): Promise<any> => {
@@ -63,7 +62,7 @@ export const getPlaylistByShareKey = async (shareKey: string): Promise<any> => {
   // First, get the share link data
   const { data: shareData, error: shareError } = await supabase
     .from('playlist_share_links')
-    .select('playlist_id, id')
+    .select('playlist_id, id, play_count')
     .eq('share_key', shareKey)
     .single();
 
