@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+
+import { useEffect, useRef } from "react";
 
 /**
  * Hook that provides audio effects for the audio player
@@ -21,13 +22,18 @@ export function useAudioEffects({
   allowBackgroundPlayback,
   timeUpdateActiveRef
 }: any) {
+  // Add ref to track the last URL processed by this effect to prevent reload loops
+  const lastProcessedUrlRef = useRef<string | null>(null);
+
   // Reset state when audio URL changes
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     
-    if (audioUrl) {
+    // Only process this effect if the URL has actually changed
+    if (audioUrl && audioUrl !== lastProcessedUrlRef.current) {
       console.log(`Audio URL changed to ${audioUrl}`);
+      lastProcessedUrlRef.current = audioUrl;
       
       // Reset state when audio URL changes
       setAudioLoaded(false);
@@ -44,8 +50,7 @@ export function useAudioEffects({
       // Reset waveform generation
       setIsGeneratingWaveform(false);
       
-      // Force load the audio to ensure metadata is loaded
-      audio.load();
+      // NOTE: We do NOT call audio.load() here anymore - that's handled in useAudioEvents
       
       // After a short delay, check if the audio has a valid duration
       setTimeout(() => {

@@ -50,9 +50,12 @@ const TrackPlayer = ({
   const [serverCooldown, setServerCooldown] = useState(false);
   const [playedRecently, setPlayedRecently] = useState(false);
   
+  // Track the current URL to detect actual changes
+  const currentPlaybackUrlRef = useRef<string | null>(null);
+  
   // Determine which URL to use for playback - prefer Opus if available, then MP3, then audioUrl
   const playbackUrl = opusUrl || mp3Url || audioUrl;
-
+  
   // Determine which URL to use for waveform analysis - ALWAYS prefer MP3 if available
   const waveformUrl = mp3Url || waveformAnalysisUrl;
   
@@ -126,22 +129,25 @@ const TrackPlayer = ({
   
   // Log which URLs we're using to help with debugging
   useEffect(() => {
-    console.log('TrackPlayer URLs:', {
-      playbackUrl,
-      waveformUrl,
-      originalUrl,
-      mp3Url,
-      opusUrl,
-      isPlayingWav
-    });
+    // Only log if the URL has actually changed to prevent spam
+    if (currentPlaybackUrlRef.current !== playbackUrl) {
+      console.log('TrackPlayer URLs:', {
+        playbackUrl,
+        waveformUrl,
+        originalUrl,
+        mp3Url,
+        opusUrl,
+        isPlayingWav
+      });
+      currentPlaybackUrlRef.current = playbackUrl;
+    }
   }, [playbackUrl, waveformUrl, originalUrl, mp3Url, opusUrl, isPlayingWav]);
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
-      {/* Main audio element */}
+      {/* Main audio element - do NOT set src attribute here, let the hook handle it */}
       <audio 
         ref={audioRef} 
-        src={playbackUrl}
         preload="auto"
       />
       
@@ -207,6 +213,6 @@ const TrackPlayer = ({
       />
     </div>
   );
-};
+}
 
 export default TrackPlayer;

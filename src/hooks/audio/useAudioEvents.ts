@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * Hook that provides event handlers for the audio player
@@ -27,18 +27,25 @@ export function useAudioEvents({
   lastSeekTimeRef,
   onTrackEnd,
   hasRestoredAfterTabSwitch,
-  timeUpdateActiveRef // We'll use this to prevent double updates rather than blocking updates
+  timeUpdateActiveRef
 }: any) {
+  // Add a ref to track the last loaded URL to prevent reload loops
+  const lastLoadedUrlRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!audioUrl) return;
     
     const audio = audioRef.current;
     if (!audio) return;
 
-    // Explicitly load the audio when URL changes
-    audio.load();
-    
-    console.log(`Setting up audio events for URL: ${audioUrl}`);
+    // Only load if the URL has actually changed from what's currently loaded
+    if (lastLoadedUrlRef.current !== audioUrl) {
+      console.log(`Setting up audio events for URL: ${audioUrl}`);
+      lastLoadedUrlRef.current = audioUrl;
+      
+      // Only explicitly load the audio when URL actually changes
+      audio.load();
+    }
     
     // Handlers to set up for the audio element
     const handleLoadedMetadata = () => {
@@ -220,5 +227,5 @@ export function useAudioEvents({
       // Clean up buffering timeout
       clearBufferingTimeout();
     };
-  }, [audioUrl, playbackState, isPlaying, loadRetries, hasRestoredAfterTabSwitch]);
+  }, [audioUrl]); // Only depend on audioUrl, not playbackState, isPlaying, etc.
 }

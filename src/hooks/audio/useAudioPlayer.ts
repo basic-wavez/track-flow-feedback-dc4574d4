@@ -33,6 +33,9 @@ export function useAudioPlayer({
   // Determine the audio URL to use - prefer MP3 if available
   const audioUrl = mp3Url || defaultAudioUrl;
   
+  // Track current source to prevent reload loops
+  const currentSrcRef = useRef<string | null>(null);
+  
   // Track whether we've restored state after tab switch
   const [hasRestoredAfterTabSwitch, setHasRestoredAfterTabSwitch] = useState(false);
   
@@ -72,6 +75,17 @@ export function useAudioPlayer({
 
   // Add a new flag to track if the timeupdate event handler is active
   const timeUpdateActiveRef = useRef(true);
+
+  // Debug logging for source changes
+  useEffect(() => {
+    if (!audioUrl) return;
+    
+    // Only log if the source URL changed to prevent spamming
+    if (currentSrcRef.current !== audioUrl) {
+      console.log(`Loading audio URL: ${audioUrl}`);
+      currentSrcRef.current = audioUrl;
+    }
+  }, [audioUrl]);
 
   // Sync current time function - gets the time directly from the audio element
   const syncCurrentTimeWithAudio = () => {
@@ -282,7 +296,7 @@ export function useAudioPlayer({
     playbackState,
     recentlySeekRef,
     currentTime,
-    setCurrentTime, // Pass setCurrentTime to useAudioEffects
+    setCurrentTime,
     hasRestoredAfterTabSwitch,
     allowBackgroundPlayback,
     timeUpdateActiveRef
