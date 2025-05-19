@@ -23,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import Header from "@/components/layout/Header";
 
 const PlaylistView = () => {
   const { playlistId } = useParams<{ playlistId: string }>();
@@ -83,102 +84,105 @@ const PlaylistView = () => {
   const isOwner = user && playlist.user_id === user.id;
   
   return (
-    <div className="container max-w-6xl mx-auto px-4 py-8">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="mb-4"
-        onClick={() => navigate('/playlists')}
-      >
-        <ArrowLeft className="h-4 w-4 mr-1" />
-        Back to Playlists
-      </Button>
-      
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">{playlist.name}</h1>
-            {playlist.is_public ? (
-              <Globe className="h-4 w-4 text-gray-400" />
-            ) : (
-              <Lock className="h-4 w-4 text-gray-400" />
+    <>
+      <Header />
+      <div className="container max-w-6xl mx-auto px-4 py-8">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-4"
+          onClick={() => navigate('/playlists')}
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to Playlists
+        </Button>
+        
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">{playlist.name}</h1>
+              {playlist.is_public ? (
+                <Globe className="h-4 w-4 text-gray-400" />
+              ) : (
+                <Lock className="h-4 w-4 text-gray-400" />
+              )}
+            </div>
+            {playlist.description && (
+              <p className="text-gray-300 mt-1">{playlist.description}</p>
             )}
           </div>
-          {playlist.description && (
-            <p className="text-gray-300 mt-1">{playlist.description}</p>
-          )}
-        </div>
-        
-        <div className="flex gap-2">
-          {playlist.tracks.length > 0 && (
-            <Button 
-              variant="secondary"
-              onClick={() => navigate(`/playlist/${playlist.id}/play`)}
-            >
-              <Play className="h-4 w-4 mr-1" />
-              Play Playlist
-            </Button>
-          )}
           
-          {isOwner && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Settings className="h-4 w-4 mr-1" />
-                  Manage
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-48 bg-wip-dark border-wip-gray">
-                <DropdownMenuItem onClick={() => navigate(`/playlist/${playlist.id}/edit`)}>
-                  Edit Details
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate(`/playlist/${playlist.id}/add-tracks`)}>
-                  Add Tracks
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  className="text-red-500 focus:text-red-500"
-                  onClick={() => {
-                    if (confirm("Are you sure you want to delete this playlist?")) {
-                      // Delete functionality to be implemented
-                    }
-                  }}
-                >
-                  Delete Playlist
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <div className="flex gap-2">
+            {playlist.tracks.length > 0 && (
+              <Button 
+                variant="secondary"
+                onClick={() => navigate(`/playlist/${playlist.id}/play`)}
+              >
+                <Play className="h-4 w-4 mr-1" />
+                Play Playlist
+              </Button>
+            )}
+            
+            {isOwner && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Settings className="h-4 w-4 mr-1" />
+                    Manage
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-48 bg-wip-dark border-wip-gray">
+                  <DropdownMenuItem onClick={() => navigate(`/playlist/${playlist.id}/edit`)}>
+                    Edit Details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate(`/playlist/${playlist.id}/add-tracks`)}>
+                    Add Tracks
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="text-red-500 focus:text-red-500"
+                    onClick={() => {
+                      if (confirm("Are you sure you want to delete this playlist?")) {
+                        // Delete functionality to be implemented
+                      }
+                    }}
+                  >
+                    Delete Playlist
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
-      </div>
-      
-      <Separator className="my-4" />
-      
-      {playlist.tracks.length === 0 ? (
         
-        <div className="text-center py-16 border border-dashed border-wip-gray rounded-lg bg-wip-darker">
-          <h3 className="text-xl font-medium mb-2">This Playlist is Empty</h3>
-          <p className="text-gray-400 mb-6">Add some tracks to get started.</p>
-          {isOwner && (
-            <Button onClick={() => navigate(`/playlist/${playlist.id}/add-tracks`)}>
-              Add Tracks
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {playlist.tracks.map((item) => (
-            <PlaylistTrackItem
-              key={item.id}
-              track={item}
-              isOwner={isOwner}
-              onRemove={() => handleRemoveTrack(item.track_id)}
-              onOpen={() => navigate(`/track/${item.track_id}`)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+        <Separator className="my-4" />
+        
+        {playlist.tracks.length === 0 ? (
+          
+          <div className="text-center py-16 border border-dashed border-wip-gray rounded-lg bg-wip-darker">
+            <h3 className="text-xl font-medium mb-2">This Playlist is Empty</h3>
+            <p className="text-gray-400 mb-6">Add some tracks to get started.</p>
+            {isOwner && (
+              <Button onClick={() => navigate(`/playlist/${playlist.id}/add-tracks`)}>
+                Add Tracks
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {playlist.tracks.map((item) => (
+              <PlaylistTrackItem
+                key={item.id}
+                track={item}
+                isOwner={isOwner}
+                onRemove={() => handleRemoveTrack(item.track_id)}
+                onOpen={() => navigate(`/track/${item.track_id}`)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

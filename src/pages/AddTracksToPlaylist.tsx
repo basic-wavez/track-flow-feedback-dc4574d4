@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { TrackData } from "@/types/track";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft, Check, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import Header from "@/components/layout/Header";
 
 const AddTracksToPlaylist = () => {
   const { playlistId } = useParams<{ playlistId: string }>();
@@ -126,117 +126,120 @@ const AddTracksToPlaylist = () => {
   }
 
   return (
-    <div className="container max-w-6xl mx-auto px-4 py-8">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="mb-4"
-        onClick={() => navigate(`/playlist/${playlist.id}`)}
-      >
-        <ArrowLeft className="h-4 w-4 mr-1" />
-        Back to Playlist
-      </Button>
-      
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Add Tracks to "{playlist.name}"</h1>
-        <p className="text-gray-300 mt-1">Select tracks to add to your playlist</p>
-      </div>
-      
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <Badge variant="outline" className="text-wip-pink">
-            {selectedTracks.size} tracks selected
-          </Badge>
+    <>
+      <Header />
+      <div className="container max-w-6xl mx-auto px-4 py-8">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-4"
+          onClick={() => navigate(`/playlist/${playlist.id}`)}
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to Playlist
+        </Button>
+        
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Add Tracks to "{playlist.name}"</h1>
+          <p className="text-gray-300 mt-1">Select tracks to add to your playlist</p>
         </div>
         
-        <Button 
-          onClick={handleAddTracks} 
-          disabled={selectedTracks.size === 0 || isAdding}
-        >
-          {isAdding ? (
-            "Adding tracks..."
-          ) : (
-            <>
-              <Plus className="h-4 w-4 mr-1" />
-              Add Selected Tracks
-            </>
-          )}
-        </Button>
-      </div>
-      
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-pulse">Loading tracks...</div>
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <Badge variant="outline" className="text-wip-pink">
+              {selectedTracks.size} tracks selected
+            </Badge>
+          </div>
+          
+          <Button 
+            onClick={handleAddTracks} 
+            disabled={selectedTracks.size === 0 || isAdding}
+          >
+            {isAdding ? (
+              "Adding tracks..."
+            ) : (
+              <>
+                <Plus className="h-4 w-4 mr-1" />
+                Add Selected Tracks
+              </>
+            )}
+          </Button>
         </div>
-      ) : tracks.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-wip-gray rounded-lg bg-wip-darker">
-          <h3 className="text-xl font-medium mb-2">No Tracks Found</h3>
-          <p className="text-gray-400">You haven't uploaded any tracks yet.</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {tracks.map((track) => {
-            const isInPlaylist = isTrackInPlaylist(track.id);
-            const isSelected = selectedTracks.has(track.id);
-            
-            return (
-              <div 
-                key={track.id}
-                className={`
-                  flex items-center border border-wip-gray rounded-md px-4 py-3
-                  ${isInPlaylist ? 'bg-wip-dark/20 opacity-50' : 'bg-wip-darker hover:bg-wip-dark/50'} 
-                  ${isSelected ? 'ring-2 ring-wip-pink' : ''} 
-                  transition-colors
-                `}
-                onClick={() => {
-                  if (!isInPlaylist) toggleTrack(track.id);
-                }}
-              >
-                <div className="w-8 mr-3 flex justify-center">
-                  {isInPlaylist ? (
-                    <span className="text-gray-400 text-sm">Added</span>
-                  ) : isSelected ? (
-                    <Check className="h-5 w-5 text-wip-pink" />
-                  ) : (
-                    <div className="h-5 w-5 border border-wip-gray rounded-sm" />
-                  )}
-                </div>
-                
-                <div className="flex-grow">
-                  <h3 className="font-medium">
-                    {track.title}
-                    {track.version_number > 1 && (
-                      <span className="ml-1 text-sm text-gray-400">
-                        (v{track.version_number})
-                      </span>
+        
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-pulse">Loading tracks...</div>
+          </div>
+        ) : tracks.length === 0 ? (
+          <div className="text-center py-16 border border-dashed border-wip-gray rounded-lg bg-wip-darker">
+            <h3 className="text-xl font-medium mb-2">No Tracks Found</h3>
+            <p className="text-gray-400">You haven't uploaded any tracks yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {tracks.map((track) => {
+              const isInPlaylist = isTrackInPlaylist(track.id);
+              const isSelected = selectedTracks.has(track.id);
+              
+              return (
+                <div 
+                  key={track.id}
+                  className={`
+                    flex items-center border border-wip-gray rounded-md px-4 py-3
+                    ${isInPlaylist ? 'bg-wip-dark/20 opacity-50' : 'bg-wip-darker hover:bg-wip-dark/50'} 
+                    ${isSelected ? 'ring-2 ring-wip-pink' : ''} 
+                    transition-colors
+                  `}
+                  onClick={() => {
+                    if (!isInPlaylist) toggleTrack(track.id);
+                  }}
+                >
+                  <div className="w-8 mr-3 flex justify-center">
+                    {isInPlaylist ? (
+                      <span className="text-gray-400 text-sm">Added</span>
+                    ) : isSelected ? (
+                      <Check className="h-5 w-5 text-wip-pink" />
+                    ) : (
+                      <div className="h-5 w-5 border border-wip-gray rounded-sm" />
                     )}
-                  </h3>
-                  <span className="text-xs text-gray-400">
-                    {track.original_filename}
-                  </span>
+                  </div>
+                  
+                  <div className="flex-grow">
+                    <h3 className="font-medium">
+                      {track.title}
+                      {track.version_number > 1 && (
+                        <span className="ml-1 text-sm text-gray-400">
+                          (v{track.version_number})
+                        </span>
+                      )}
+                    </h3>
+                    <span className="text-xs text-gray-400">
+                      {track.original_filename}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+        )}
+        
+        <div className="mt-6 flex justify-end">
+          <Button 
+            onClick={handleAddTracks} 
+            disabled={selectedTracks.size === 0 || isAdding}
+          >
+            {isAdding ? (
+              "Adding tracks..."
+            ) : (
+              <>
+                <Plus className="h-4 w-4 mr-1" />
+                Add Selected Tracks ({selectedTracks.size})
+              </>
+            )}
+          </Button>
         </div>
-      )}
-      
-      <div className="mt-6 flex justify-end">
-        <Button 
-          onClick={handleAddTracks} 
-          disabled={selectedTracks.size === 0 || isAdding}
-        >
-          {isAdding ? (
-            "Adding tracks..."
-          ) : (
-            <>
-              <Plus className="h-4 w-4 mr-1" />
-              Add Selected Tracks ({selectedTracks.size})
-            </>
-          )}
-        </Button>
       </div>
-    </div>
+    </>
   );
 };
 
