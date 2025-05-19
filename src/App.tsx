@@ -16,6 +16,9 @@ import PlaylistPlayerView from "./pages/PlaylistPlayerView";
 import PlaylistSharedView from "./pages/PlaylistSharedView";
 import PlaylistSharedPlayerView from "./pages/PlaylistSharedPlayerView";
 import AddTracksToPlaylist from "./pages/AddTracksToPlaylist";
+import TrackView from "./pages/TrackView";
+import NewVersionPage from "./pages/NewVersionPage";
+import FeedbackView from "./pages/FeedbackView";
 import Index from "./pages/Index";
 
 function App() {
@@ -73,6 +76,11 @@ function App() {
             </PlaylistPlayerProvider>
           }
         />
+        {/* New Track Routes */}
+        <Route path="/track/:trackId" element={<TrackView />} />
+        <Route path="/track/:trackId/version" element={<NewVersionPage />} />
+        <Route path="/track/:trackId/feedback" element={<FeedbackView />} />
+        <Route path="/track/share/:shareKey" element={<TrackView />} />
       </Routes>
     </Router>
   );
