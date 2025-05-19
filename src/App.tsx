@@ -1,4 +1,3 @@
-
 import {
   BrowserRouter as Router,
   Routes,
@@ -14,7 +13,6 @@ import PlaylistPage from "./pages/PlaylistView";
 import EditPlaylistPage from "./pages/EditPlaylistPage";
 import PlaylistPlayerView from "./pages/PlaylistPlayerView";
 import PlaylistSharedView from "./pages/PlaylistSharedView";
-import PlaylistSharedPlayerView from "./pages/PlaylistSharedPlayerView";
 import AddTracksToPlaylist from "./pages/AddTracksToPlaylist";
 import TrackView from "./pages/TrackView";
 import NewVersionPage from "./pages/NewVersionPage";
@@ -72,11 +70,12 @@ function App() {
             </PlaylistPlayerProvider>
           }
         />
+        {/* Keep the route temporarily for backward compatibility */}
         <Route
           path="/shared/playlist/:shareKey/play"
           element={
             <PlaylistPlayerProvider>
-              <PlaylistSharedPlayerView />
+              <PlaylistSharedView />
             </PlaylistPlayerProvider>
           }
         />

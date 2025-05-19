@@ -1,7 +1,6 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { PlaylistTrack, PlaylistWithTracks } from "@/types/playlist";
-import { useNavigate } from "react-router-dom";
 
 interface PlaylistPlayerContextType {
   playlist: PlaylistWithTracks | null;
@@ -21,7 +20,6 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
   const [playlist, setPlaylistState] = useState<PlaylistWithTracks | null>(null);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const navigate = useNavigate();
 
   // Calculate the current track based on the index
   const currentTrack = playlist && currentTrackIndex >= 0 && currentTrackIndex < playlist.tracks.length
@@ -64,9 +62,6 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
     console.log("PlaylistContext: Playing track at index:", index);
     setCurrentTrackIndex(index);
     setIsPlaying(true);
-    
-    // Navigate to the player view if not already there
-    navigate(`/playlist/${playlist.id}/play`);
   };
 
   // Play the next track in the playlist

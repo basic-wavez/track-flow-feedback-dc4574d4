@@ -9,42 +9,84 @@ import PlaylistTrackList from "@/components/playlist/PlaylistTrackList";
 import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
 import { PlaylistWithTracks } from "@/types/playlist";
 import Header from "@/components/layout/Header";
+import TrackPlayer from "@/components/TrackPlayer";
+import { getTrack } from "@/services/trackQueryService";
 
 const PlaylistSharedView = () => {
   const { shareKey } = useParams<{ shareKey: string }>();
   const navigate = useNavigate();
-  const { setPlaylist } = usePlaylistPlayer();
-  const [isLoading, setIsLoading] = useState(true);
+  const { setPlaylist, playTrack, currentTrack, isPlaying, currentTrackIndex } = usePlaylistPlayer();
+  const [isLoadingPlaylist, setIsLoadingPlaylist] = useState(true);
   const [playlist, setPlaylistData] = useState<PlaylistWithTracks | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoadingTrack, setIsLoadingTrack] = useState(false);
+  const [trackAudioUrl, setTrackAudioUrl] = useState<string | undefined>();
+  const [waveformUrl, setWaveformUrl] = useState<string | undefined>();
 
+  // Fetch the playlist by share key
   useEffect(() => {
     const fetchPlaylist = async () => {
       try {
-        setIsLoading(true);
+        setIsLoadingPlaylist(true);
         const data = await getPlaylistByShareKey(shareKey || "");
         setPlaylistData(data);
+        
+        // Set the playlist in context
+        if (data) {
+          setPlaylist(data);
+        }
       } catch (err) {
         console.error("Error fetching shared playlist:", err);
         setError("Failed to load the shared playlist.");
       } finally {
-        setIsLoading(false);
+        setIsLoadingPlaylist(false);
       }
     };
 
     if (shareKey) {
       fetchPlaylist();
     }
-  }, [shareKey]);
+  }, [shareKey, setPlaylist]);
 
-  const handlePlayPlaylist = () => {
-    if (playlist) {
-      setPlaylist(playlist);
-      navigate(`/shared/playlist/${shareKey}/play`);
+  // Load detailed track data when current track changes
+  useEffect(() => {
+    const loadTrackData = async () => {
+      if (currentTrack?.track_id) {
+        setIsLoadingTrack(true);
+        try {
+          const trackData = await getTrack(currentTrack.track_id);
+          if (trackData) {
+            // Use the best available URL - prefer mp3, then opus, then compressed, then original
+            const audioUrl = trackData.mp3_url || 
+                          trackData.opus_url || 
+                          trackData.compressed_url || 
+                          trackData.original_url;
+            
+            // Set the waveform URL - prefer mp3, then compressed
+            const waveformAnalysisUrl = trackData.mp3_url || trackData.compressed_url;
+            
+            setTrackAudioUrl(audioUrl);
+            setWaveformUrl(waveformAnalysisUrl);
+          }
+        } catch (error) {
+          console.error("Error loading track data:", error);
+        } finally {
+          setIsLoadingTrack(false);
+        }
+      }
+    };
+    
+    loadTrackData();
+  }, [currentTrack]);
+
+  // Handle play all button click
+  const handlePlayAllClick = () => {
+    if (playlist && playlist.tracks.length > 0) {
+      playTrack(0);
     }
   };
 
-  if (isLoading) {
+  if (isLoadingPlaylist) {
     return (
       <>
         <Header />
@@ -95,12 +137,29 @@ const PlaylistSharedView = () => {
             </p>
           </div>
 
-          <Button onClick={handlePlayPlaylist} size="lg">
+          <Button onClick={handlePlayAllClick} size="lg" 
+                  disabled={playlist.tracks.length === 0}>
             <ListMusic className="h-4 w-4 mr-1" />
             Play All
           </Button>
         </div>
 
+        {/* Show player when a track is selected */}
+        {currentTrack && (
+          <div className="mb-8">
+            <TrackPlayer
+              trackId={currentTrack.track_id}
+              trackName={currentTrack.track?.title || "Unknown Track"}
+              audioUrl={trackAudioUrl}
+              waveformAnalysisUrl={waveformUrl}
+              isPlaylistMode={true}
+              currentIndex={currentTrackIndex}
+              totalTracks={playlist.tracks.length}
+              isLoading={isLoadingTrack}
+            />
+          </div>
+        )}
+        
         <Separator className="my-4" />
 
         {/* Show message when the playlist is empty */}
