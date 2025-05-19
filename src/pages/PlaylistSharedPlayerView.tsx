@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
@@ -31,62 +31,91 @@ const PlaylistSharedPlayerView = () => {
   const [playlistData, setPlaylistData] = useState<PlaylistWithTracks | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  // Fetch the playlist data by share key
+  // Memoize the shareKey to prevent unnecessary re-fetches
+  const memoizedShareKey = useMemo(() => shareKey, [shareKey]);
+  
+  // Fetch the playlist data by share key - optimized to prevent refetches
   useEffect(() => {
+    if (!memoizedShareKey) return;
+    
+    let isMounted = true;
     const fetchPlaylist = async () => {
       try {
         setIsLoadingPlaylist(true);
-        const data = await getPlaylistByShareKey(shareKey || "");
+        const data = await getPlaylistByShareKey(memoizedShareKey);
+        
+        if (!isMounted) return;
+        
         setPlaylistData(data);
         
-        // Set the playlist only on initial load
+        // Set the playlist only on initial load to avoid loops
         if (data && initialLoad) {
           setPlaylist(data);
           setInitialLoad(false);
         }
       } catch (err) {
+        if (!isMounted) return;
         console.error("Error fetching shared playlist:", err);
         setError("Failed to load the shared playlist.");
       } finally {
-        setIsLoadingPlaylist(false);
+        if (isMounted) {
+          setIsLoadingPlaylist(false);
+        }
       }
     };
 
-    if (shareKey) {
-      fetchPlaylist();
-    }
-  }, [shareKey, initialLoad, setPlaylist]);
+    fetchPlaylist();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [memoizedShareKey, initialLoad, setPlaylist]);
 
-  // Load detailed track data when current track changes
+  // Load detailed track data when current track changes - with debounce
   useEffect(() => {
+    if (!currentTrack?.track_id) return;
+    
+    let isMounted = true;
+    let debounceTimer: number | undefined;
+    
     const loadTrackData = async () => {
-      if (currentTrack?.track_id) {
-        setIsLoadingTrack(true);
-        try {
-          const trackData = await getTrack(currentTrack.track_id);
-          if (trackData) {
-            // Use the best available URL - prefer mp3, then opus, then compressed, then original
-            const audioUrl = trackData.mp3_url || 
-                            trackData.opus_url || 
-                            trackData.compressed_url || 
-                            trackData.original_url;
-            
-            // Set the waveform URL - prefer mp3, then compressed
-            const waveformAnalysisUrl = trackData.mp3_url || trackData.compressed_url;
-            
-            setTrackAudioUrl(audioUrl);
-            setWaveformUrl(waveformAnalysisUrl);
-          }
-        } catch (error) {
-          console.error("Error loading track data:", error);
-        } finally {
+      setIsLoadingTrack(true);
+      
+      try {
+        const trackData = await getTrack(currentTrack.track_id);
+        if (!isMounted) return;
+        
+        if (trackData) {
+          // Use the best available URL - prefer mp3, then opus, then compressed, then original
+          const audioUrl = trackData.mp3_url || 
+                          trackData.opus_url || 
+                          trackData.compressed_url || 
+                          trackData.original_url;
+          
+          // Set the waveform URL - prefer mp3, then compressed
+          const waveformAnalysisUrl = trackData.mp3_url || trackData.compressed_url;
+          
+          setTrackAudioUrl(audioUrl);
+          setWaveformUrl(waveformAnalysisUrl);
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        console.error("Error loading track data:", error);
+      } finally {
+        if (isMounted) {
           setIsLoadingTrack(false);
         }
       }
     };
     
-    loadTrackData();
-  }, [currentTrack]);
+    // Debounce the track data loading to prevent rapid changes
+    debounceTimer = window.setTimeout(loadTrackData, 50);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(debounceTimer);
+    };
+  }, [currentTrack?.track_id]);
 
   // Handle loading and error states
   if (isLoadingPlaylist) {
@@ -147,6 +176,7 @@ const PlaylistSharedPlayerView = () => {
         {currentTrack && (
           <div className="mb-8">
             <TrackPlayer
+              key={`player-${currentTrack.track_id}-${contextIsPlaying}`}
               trackId={currentTrack.track_id}
               trackName={currentTrack.track?.title || "Unknown Track"}
               audioUrl={trackAudioUrl}

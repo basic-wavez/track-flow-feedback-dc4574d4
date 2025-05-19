@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 
 interface WaveformCanvasProps {
   waveformData: number[];
@@ -20,6 +20,9 @@ const WaveformCanvas = ({
   onSeek 
 }: WaveformCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const prevTimeRef = useRef(currentTime);
+  const prevIsPlayingRef = useRef(isPlaying);
   
   useEffect(() => {
     const drawWaveform = () => {
@@ -28,6 +31,18 @@ const WaveformCanvas = ({
       
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+      
+      // Only redraw if playing state or time has changed significantly
+      if (prevIsPlayingRef.current === isPlaying && 
+          Math.abs(prevTimeRef.current - currentTime) < 0.1 && 
+          !isBuffering && 
+          !animationFrameRef.current) {
+        return;
+      }
+      
+      // Update refs for optimization
+      prevTimeRef.current = currentTime;
+      prevIsPlayingRef.current = isPlaying;
       
       const width = canvas.width;
       const height = canvas.height;
@@ -245,23 +260,29 @@ const WaveformCanvas = ({
       }
     };
     
-    // Draw the waveform
+    // Draw the waveform immediately
     drawWaveform();
     
-    // Set up animation if playing or buffering
-    let animationFrame: number;
+    // Set up animation if playing or buffering with performance optimization
     if (isPlaying || isBuffering) {
       const animate = () => {
         drawWaveform();
-        animationFrame = requestAnimationFrame(animate);
+        animationFrameRef.current = requestAnimationFrame(animate);
       };
       
-      animationFrame = requestAnimationFrame(animate);
+      if (!animationFrameRef.current) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      }
+    } else if (animationFrameRef.current) {
+      // Cancel animation if stopped playing
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
     
     return () => {
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
   }, [isPlaying, isBuffering, currentTime, duration, waveformData, isMp3Available]);
@@ -300,4 +321,5 @@ const WaveformCanvas = ({
   );
 };
 
-export default WaveformCanvas;
+// Memoize the component to prevent unnecessary re-renders
+export default memo(WaveformCanvas);

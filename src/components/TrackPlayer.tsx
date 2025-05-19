@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import TrackHeader from "./player/TrackHeader";
 import PlaybackControls from "./player/PlaybackControls";
@@ -61,43 +61,27 @@ const TrackPlayer = ({
   const [serverCooldown, setServerCooldown] = useState(false);
   const [playedRecently, setPlayedRecently] = useState(false);
   
-  // Access playlist context when in playlist mode
+  // Access playlist context when in playlist mode with memo to prevent rerenders
   const { 
     playNextTrack: contextPlayNext, 
     playPreviousTrack: contextPlayPrevious, 
     togglePlayPause: contextTogglePlayPause,
     isPlaying: contextIsPlaying
-  } = isPlaylistMode ? usePlaylistPlayer() : { 
-    playNextTrack: () => {}, 
-    playPreviousTrack: () => {},
-    togglePlayPause: () => {},
-    isPlaying: false
-  };
+  } = usePlaylistPlayer();
   
-  // Console logging for debugging
-  useEffect(() => {
-    if (isPlaylistMode) {
-      console.log("Playlist mode states:", { 
-        contextIsPlaying, 
-        isLoading,
-        "audio element exists": !!audioRef.current
-      });
-    }
-  }, [contextIsPlaying, isLoading, isPlaylistMode]);
+  // Memoize the playback URL to prevent re-renders
+  const playbackUrl = useRef(opusUrl || mp3Url || audioUrl).current;
   
-  // Determine which URL to use for playback - prefer Opus if available, then MP3, then audioUrl
-  const playbackUrl = opusUrl || mp3Url || audioUrl;
-
-  // Determine which URL to use for waveform analysis - ALWAYS prefer MP3 if available
-  const waveformUrl = mp3Url || waveformAnalysisUrl;
+  // Memoize the waveform URL
+  const waveformUrl = useRef(mp3Url || waveformAnalysisUrl).current;
   
   // Check server cooldown on load
   useEffect(() => {
+    if (!shareKey) return;
+    
     const checkServerCooldown = async () => {
-      if (shareKey) {
-        const inCooldown = await isInServerCooldown(shareKey);
-        setServerCooldown(inCooldown);
-      }
+      const inCooldown = await isInServerCooldown(shareKey);
+      setServerCooldown(inCooldown);
     };
     
     checkServerCooldown();
@@ -126,82 +110,62 @@ const TrackPlayer = ({
     shareKey 
   });
   
-  // Sync with playlist context when in playlist mode - fixed implementation
+  // Memoized toggle play function to prevent recreation on render
+  const handleTogglePlayPause = useCallback(() => {
+    if (isPlaylistMode) {
+      contextTogglePlayPause();
+    }
+    localTogglePlayPause();
+  }, [isPlaylistMode, contextTogglePlayPause, localTogglePlayPause]);
+
+  // Sync with playlist context - optimized to minimize re-renders
   useEffect(() => {
     if (!isPlaylistMode || !audioRef.current) return;
     
-    console.log("Sync effect triggered:", { contextIsPlaying, isPlaying });
-    
-    if (contextIsPlaying && !isPlaying) {
-      console.log("Context is playing but local is not - starting playback");
-      audioRef.current.play().catch(err => {
-        console.error("Error playing from context sync:", err);
-      });
-    } else if (!contextIsPlaying && isPlaying) {
-      console.log("Context is paused but local is playing - pausing playback");
-      audioRef.current.pause();
+    if (contextIsPlaying !== isPlaying) {
+      if (contextIsPlaying) {
+        audioRef.current.play().catch(err => {
+          console.error("Error playing from context sync:", err);
+        });
+      } else {
+        audioRef.current.pause();
+      }
     }
   }, [contextIsPlaying, isPlaying, isPlaylistMode]);
   
-  // Handle track end for playlist autoplay
+  // Handle track end for playlist autoplay - memoized to prevent re-renders
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !isPlaylistMode) return;
+    if (!audio || !isPlaylistMode || !contextPlayNext) return;
     
-    const handleTrackEnd = () => {
-      contextPlayNext();
-    };
+    const handleTrackEnd = () => contextPlayNext();
     
     audio.addEventListener('ended', handleTrackEnd);
-    
-    return () => {
-      audio.removeEventListener('ended', handleTrackEnd);
-    };
+    return () => audio.removeEventListener('ended', handleTrackEnd);
   }, [contextPlayNext, isPlaylistMode]);
-  
-  // Combined toggle play function - updated to ensure both states update
-  const handleTogglePlayPause = () => {
-    console.log("Toggle play/pause clicked", { isPlaylistMode, isPlaying, contextIsPlaying });
-    
-    if (isPlaylistMode) {
-      // Update the context state first
-      contextTogglePlayPause();
-      
-      // Also update the local audio state
-      // The sync effect will handle the actual audio element changes
-      // But we still call localTogglePlayPause to update local state in sync
-      localTogglePlayPause();
-    } else {
-      // Just use local toggle when not in playlist mode
-      localTogglePlayPause();
-    }
-  };
   
   // Update playedRecently when a track finishes playing
   useEffect(() => {
-    if (playbackState === 'paused' && currentTime > 0 && currentTime >= duration * 0.9) {
-      setPlayedRecently(true);
-      
-      // Check if we're now in server cooldown
-      if (shareKey) {
-        const checkServerCooldown = async () => {
-          const inCooldown = await isInServerCooldown(shareKey);
-          setServerCooldown(inCooldown);
-        };
-        
-        checkServerCooldown();
-      }
-    }
+    if (playbackState !== 'paused' || currentTime <= 0 || currentTime < duration * 0.9) return;
+    
+    setPlayedRecently(true);
+    
+    if (!shareKey) return;
+    
+    const checkServerCooldown = async () => {
+      const inCooldown = await isInServerCooldown(shareKey);
+      setServerCooldown(inCooldown);
+    };
+    
+    checkServerCooldown();
   }, [playbackState, currentTime, duration, shareKey]);
   
-  // Check if we're using the original WAV file
-  const originalFileType = getFileTypeFromUrl(originalUrl);
+  // Check if we're using the original WAV file - memoized
+  const originalFileType = originalUrl ? getFileTypeFromUrl(originalUrl) : null;
   const isPlayingWav = isWavFormat(originalFileType) && playbackUrl === originalUrl;
   
-  // Check if we're using the MP3 version
+  // Check if we're using the MP3/Opus version - memoized
   const usingMp3 = !!mp3Url;
-  
-  // Check if we're using the Opus version
   const usingOpus = !!opusUrl;
   
   // Determine combined cooldown state
@@ -288,4 +252,5 @@ const TrackPlayer = ({
   );
 };
 
-export default TrackPlayer;
+// Memoize the component to prevent unnecessary re-renders
+export default memo(TrackPlayer);
