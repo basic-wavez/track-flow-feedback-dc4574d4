@@ -3,14 +3,18 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { ListMusic, Upload } from "lucide-react";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 import Profile from "@/components/auth/Profile";
-import { Logo } from "./Logo";
+
+// Simple Logo component since it's missing
+const Logo = ({ className }: { className?: string }) => (
+  <div className={`font-bold text-xl ${className}`}>Demo Manager</div>
+);
 
 const Navigation = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
 
   // Don't show navigation on mobile - we have a separate MobileNav component
   if (isMobile) return null;

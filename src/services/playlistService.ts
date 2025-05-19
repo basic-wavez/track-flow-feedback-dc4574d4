@@ -4,12 +4,20 @@ import { Playlist, PlaylistCreateInput, PlaylistTrack, PlaylistUpdateInput, Play
 
 // Create a new playlist
 export const createPlaylist = async (playlistData: PlaylistCreateInput): Promise<Playlist | null> => {
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User must be logged in to create a playlist');
+  }
+  
   const { data, error } = await supabase
     .from('playlists')
     .insert({
       name: playlistData.name,
       description: playlistData.description,
-      is_public: playlistData.is_public
+      is_public: playlistData.is_public,
+      user_id: user.id // Add the user_id
     })
     .select('*')
     .single();
@@ -174,11 +182,12 @@ export const removeTrackFromPlaylist = async (
   // Update positions for tracks after the removed one
   const removedPosition = trackData.position;
   
+  // Use a direct SQL query instead of rpc for reordering
   const { error: updateError } = await supabase
-    .rpc('reorder_after_remove', {
-      p_playlist_id: playlistId,
-      p_removed_position: removedPosition
-    });
+    .from('playlist_tracks')
+    .update({ position: supabase.sql`position - 1` })
+    .eq('playlist_id', playlistId)
+    .gt('position', removedPosition);
 
   if (updateError) {
     console.error('Error updating positions:', updateError);
@@ -215,15 +224,15 @@ export const reorderPlaylistTrack = async (
     throw new Error('Position cannot be negative');
   }
 
-  // Update the position of other tracks
+  // Update the position of other tracks directly using SQL queries
   if (oldPosition < newPosition) {
     // Moving down: decrease position of tracks between old and new
     const { error: updateError } = await supabase
-      .rpc('reorder_move_down', {
-        p_playlist_id: playlistId,
-        p_old_position: oldPosition,
-        p_new_position: newPosition
-      });
+      .from('playlist_tracks')
+      .update({ position: supabase.sql`position - 1` })
+      .eq('playlist_id', playlistId)
+      .gt('position', oldPosition)
+      .lte('position', newPosition);
 
     if (updateError) {
       console.error('Error updating positions:', updateError);
@@ -232,11 +241,11 @@ export const reorderPlaylistTrack = async (
   } else {
     // Moving up: increase position of tracks between new and old
     const { error: updateError } = await supabase
-      .rpc('reorder_move_up', {
-        p_playlist_id: playlistId,
-        p_old_position: oldPosition,
-        p_new_position: newPosition
-      });
+      .from('playlist_tracks')
+      .update({ position: supabase.sql`position + 1` })
+      .eq('playlist_id', playlistId)
+      .gte('position', newPosition)
+      .lt('position', oldPosition);
 
     if (updateError) {
       console.error('Error updating positions:', updateError);
