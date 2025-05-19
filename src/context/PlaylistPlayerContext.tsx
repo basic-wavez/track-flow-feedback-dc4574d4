@@ -1,6 +1,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { PlaylistTrack, PlaylistWithTracks } from "@/types/playlist";
+import { useNavigate } from "react-router-dom";
 
 interface PlaylistPlayerContextType {
   playlist: PlaylistWithTracks | null;
@@ -20,6 +21,7 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
   const [playlist, setPlaylistState] = useState<PlaylistWithTracks | null>(null);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const navigate = useNavigate();
 
   // Calculate the current track based on the index
   const currentTrack = playlist && currentTrackIndex >= 0 && currentTrackIndex < playlist.tracks.length
@@ -52,42 +54,34 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
 
   // Set the playlist and optionally start playing a track
   const setPlaylist = (newPlaylist: PlaylistWithTracks) => {
-    console.log("PlaylistContext: Setting playlist with", newPlaylist.tracks.length, "tracks");
     setPlaylistState(newPlaylist);
   };
 
   // Play a specific track by index
   const playTrack = (index: number) => {
-    if (!playlist || index < 0 || index >= playlist.tracks.length) {
-      console.error("PlaylistContext: Cannot play track at index", index, "- invalid index or no playlist");
-      return;
-    }
+    if (!playlist || index < 0 || index >= playlist.tracks.length) return;
     
     console.log("PlaylistContext: Playing track at index:", index);
     setCurrentTrackIndex(index);
-    // No auto-play - user must manually start playback
-    setIsPlaying(false);
+    setIsPlaying(true);
+    
+    // Navigate to the player view if not already there
+    navigate(`/playlist/${playlist.id}/play`);
   };
 
   // Play the next track in the playlist
   const playNextTrack = () => {
-    if (!playlist || playlist.tracks.length === 0) {
-      console.error("PlaylistContext: Cannot play next track - no playlist or tracks");
-      return;
-    }
+    if (!playlist || playlist.tracks.length === 0) return;
     
     const nextIndex = (currentTrackIndex + 1) % playlist.tracks.length;
     console.log("PlaylistContext: Playing next track:", nextIndex);
     setCurrentTrackIndex(nextIndex);
-    // Maintain current playing state when changing tracks
+    setIsPlaying(true);
   };
 
   // Play the previous track in the playlist
   const playPreviousTrack = () => {
-    if (!playlist || playlist.tracks.length === 0) {
-      console.error("PlaylistContext: Cannot play previous track - no playlist or tracks");
-      return;
-    }
+    if (!playlist || playlist.tracks.length === 0) return;
     
     const prevIndex = currentTrackIndex <= 0 
       ? playlist.tracks.length - 1 
@@ -95,7 +89,7 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
     
     console.log("PlaylistContext: Playing previous track:", prevIndex);
     setCurrentTrackIndex(prevIndex);
-    // Maintain current playing state when changing tracks
+    setIsPlaying(true);
   };
 
   // Toggle play/pause state

@@ -1,111 +1,114 @@
 
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { getPlaylistByShareKey } from "@/services/playlistShareService";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, ListMusic } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import PlaylistTrackList from "@/components/playlist/PlaylistTrackList";
 import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
 import { PlaylistWithTracks } from "@/types/playlist";
 import Header from "@/components/layout/Header";
-import TrackPlayer from "@/components/TrackPlayer";
-import PlaylistSharedLoading from "@/components/playlist/PlaylistSharedLoading";
-import PlaylistSharedError from "@/components/playlist/PlaylistSharedError";
-import PlaylistSharedHeader from "@/components/playlist/PlaylistSharedHeader";
-import PlaylistEmptyState from "@/components/playlist/PlaylistEmptyState";
-import { useTrackLoader } from "@/hooks/useTrackLoader";
 
 const PlaylistSharedView = () => {
   const { shareKey } = useParams<{ shareKey: string }>();
-  const { setPlaylist, playTrack, currentTrack, currentTrackIndex } = usePlaylistPlayer();
-  const [isLoadingPlaylist, setIsLoadingPlaylist] = useState(true);
+  const navigate = useNavigate();
+  const { setPlaylist } = usePlaylistPlayer();
+  const [isLoading, setIsLoading] = useState(true);
   const [playlist, setPlaylistData] = useState<PlaylistWithTracks | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
-  // Use our new hook to load track data
-  const { isLoadingTrack, trackAudioUrl, waveformUrl } = useTrackLoader(currentTrack);
 
-  // Fetch the playlist by share key
   useEffect(() => {
     const fetchPlaylist = async () => {
       try {
-        console.log("Fetching shared playlist with shareKey:", shareKey);
-        setIsLoadingPlaylist(true);
+        setIsLoading(true);
         const data = await getPlaylistByShareKey(shareKey || "");
-        
-        console.log("Playlist data received:", data);
-        console.log("Tracks in playlist:", data?.tracks?.length || 0);
-        
         setPlaylistData(data);
-        
-        // Set the playlist in context
-        if (data) {
-          console.log("Setting playlist in context");
-          setPlaylist(data);
-        } else {
-          console.error("No playlist data returned for shareKey:", shareKey);
-          setError("The shared playlist could not be loaded.");
-        }
       } catch (err) {
         console.error("Error fetching shared playlist:", err);
-        setError(`Failed to load the shared playlist: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        setError("Failed to load the shared playlist.");
       } finally {
-        setIsLoadingPlaylist(false);
+        setIsLoading(false);
       }
     };
 
     if (shareKey) {
       fetchPlaylist();
-    } else {
-      console.error("No shareKey provided in URL parameters");
-      setError("Invalid share link: No key provided");
-      setIsLoadingPlaylist(false);
     }
-  }, [shareKey, setPlaylist]);
+  }, [shareKey]);
 
-  // Handle play all button click
-  const handlePlayAllClick = () => {
-    console.log("Play All button clicked");
-    if (playlist && playlist.tracks.length > 0) {
-      console.log("Starting playback of first track");
-      playTrack(0);
+  const handlePlayPlaylist = () => {
+    if (playlist) {
+      setPlaylist(playlist);
+      navigate(`/shared/playlist/${shareKey}/play`);
     }
   };
 
-  if (isLoadingPlaylist) {
-    return <PlaylistSharedLoading />;
+  if (isLoading) {
+    return (
+      <>
+        <Header />
+        <div className="container max-w-6xl mx-auto px-4 py-8">
+          <div className="flex justify-center py-12">
+            <div className="animate-pulse">Loading shared playlist...</div>
+          </div>
+        </div>
+      </>
+    );
   }
 
   if (error || !playlist) {
-    return <PlaylistSharedError error={error} />;
+    return (
+      <>
+        <Header />
+        <div className="container max-w-6xl mx-auto px-4 py-8">
+          <div className="text-center py-12">
+            <h2 className="text-xl font-medium mb-2 text-red-500">Error loading shared playlist</h2>
+            <p className="text-gray-400 mb-6">This playlist might not exist or has been deleted.</p>
+            <Button onClick={() => navigate('/')}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back to Home
+            </Button>
+          </div>
+        </div>
+      </>
+    );
   }
 
   return (
     <>
       <Header />
       <div className="container max-w-6xl mx-auto px-4 py-8">
-        <PlaylistSharedHeader playlist={playlist} onPlayAll={handlePlayAllClick} />
-
-        {/* Show player when a track is selected */}
-        {currentTrack && (
-          <div className="mb-8">
-            <TrackPlayer
-              trackId={currentTrack.track_id}
-              trackName={currentTrack.track?.title || "Unknown Track"}
-              audioUrl={trackAudioUrl}
-              waveformAnalysisUrl={waveformUrl}
-              isPlaylistMode={true}
-              currentIndex={currentTrackIndex}
-              totalTracks={playlist.tracks.length}
-              isLoading={isLoadingTrack}
-            />
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <ListMusic className="text-wip-pink h-6 w-6" />
+              <h1 className="text-2xl font-bold">{playlist.name}</h1>
+            </div>
+            
+            {playlist.description && (
+              <p className="text-gray-300 mb-2">{playlist.description}</p>
+            )}
+            
+            <p className="text-sm text-gray-400">
+              {playlist.tracks.length} tracks
+            </p>
           </div>
-        )}
-        
+
+          <Button onClick={handlePlayPlaylist} size="lg">
+            <ListMusic className="h-4 w-4 mr-1" />
+            Play All
+          </Button>
+        </div>
+
         <Separator className="my-4" />
 
         {/* Show message when the playlist is empty */}
         {playlist.tracks.length === 0 ? (
-          <PlaylistEmptyState />
+          <div className="text-center py-16 border border-dashed border-wip-gray rounded-lg bg-wip-darker">
+            <h3 className="text-xl font-medium mb-2">This Playlist is Empty</h3>
+            <p className="text-gray-400">The owner hasn't added any tracks yet.</p>
+          </div>
         ) : (
           <PlaylistTrackList tracks={playlist.tracks} />
         )}
