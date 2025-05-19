@@ -1,85 +1,99 @@
 
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import { getTrack } from "@/services/trackService";
+import { TrackData } from "@/types/track";
+import { useFeedbackData } from "@/hooks/useFeedbackData";
 import FeedbackHeader from "@/components/feedback/FeedbackHeader";
 import TrackPlayerView from "@/components/feedback/TrackPlayerView";
+import FeedbackSummaryCard from "@/components/feedback/FeedbackSummaryCard";
 import FeedbackList from "@/components/feedback/FeedbackList";
 import NoFeedbackMessage from "@/components/feedback/NoFeedbackMessage";
-import { useFeedbackData } from "@/hooks/useFeedbackData";
-import { setDocumentTitle, updateMetaTags } from "@/lib/metadataUtils";
 
 const FeedbackView: React.FC = () => {
-  const { feedbackId } = useParams<{ feedbackId: string }>();
-  
+  const { trackId } = useParams();
+  const [trackData, setTrackData] = useState<TrackData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0); // For forcing data reload
+
   const {
-    trackData,
     feedback,
-    isLoading,
-    error,
-    trackId,
-    handleProcessingComplete,
-    getUserDisplayName,
-    getUserAvatar,
+    averageRatings,
+    djSetPercentage,
+    listeningPercentage,
     formatDate,
-  } = useFeedbackData(feedbackId);
+    getUserDisplayName,
+    getUserAvatar
+  } = useFeedbackData(trackId);
 
-  // Update metadata when track data is loaded
   useEffect(() => {
-    if (trackData) {
-      // Set document title with track name
-      const trackTitle = `Feedback for ${trackData.title} - Demo Manager`;
-      setDocumentTitle(trackTitle);
-      
-      // Update meta tags for social sharing
-      updateMetaTags({
-        title: trackTitle,
-        description: `Check out feedback for ${trackData.title} - Version ${trackData.version_number || 1} on Demo Manager by Basic Wavez`,
-        imageUrl: "/lovable-uploads/723beaa8-0198-4cde-8ef2-d170e19e5512.png",
-        url: window.location.href
-      });
-    }
-    
-    // Clean up function to reset metadata when component unmounts
-    return () => {
-      setDocumentTitle("Demo Manager by Basic Wavez");
+    const fetchTrackData = async () => {
+      if (!trackId) return;
+
+      setIsLoading(true);
+      try {
+        const track = await getTrack(trackId);
+        if (track) {
+          setTrackData(track);
+        }
+      } catch (error) {
+        console.error("Error fetching track:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
-  }, [trackData]);
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center h-screen">Loading feedback...</div>;
-  }
+    fetchTrackData();
+  }, [trackId, refreshKey]);
 
-  if (error) {
-    return <div className="text-center p-8">Error: {error}</div>;
-  }
+  // Handler for when processing completes
+  const handleProcessingComplete = () => {
+    console.log("Processing complete in FeedbackView - refreshing track data");
+    setRefreshKey(prev => prev + 1); // Increment refresh key to trigger data reload
+  };
 
   return (
-    <div className="min-h-screen bg-wip-dark flex flex-col">
-      <FeedbackHeader trackId={trackId} />
+    <div className="min-h-screen flex flex-col bg-wip-dark">
+      <Header />
       
-      <div className="flex-1 max-w-5xl mx-auto py-8 px-4">
-        <div className="space-y-8">
+      <FeedbackHeader trackId={trackId} />
+
+      <div className="flex-1 py-12 px-4">
+        <div className="max-w-5xl mx-auto space-y-8">
           <TrackPlayerView 
-            trackData={trackData} 
-            isLoading={isLoading} 
-            trackId={trackId} 
-            onProcessingComplete={handleProcessingComplete} 
+            trackData={trackData}
+            isLoading={isLoading}
+            trackId={trackId}
+            onProcessingComplete={handleProcessingComplete}
           />
           
-          {feedback && feedback.length > 0 ? (
-            <FeedbackList 
-              feedback={feedback} 
-              getUserDisplayName={getUserDisplayName}
-              getUserAvatar={getUserAvatar}
-              formatDate={formatDate}
-            />
+          {feedback.length > 0 ? (
+            <>
+              <FeedbackSummaryCard
+                feedback={feedback}
+                averageRatings={averageRatings}
+                djSetPercentage={djSetPercentage}
+                listeningPercentage={listeningPercentage}
+              />
+              
+              <FeedbackList
+                feedback={feedback}
+                getUserDisplayName={getUserDisplayName}
+                getUserAvatar={getUserAvatar}
+                formatDate={formatDate}
+              />
+            </>
           ) : (
             <NoFeedbackMessage />
           )}
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 };
 
-export default React.memo(FeedbackView);
+export default FeedbackView;

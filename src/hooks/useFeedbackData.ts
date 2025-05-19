@@ -2,8 +2,6 @@
 import { useState, useEffect } from "react";
 import { getFeedbackForTrack, Feedback } from "@/services/feedbackService";
 import { supabase } from "@/integrations/supabase/client";
-import { TrackData } from "@/types/track";
-import { getTrack } from "@/services/trackQueryService";
 
 export interface AverageRatings {
   mixing: number;
@@ -20,9 +18,8 @@ export interface FeedbackUserDetails {
   };
 }
 
-export function useFeedbackData(feedbackId?: string) {
+export function useFeedbackData(trackId?: string) {
   const [feedback, setFeedback] = useState<Feedback[]>([]);
-  const [trackData, setTrackData] = useState<TrackData | null>(null);
   const [userDetails, setUserDetails] = useState<FeedbackUserDetails>({});
   const [averageRatings, setAverageRatings] = useState<AverageRatings>({
     mixing: 0,
@@ -34,8 +31,6 @@ export function useFeedbackData(feedbackId?: string) {
   const [djSetPercentage, setDjSetPercentage] = useState(0);
   const [listeningPercentage, setListeningPercentage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [trackId, setTrackId] = useState<string | undefined>(feedbackId);
 
   useEffect(() => {
     const fetchFeedback = async () => {
@@ -43,14 +38,6 @@ export function useFeedbackData(feedbackId?: string) {
       
       setIsLoading(true);
       try {
-        // First fetch the track data
-        const track = await getTrack(trackId);
-        if (!track) {
-          throw new Error("Track not found");
-        }
-        setTrackData(track);
-        
-        // Then fetch feedback for the track
         const feedbackData = await getFeedbackForTrack(trackId);
         setFeedback(feedbackData);
         
@@ -60,14 +47,12 @@ export function useFeedbackData(feedbackId?: string) {
           .map(item => item.user_id as string);
         
         if (userIds.length > 0) {
-          const { data: profiles, error: profilesError } = await supabase
+          const { data: profiles } = await supabase
             .from('profiles')
             .select('id, username, avatar_url')
             .in('id', userIds);
             
-          if (profilesError) {
-            console.error("Error fetching profiles:", profilesError);
-          } else if (profiles) {
+          if (profiles) {
             const userMap: FeedbackUserDetails = {};
             profiles.forEach(profile => {
               userMap[profile.id] = { 
@@ -82,9 +67,8 @@ export function useFeedbackData(feedbackId?: string) {
         // Calculate average ratings
         calculateAverageRatings(feedbackData);
         
-      } catch (err) {
-        console.error("Error fetching feedback:", err);
-        setError(err instanceof Error ? err.message : "An unknown error occurred");
+      } catch (error) {
+        console.error("Error fetching feedback:", error);
       } finally {
         setIsLoading(false);
       }
@@ -150,31 +134,14 @@ export function useFeedbackData(feedbackId?: string) {
     }
     return undefined;
   };
-  
-  const handleProcessingComplete = () => {
-    if (trackId) {
-      // Refetch track data when processing completes
-      getTrack(trackId).then(track => {
-        if (track) {
-          setTrackData(track);
-        }
-      }).catch(err => {
-        console.error("Error refreshing track data:", err);
-      });
-    }
-  };
 
   return {
     feedback,
-    trackData,
     userDetails,
     averageRatings,
     djSetPercentage,
     listeningPercentage,
     isLoading,
-    error,
-    trackId,
-    handleProcessingComplete,
     formatDate,
     getUserDisplayName,
     getUserAvatar
