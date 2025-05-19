@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { PlaylistWithTracks, PlaylistTrack } from "@/types/playlist";
 
@@ -50,19 +49,6 @@ export async function getPlaylistByShareKey(shareKey: string): Promise<PlaylistW
       return null;
     }
 
-    // Update play count on view
-    const { error: updateError } = await supabase
-      .from('playlist_share_links')
-      .update({
-        play_count: (shareLink.play_count || 0) + 1,
-        last_played_at: new Date().toISOString()
-      })
-      .eq('share_key', shareKey);
-
-    if (updateError) {
-      console.warn('Error updating play count:', updateError);
-    }
-
     // Transform the result into the expected format - now ensuring all required fields are included
     const tracks: PlaylistTrack[] = playlist.playlist_tracks.map(pt => ({
       id: pt.id,
@@ -73,7 +59,7 @@ export async function getPlaylistByShareKey(shareKey: string): Promise<PlaylistW
       track: {
         title: pt.tracks.title,
         original_filename: pt.tracks.original_filename,
-        version_number: pt.tracks.version_number,
+        version_number: pt.tracks.version_number, 
         mp3_url: pt.tracks.mp3_url,
         compressed_url: pt.tracks.compressed_url
       }

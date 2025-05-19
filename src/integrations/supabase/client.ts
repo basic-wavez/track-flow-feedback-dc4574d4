@@ -8,7 +8,7 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 // Extend the SupabaseClient type to include our custom sql method
 declare module '@supabase/supabase-js' {
-  interface SupabaseClient<Database = any, SchemaName extends string & keyof Database = "public", Schema extends Database[SchemaName] = Database[SchemaName]> {
+  interface SupabaseClient {
     sql: (strings: string | TemplateStringsArray, ...values: any[]) => string;
   }
 }

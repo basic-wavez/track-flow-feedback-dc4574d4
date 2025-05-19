@@ -107,11 +107,12 @@ export const endPlayTracking = async (): Promise<boolean> => {
         
       if (playlistShareData) {
         // It's a playlist share link
-        // Use a raw query for the increment to ensure we're working with numbers
+        // Use raw SQL expression for the play_count increment
         const { error: updateError } = await supabase
           .from('playlist_share_links')
           .update({
-            play_count: supabase.sql`play_count + 1`,
+            // Converting the result of sql template literal to a number with the unary plus operator
+            play_count: +supabase.sql`play_count + 1`,
             last_played_at: new Date().toISOString()
           })
           .eq('share_key', shareKey);
@@ -119,11 +120,12 @@ export const endPlayTracking = async (): Promise<boolean> => {
         if (updateError) throw updateError;
       } else {
         // It's probably a track share link in the share_links table
-        // Use a raw query for the increment to ensure we're working with numbers
+        // Use raw SQL expression for the play_count increment
         const { error: updateError } = await supabase
           .from('share_links')
           .update({
-            play_count: supabase.sql`play_count + 1`,
+            // Converting the result of sql template literal to a number with the unary plus operator
+            play_count: +supabase.sql`play_count + 1`,
             last_played_at: new Date().toISOString()
           })
           .eq('share_key', shareKey);
