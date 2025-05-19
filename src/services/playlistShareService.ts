@@ -1,6 +1,6 @@
-// This is a simplified placeholder implementation since we don't have the full file
+
 import { supabase } from "@/integrations/supabase/client";
-import { PlaylistWithTracks } from "@/types/playlist";
+import { PlaylistWithTracks, PlaylistTrack } from "@/types/playlist";
 
 export async function getPlaylistByShareKey(shareKey: string): Promise<PlaylistWithTracks | null> {
   try {
@@ -31,6 +31,7 @@ export async function getPlaylistByShareKey(shareKey: string): Promise<PlaylistW
           id,
           position,
           track_id,
+          created_at,
           tracks: track_id (
             id,
             title,
@@ -61,13 +62,14 @@ export async function getPlaylistByShareKey(shareKey: string): Promise<PlaylistW
       console.warn('Error updating play count:', updateError);
     }
 
-    // Transform the result into the expected format
-    const tracks = playlist.playlist_tracks.map(pt => ({
+    // Transform the result into the expected format - now ensuring all required fields are included
+    const tracks: PlaylistTrack[] = playlist.playlist_tracks.map(pt => ({
       id: pt.id,
       position: pt.position,
       track_id: pt.track_id,
-      track: pt.tracks,
-      playlist_id: playlist.id
+      created_at: pt.created_at, // Make sure to include required field
+      playlist_id: playlist.id,
+      track: pt.tracks
     }));
 
     // Sort tracks by position
@@ -80,5 +82,70 @@ export async function getPlaylistByShareKey(shareKey: string): Promise<PlaylistW
   } catch (error) {
     console.error('Error in getPlaylistByShareKey:', error);
     return null;
+  }
+}
+
+// Add the missing functions that PlaylistShareDialog is expecting to import
+
+export async function getPlaylistShareLinks(playlistId: string): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('playlist_share_links')
+      .select('*')
+      .eq('playlist_id', playlistId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching share links:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getPlaylistShareLinks:', error);
+    return [];
+  }
+}
+
+export async function createPlaylistShareLink(playlistId: string, name: string): Promise<any> {
+  try {
+    const { data, error } = await supabase
+      .from('playlist_share_links')
+      .insert([
+        { 
+          playlist_id: playlistId, 
+          name,
+          user_id: (await supabase.auth.getUser()).data.user?.id
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating share link:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in createPlaylistShareLink:', error);
+    throw error;
+  }
+}
+
+export async function deletePlaylistShareLink(linkId: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('playlist_share_links')
+      .delete()
+      .eq('id', linkId);
+
+    if (error) {
+      console.error('Error deleting share link:', error);
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error in deletePlaylistShareLink:', error);
+    throw error;
   }
 }

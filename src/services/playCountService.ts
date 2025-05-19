@@ -98,27 +98,36 @@ export const endPlayTracking = async (): Promise<boolean> => {
       // For now, we'll just log that the track was played
       console.log(`Track ${trackId} was played`);
     } else if (shareKey) {
-      // For share links (not track_share_links)
-      const { data: shareLink, error: shareLinkError } = await supabase
-        .from('share_links')
-        .select('play_count')
+      // First determine if this is a playlist share link or a track share link
+      const { data: playlistShareData } = await supabase
+        .from('playlist_share_links')
+        .select('id')
         .eq('share_key', shareKey)
-        .single();
-      
-      if (shareLinkError) throw shareLinkError;
-      
-      // Update the play count
-      const newPlayCount = (shareLink?.play_count || 0) + 1;
-      
-      const { error: updateError } = await supabase
-        .from('share_links')
-        .update({
-          play_count: newPlayCount,
-          last_played_at: new Date().toISOString()
-        })
-        .eq('share_key', shareKey);
-      
-      if (updateError) throw updateError;
+        .maybeSingle();
+        
+      if (playlistShareData) {
+        // It's a playlist share link
+        const { error: updateError } = await supabase
+          .from('playlist_share_links')
+          .update({
+            play_count: supabase.sql`play_count + 1`,
+            last_played_at: new Date().toISOString()
+          })
+          .eq('share_key', shareKey);
+          
+        if (updateError) throw updateError;
+      } else {
+        // It's probably a track share link in the share_links table
+        const { error: updateError } = await supabase
+          .from('share_links')
+          .update({
+            play_count: supabase.sql`play_count + 1`,
+            last_played_at: new Date().toISOString()
+          })
+          .eq('share_key', shareKey);
+          
+        if (updateError) throw updateError;
+      }
     }
 
     return true;
