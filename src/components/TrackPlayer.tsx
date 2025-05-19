@@ -30,6 +30,7 @@ interface TrackPlayerProps {
   isPlaylistMode?: boolean;
   currentIndex?: number;
   totalTracks?: number;
+  isLoading?: boolean; // Add the missing isLoading prop
 }
 
 const TrackPlayer = ({ 
