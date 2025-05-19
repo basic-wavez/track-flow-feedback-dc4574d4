@@ -33,7 +33,9 @@ export function useAudioEvents({
   lastSeekTimeRef,
   onTrackEnd,
   hasRestoredAfterTabSwitch,
-  timeUpdateActiveRef
+  timeUpdateActiveRef,
+  setSourceReady,
+  currentAudioUrlRef
 }: {
   audioRef: React.RefObject<HTMLAudioElement>;
   audioUrl: string | null | undefined;
@@ -46,6 +48,7 @@ export function useAudioEvents({
   setAudioLoaded: (loaded: boolean) => void;
   setShowBufferingUI: (show: boolean) => void;
   setLoadRetries: (retries: number) => void;
+  setSourceReady: (ready: boolean) => void;
   volume: number;
   isMuted: boolean;
   bufferingStartTimeRef: React.MutableRefObject<number | null>;
@@ -58,6 +61,7 @@ export function useAudioEvents({
   onTrackEnd: () => void;
   hasRestoredAfterTabSwitch?: React.MutableRefObject<boolean>;
   timeUpdateActiveRef?: React.MutableRefObject<boolean>;
+  currentAudioUrlRef?: React.MutableRefObject<string | null | undefined>;
 }) {
   // Set up volume and mute when they change
   useEffect(() => {
@@ -75,7 +79,9 @@ export function useAudioEvents({
     setAudioLoaded,
     setShowBufferingUI,
     clearBufferingTimeout,
-    setCurrentTime
+    setCurrentTime,
+    setSourceReady,
+    audioUrl
   });
   
   useAudioPlaybackEvents({
@@ -102,7 +108,8 @@ export function useAudioEvents({
     audioRef,
     setPlaybackState,
     setLoadRetries,
-    loadRetries
+    loadRetries,
+    setSourceReady
   });
   
   useVisibilityEvents({
@@ -118,26 +125,49 @@ export function useAudioEvents({
   useEffect(() => {
     if (!audioUrl) {
       console.log('No audio URL provided - cannot set up audio events');
+      setSourceReady(false);
       return;
     }
     
     const audio = audioRef.current;
     if (!audio) {
       console.error('Audio element not found - cannot set up audio events');
+      setSourceReady(false);
       return;
+    }
+
+    // Check if URL has changed
+    if (currentAudioUrlRef && currentAudioUrlRef.current !== audioUrl) {
+      console.log(`Audio URL changed from ${currentAudioUrlRef.current} to ${audioUrl}`);
+      
+      // Update the current URL ref
+      if (currentAudioUrlRef) {
+        currentAudioUrlRef.current = audioUrl;
+      }
+      
+      // Mark as not ready when changing sources
+      setSourceReady(false);
+      setAudioLoaded(false);
     }
 
     // Explicitly load the audio when URL changes
     try {
       console.log(`Loading audio URL: ${audioUrl}`);
+      
+      // Only set the src if it doesn't match, prevent unnecessary reloads
+      if (audio.src !== audioUrl) {
+        audio.src = audioUrl;
+      }
+      
       audio.load();
     } catch (e) {
       console.error('Error loading audio:', e);
+      setSourceReady(false);
     }
     
     // Clean up buffering timeout when unmounting
     return () => {
       clearBufferingTimeout();
     };
-  }, [audioUrl, audioRef, clearBufferingTimeout]);
+  }, [audioUrl, audioRef, clearBufferingTimeout, setSourceReady, setAudioLoaded, currentAudioUrlRef]);
 }

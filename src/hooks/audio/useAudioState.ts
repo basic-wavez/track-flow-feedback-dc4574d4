@@ -16,6 +16,8 @@ export function useAudioState(defaultAudioUrl: string) {
   const [isGeneratingWaveform, setIsGeneratingWaveform] = useState(false);
   const [audioLoaded, setAudioLoaded] = useState(false);
   const [showBufferingUI, setShowBufferingUI] = useState(false);
+  const [sourceReady, setSourceReady] = useState(false);
+  const [lastPlayAttempt, setLastPlayAttempt] = useState(0);
 
   return {
     isPlaying, setIsPlaying,
@@ -27,6 +29,8 @@ export function useAudioState(defaultAudioUrl: string) {
     loadRetries, setLoadRetries,
     isGeneratingWaveform, setIsGeneratingWaveform,
     audioLoaded, setAudioLoaded,
-    showBufferingUI, setShowBufferingUI
+    showBufferingUI, setShowBufferingUI,
+    sourceReady, setSourceReady,
+    lastPlayAttempt, setLastPlayAttempt
   };
 }

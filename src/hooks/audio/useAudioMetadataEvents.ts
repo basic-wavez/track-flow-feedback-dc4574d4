@@ -10,7 +10,9 @@ export function useAudioMetadataEvents({
   setAudioLoaded,
   setShowBufferingUI,
   clearBufferingTimeout,
-  setCurrentTime
+  setCurrentTime,
+  setSourceReady,
+  audioUrl
 }: {
   audioRef: React.RefObject<HTMLAudioElement>;
   setDuration: (duration: number) => void;
@@ -18,6 +20,8 @@ export function useAudioMetadataEvents({
   setShowBufferingUI: (show: boolean) => void;
   clearBufferingTimeout: () => void;
   setCurrentTime: (time: number) => void;
+  setSourceReady: (ready: boolean) => void;
+  audioUrl: string | null | undefined;
 }) {
   useEffect(() => {
     const audio = audioRef.current;
@@ -26,10 +30,14 @@ export function useAudioMetadataEvents({
       return;
     }
 
+    console.log(`Setting up metadata events for audio URL: ${audioUrl}`);
+    // Mark source as not ready when URL changes
+    setSourceReady(false);
+    
     const handleLoadedMetadata = () => {
       if (!audio) return;
       
-      console.log(`Audio loaded metadata: duration=${audio.duration}`);
+      console.log(`Audio loaded metadata: duration=${audio.duration}, src=${audio.src}`);
       
       // Ensure we set a valid duration
       if (isFinite(audio.duration)) {
@@ -52,7 +60,7 @@ export function useAudioMetadataEvents({
     
     // Add a canplay handler to ensure we have valid metadata
     const handleCanPlay = () => {
-      console.log(`Audio can play, duration=${audio.duration}`);
+      console.log(`Audio can play, duration=${audio.duration}, src=${audio.src}`);
       
       // Double check if duration is now available and valid
       if (isFinite(audio.duration) && audio.duration > 0) {
@@ -60,16 +68,33 @@ export function useAudioMetadataEvents({
       }
       
       setAudioLoaded(true);
+      setSourceReady(true);
+    };
+
+    // Add loadstart handler to track initial loading
+    const handleLoadStart = () => {
+      console.log('Audio load started');
+      setSourceReady(false);
+    };
+
+    // Add error handler
+    const handleLoadError = (e: Event) => {
+      console.error('Audio loading error:', audio.error);
+      setSourceReady(false);
     };
 
     // Add event listeners
+    audio.addEventListener('loadstart', handleLoadStart);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('error', handleLoadError);
     
     // Clean up
     return () => {
+      audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('error', handleLoadError);
     };
-  }, [audioRef, setDuration, setAudioLoaded, clearBufferingTimeout, setShowBufferingUI, setCurrentTime]);
+  }, [audioRef, audioUrl, setDuration, setAudioLoaded, clearBufferingTimeout, setShowBufferingUI, setCurrentTime, setSourceReady]);
 }

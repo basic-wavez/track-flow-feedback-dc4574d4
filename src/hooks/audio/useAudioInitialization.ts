@@ -20,7 +20,6 @@ export function useAudioInitialization({
   const audioRef = useRef<HTMLAudioElement>(null);
   
   // Track whether we've restored state after tab switch
-  // Change from useState to useRef to match the expected type in useAudioPlayer
   const hasRestoredAfterTabSwitch = useRef<boolean>(false);
   const setHasRestoredAfterTabSwitch = (value: boolean) => {
     hasRestoredAfterTabSwitch.current = value;
@@ -38,6 +37,9 @@ export function useAudioInitialization({
 
   // Add a new flag to track if the timeupdate event handler is active
   const timeUpdateActiveRef = useRef(true);
+  
+  // Track the current audio URL to detect changes
+  const currentAudioUrlRef = useRef<string | null | undefined>(audioUrl);
 
   // Cache management for loaded audio files
   const loadedAudioCache = useRef<Set<string>>(new Set());
@@ -77,6 +79,7 @@ export function useAudioInitialization({
     timeUpdateActiveRef,
     markAudioAsLoaded,
     isAudioLoaded,
-    syncCurrentTimeWithAudio
+    syncCurrentTimeWithAudio,
+    currentAudioUrlRef
   };
 }

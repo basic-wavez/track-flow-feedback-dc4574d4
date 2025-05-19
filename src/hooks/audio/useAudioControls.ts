@@ -22,8 +22,9 @@ export function useAudioControls({
   isPlaying,
   setShowBufferingUI,
   allowBackgroundPlayback = false,
-  syncCurrentTimeWithAudio = () => {}
-}: any) {
+  syncCurrentTimeWithAudio = () => {},
+  sourceReady = false
+}) {
   
   const togglePlayPause = () => {
     const audio = audioRef.current;
@@ -40,7 +41,7 @@ export function useAudioControls({
 
     // Record the time when play was clicked
     playClickTimeRef.current = Date.now();
-    console.log(`Play/pause clicked at ${new Date().toISOString()}`);
+    console.log(`Play/pause clicked at ${new Date().toISOString()}, sourceReady: ${sourceReady}`);
 
     // Always reset any buffering state on play click
     clearBufferingTimeout();
@@ -57,40 +58,67 @@ export function useAudioControls({
       // Always ensure buffering UI is disabled
       setShowBufferingUI(false);
       
-      // Try to play and handle failures more gracefully
-      try {
-        const playPromise = audio.play();
-        
-        // Modern browsers return a promise from play()
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              console.log("Playback started successfully");
-              setPlaybackState('playing');
-              setIsPlaying(true);
-            })
-            .catch(error => {
-              console.error("Playback failed:", error.name, error.message);
-              
-              // Provide more detailed error info for debugging
-              if (error.name === 'NotAllowedError') {
-                handlePlaybackError("Playback not allowed - user interaction needed");
-              } else if (error.name === 'NotSupportedError') {
-                handlePlaybackError("Audio format not supported");
-              } else {
-                handlePlaybackError(error.message || "Unknown playback error");
-              }
-            });
-        } else {
-          // Older browsers don't return a promise
-          // Immediately assume it worked, but might fail silently
-          setPlaybackState('playing');
-          setIsPlaying(true);
-        }
-      } catch (e) {
-        console.error("Error during play() call:", e);
-        handlePlaybackError("Playback failed");
+      // Make sure the source is set
+      if (audio.src !== audioUrl && audioUrl) {
+        console.log(`Setting audio src to ${audioUrl} before play`);
+        audio.src = audioUrl;
+        audio.load();
       }
+      
+      // Check if audio is ready to play
+      if (!sourceReady && audio.readyState < 2) {
+        console.log(`Audio source not ready yet, readyState: ${audio.readyState}`);
+        
+        // Set a listener for canplay event
+        const canPlayHandler = () => {
+          console.log("Can play event triggered, trying to play now");
+          attemptPlay(audio);
+          audio.removeEventListener('canplay', canPlayHandler);
+        };
+        
+        audio.addEventListener('canplay', canPlayHandler);
+        return;
+      }
+      
+      // Try to play and handle failures more gracefully
+      attemptPlay(audio);
+    }
+  };
+  
+  const attemptPlay = (audio) => {
+    try {
+      console.log("Attempting to play audio");
+      const playPromise = audio.play();
+      
+      // Modern browsers return a promise from play()
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log("Playback started successfully");
+            setPlaybackState('playing');
+            setIsPlaying(true);
+          })
+          .catch(error => {
+            console.error("Playback failed:", error.name, error.message);
+            
+            // Provide more detailed error info for debugging
+            if (error.name === 'NotAllowedError') {
+              handlePlaybackError("Playback not allowed - user interaction needed");
+            } else if (error.name === 'NotSupportedError') {
+              handlePlaybackError("Audio format not supported");
+            } else {
+              handlePlaybackError(error.message || "Unknown playback error");
+            }
+          });
+      } else {
+        // Older browsers don't return a promise
+        // Immediately assume it worked, but might fail silently
+        setPlaybackState('playing');
+        setIsPlaying(true);
+      }
+    } catch (e) {
+      console.error("Error during play() call:", e);
+      handlePlaybackError("Playback failed");
     }
   };
 

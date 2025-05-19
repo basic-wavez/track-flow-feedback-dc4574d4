@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useAudioState } from "./useAudioState";
 import { useBufferingState } from "./useBufferingState";
 import { useAudioEvents } from "./useAudioEvents";
@@ -8,6 +8,7 @@ import { useAudioEffects } from "./useAudioEffects";
 import { useAudioInitialization } from "./useAudioInitialization";
 import { useBackgroundPlayback } from "./useBackgroundPlayback";
 import { usePlayCounting } from "./usePlayCounting";
+import { toast } from "@/components/ui/use-toast";
 
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
@@ -40,7 +41,8 @@ export function useAudioPlayer({
     isFirstLoadRef,
     timeUpdateActiveRef,
     markAudioAsLoaded,
-    syncCurrentTimeWithAudio
+    syncCurrentTimeWithAudio,
+    currentAudioUrlRef
   } = useAudioInitialization({
     audioUrl,
     trackId,
@@ -59,7 +61,9 @@ export function useAudioPlayer({
     loadRetries, setLoadRetries,
     isGeneratingWaveform, setIsGeneratingWaveform,
     audioLoaded, setAudioLoaded,
-    showBufferingUI, setShowBufferingUI
+    showBufferingUI, setShowBufferingUI,
+    sourceReady, setSourceReady,
+    lastPlayAttempt, setLastPlayAttempt
   } = useAudioState(defaultAudioUrl);
   
   // Buffering state management
@@ -100,31 +104,78 @@ export function useAudioPlayer({
     allowBackgroundPlayback
   });
 
-  // Custom toggle play/pause handler for play count tracking
-  const handleTogglePlayPause = () => {
+  // Debug utility for audio element
+  const logAudioState = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
+    
+    console.log({
+      currentTime: audio.currentTime,
+      duration: audio.duration,
+      paused: audio.paused,
+      ended: audio.ended,
+      src: audio.src,
+      readyState: audio.readyState,
+      networkState: audio.networkState,
+      error: audio.error ? `Error: ${audio.error.code}` : null
+    });
+  }, [audioRef]);
+
+  // Custom toggle play/pause handler for play count tracking
+  const handleTogglePlayPause = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) {
+      console.error("No audio element found");
+      return;
+    }
+
+    if (!audioUrl) {
+      console.error("No audio URL provided");
+      toast({
+        title: "Playback Error",
+        description: "No audio URL available",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Debug current audio state
+    logAudioState();
+    
+    // Rate limit play attempts to prevent rapid consecutive attempts
+    const now = Date.now();
+    if (now - lastPlayAttempt < 300 && !isPlaying) {
+      console.log("Ignoring rapid play attempt");
+      return;
+    }
+    setLastPlayAttempt(now);
 
     if (!isPlaying) {
+      // Make sure the audio source is set correctly
+      if (audio.src !== audioUrl) {
+        console.log(`Setting audio src to ${audioUrl}`);
+        audio.src = audioUrl;
+        setSourceReady(false);
+        audio.load();
+      }
+      
       // Starting to play
-      audio.play()
-        .then(() => {
-          setIsPlaying(true);
-          setPlaybackState('playing');
-          // Start tracking play time for this track
-          startTracking(trackId || null, shareKey || null);
-        })
-        .catch(error => {
-          console.error('Error playing audio:', error);
-          setPlaybackState('error');
-          
-          // Show more details about the error
-          if (error.name === 'NotSupportedError') {
-            console.error('Browser does not support this audio format');
-          } else if (error.name === 'NotAllowedError') {
-            console.error('Auto-play prevented - user interaction needed');
-          }
-        });
+      playClickTimeRef.current = Date.now();
+      console.log(`Play attempt at ${new Date().toISOString()}, source ready: ${sourceReady}`);
+      
+      // Ensure audio source is ready or at least loaded
+      if (!sourceReady && audio.readyState < 2) {
+        console.log(`Audio not ready yet, readyState: ${audio.readyState}`);
+        setPlaybackState('loading');
+        
+        // Set a timeout to attempt play after a delay if source isn't ready
+        setTimeout(() => {
+          console.log("Attempting play after delay");
+          attemptPlay();
+        }, 500);
+      } else {
+        attemptPlay();
+      }
     } else {
       // Pausing playback
       audio.pause();
@@ -132,20 +183,62 @@ export function useAudioPlayer({
       setPlaybackState('paused');
       
       // Only end tracking when pausing if we've played for some time
-      // This avoids unnecessary calls when rapidly toggling play/pause
       if (audio.currentTime > 2) {
         endTracking();
       } else {
         cancelTracking();
       }
     }
-  };
+  }, [audioRef, audioUrl, isPlaying, sourceReady, setPlaybackState, setIsPlaying, endTracking, cancelTracking, logAudioState, lastPlayAttempt, setLastPlayAttempt, setSourceReady]);
+
+  // Extracted play attempt logic for reuse
+  const attemptPlay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    // Reset buffering UI
+    clearBufferingTimeout();
+    setShowBufferingUI(false);
+    
+    // Set loading state before attempting to play
+    setPlaybackState('loading');
+    
+    // Try to play and handle failures
+    audio.play()
+      .then(() => {
+        console.log('Play succeeded');
+        setIsPlaying(true);
+        setPlaybackState('playing');
+        
+        // Start tracking play time for this track
+        startTracking(trackId || null, shareKey || null);
+      })
+      .catch(error => {
+        console.error('Error playing audio:', error);
+        setPlaybackState('error');
+        setIsPlaying(false);
+        
+        // Show more details about the error
+        let errorMessage = "Playback failed";
+        if (error.name === 'NotSupportedError') {
+          errorMessage = 'Browser does not support this audio format';
+        } else if (error.name === 'NotAllowedError') {
+          errorMessage = 'Auto-play prevented - user interaction needed';
+        }
+        
+        toast({
+          title: "Playback Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      });
+  }, [audioRef, setIsPlaying, setPlaybackState, clearBufferingTimeout, setShowBufferingUI, startTracking, trackId, shareKey]);
 
   // Handle reaching the end of the track
-  const handleTrackEnd = () => {
-    // Track has finished playing naturally, check if we should increment
+  const handleTrackEnd = useCallback(() => {
+    // Track has finished playing naturally
     trackEndOfPlay();
-  };
+  }, [trackEndOfPlay]);
   
   // Setup audio event listeners
   useAudioEvents({
@@ -160,6 +253,7 @@ export function useAudioPlayer({
     setAudioLoaded,
     setShowBufferingUI,
     setLoadRetries,
+    setSourceReady,
     volume,
     isMuted,
     bufferingStartTimeRef,
@@ -170,8 +264,9 @@ export function useAudioPlayer({
     loadRetries,
     lastSeekTimeRef,
     onTrackEnd: handleTrackEnd,
-    hasRestoredAfterTabSwitch: hasRestoredAfterTabSwitch as React.MutableRefObject<boolean>, // Fix type mismatch here
-    timeUpdateActiveRef
+    hasRestoredAfterTabSwitch,
+    timeUpdateActiveRef,
+    currentAudioUrlRef
   });
   
   // Audio controls
@@ -197,7 +292,8 @@ export function useAudioPlayer({
     isPlaying,
     setShowBufferingUI,
     allowBackgroundPlayback,
-    syncCurrentTimeWithAudio
+    syncCurrentTimeWithAudio,
+    sourceReady
   });
   
   // Setup audio effects
@@ -215,9 +311,10 @@ export function useAudioPlayer({
     recentlySeekRef,
     currentTime,
     setCurrentTime,
-    hasRestoredAfterTabSwitch: hasRestoredAfterTabSwitch as React.MutableRefObject<boolean>, // Fix type mismatch here
+    hasRestoredAfterTabSwitch,
     allowBackgroundPlayback,
-    timeUpdateActiveRef
+    timeUpdateActiveRef,
+    setSourceReady
   });
 
   return {

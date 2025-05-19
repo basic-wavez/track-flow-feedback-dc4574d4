@@ -8,12 +8,14 @@ export function useAudioErrorEvents({
   audioRef,
   setPlaybackState,
   setLoadRetries,
-  loadRetries
+  loadRetries,
+  setSourceReady
 }: {
   audioRef: React.RefObject<HTMLAudioElement>;
   setPlaybackState: (state: 'idle' | 'loading' | 'playing' | 'paused' | 'error') => void;
   setLoadRetries: (retries: number) => void;
   loadRetries: number;
+  setSourceReady: (ready: boolean) => void;
 }) {
   useEffect(() => {
     const audio = audioRef.current;
@@ -25,6 +27,7 @@ export function useAudioErrorEvents({
       console.error('Audio error:', error?.message || 'Unknown audio error');
       
       setPlaybackState('error');
+      setSourceReady(false);
       
       // Check for specific error codes
       if (error) {
@@ -50,5 +53,5 @@ export function useAudioErrorEvents({
     return () => {
       audio.removeEventListener('error', handleError);
     };
-  }, [audioRef, setPlaybackState, setLoadRetries, loadRetries]);
+  }, [audioRef, setPlaybackState, setLoadRetries, loadRetries, setSourceReady]);
 }
