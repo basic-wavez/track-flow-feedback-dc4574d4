@@ -1,9 +1,11 @@
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { useAudioPlayer } from "@/providers/GlobalAudioProvider";
+import { useMediaSession } from "@/hooks/useMediaSession";
+import { useHotkeys } from "@/hooks/useHotkeys";
 import Waveform from "./Waveform";
-import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import TrackHeader from "./player/TrackHeader";
-import PlaybackControls from "./player/PlaybackControls";
+import PlayerControls from "./PlayerControls";
 import TrackActions from "./player/TrackActions";
 import { isInServerCooldown } from "@/services/trackShareService";
 import { isWavFormat, getFileTypeFromUrl } from "@/lib/audioUtils";
@@ -49,15 +51,66 @@ const TrackPlayer = ({
   // Local states
   const [serverCooldown, setServerCooldown] = useState(false);
   const [playedRecently, setPlayedRecently] = useState(false);
-  
-  // Track the current URL to detect actual changes
-  const currentPlaybackUrlRef = useRef<string | null>(null);
+
+  // Get Global Audio Player
+  const { 
+    play, 
+    pause, 
+    seek, 
+    currentTime, 
+    duration, 
+    isPlaying, 
+    volume, 
+    isMuted,
+    toggleMute, 
+    setVolume, 
+    playbackState,
+    currentUrl,
+    isBuffering,
+    isAudioLoaded
+  } = useAudioPlayer();
   
   // Determine which URL to use for playback - prefer Opus if available, then MP3, then audioUrl
   const playbackUrl = opusUrl || mp3Url || audioUrl;
   
   // Determine which URL to use for waveform analysis - ALWAYS prefer MP3 if available
   const waveformUrl = mp3Url || waveformAnalysisUrl;
+  
+  // Setup Media Session API integration
+  useMediaSession({
+    title: trackName,
+    artist: `Track ID: ${trackId}`,
+    artwork: [
+      {
+        src: '/placeholder.svg',
+        sizes: '512x512',
+        type: 'image/svg+xml'
+      }
+    ],
+    isPlaying,
+    duration,
+    currentTime,
+    onPlay: () => {
+      if (playbackUrl) {
+        play(playbackUrl, trackId, shareKey);
+      }
+    },
+    onPause: pause,
+    onSeek: seek,
+  });
+  
+  // Setup keyboard controls
+  useHotkeys({
+    onPlayPause: () => {
+      if (isPlaying) {
+        pause();
+      } else if (playbackUrl) {
+        play(playbackUrl, trackId, shareKey);
+      }
+    },
+    onSeekForward: () => seek(currentTime + 5),
+    onSeekBackward: () => seek(Math.max(0, currentTime - 5)),
+  });
   
   // Check server cooldown on load
   useEffect(() => {
@@ -71,29 +124,14 @@ const TrackPlayer = ({
     checkServerCooldown();
   }, [shareKey]);
   
-  // Use custom hook for audio playback
-  const {
-    audioRef,
-    isPlaying,
-    currentTime,
-    duration,
-    volume,
-    isMuted,
-    playbackState,
-    isGeneratingWaveform,
-    audioLoaded,
-    showBufferingUI,
-    isBuffering,
-    togglePlayPause,
-    handleSeek,
-    toggleMute,
-    handleVolumeChange,
-  } = useAudioPlayer({ 
-    mp3Url: playbackUrl,
-    trackId,
-    shareKey,
-    allowBackgroundPlayback: true // Enable background playback
-  });
+  // Start playback when URL is available
+  useEffect(() => {
+    if (playbackUrl && !currentUrl) {
+      // Auto-play when URL is first available
+      // play(playbackUrl, trackId, shareKey);
+      console.log("Track ready to play:", playbackUrl);
+    }
+  }, [playbackUrl, currentUrl]);
   
   // Update playedRecently when a track finishes playing
   useEffect(() => {
@@ -112,6 +150,15 @@ const TrackPlayer = ({
     }
   }, [playbackState, currentTime, duration, shareKey]);
   
+  // Simple toggle play/pause handler
+  const togglePlayPause = () => {
+    if (isPlaying) {
+      pause();
+    } else if (playbackUrl) {
+      play(playbackUrl, trackId, shareKey);
+    }
+  };
+  
   // Check if we're using the original WAV file
   const originalFileType = getFileTypeFromUrl(originalUrl);
   const isPlayingWav = isWavFormat(originalFileType) && playbackUrl === originalUrl;
@@ -126,31 +173,9 @@ const TrackPlayer = ({
   
   // Determine combined cooldown state
   const isCooldown = inCooldownPeriod || serverCooldown;
-  
-  // Log which URLs we're using to help with debugging
-  useEffect(() => {
-    // Only log if the URL has actually changed to prevent spam
-    if (currentPlaybackUrlRef.current !== playbackUrl) {
-      console.log('TrackPlayer URLs:', {
-        playbackUrl,
-        waveformUrl,
-        originalUrl,
-        mp3Url,
-        opusUrl,
-        isPlayingWav
-      });
-      currentPlaybackUrlRef.current = playbackUrl;
-    }
-  }, [playbackUrl, waveformUrl, originalUrl, mp3Url, opusUrl, isPlayingWav]);
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
-      {/* Main audio element - do NOT set src attribute here, let the hook handle it */}
-      <audio 
-        ref={audioRef} 
-        preload="auto"
-      />
-      
       <TrackHeader 
         trackId={trackId}
         trackName={trackName}
@@ -165,18 +190,7 @@ const TrackPlayer = ({
         versionNumber={versionNumber}
       />
       
-      <PlaybackControls 
-        isPlaying={isPlaying}
-        playbackState={playbackState}
-        currentTime={currentTime}
-        duration={duration}
-        volume={volume}
-        isMuted={isMuted}
-        isLoading={isLoading}
-        onPlayPause={togglePlayPause}
-        onVolumeChange={handleVolumeChange}
-        onToggleMute={toggleMute}
-      />
+      <PlayerControls className="mb-4" />
       
       {isPlayingWav && processingStatus === 'pending' ? (
         <div className="text-blue-400 text-sm mb-2 bg-blue-900/20 p-2 rounded">
@@ -187,17 +201,6 @@ const TrackPlayer = ({
       <Waveform 
         audioUrl={playbackUrl}
         waveformAnalysisUrl={waveformUrl}
-        isPlaying={isPlaying}
-        currentTime={currentTime}
-        duration={duration}
-        onSeek={handleSeek}
-        totalChunks={1}
-        isBuffering={isBuffering}
-        showBufferingUI={showBufferingUI}
-        isMp3Available={usingMp3}
-        isOpusAvailable={usingOpus}
-        isGeneratingWaveform={isGeneratingWaveform}
-        audioLoaded={audioLoaded}
         audioQuality={''}  // Removed format indicator by passing empty string
       />
       

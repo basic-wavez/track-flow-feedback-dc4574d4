@@ -1,12 +1,13 @@
+
 import { useEffect, useState, useRef } from 'react';
-import { analyzeAudio } from '@/lib/audioUtils';
 import { generateWaveformWithVariance } from '@/lib/waveformUtils';
 import WaveformLoader from './waveform/WaveformLoader';
-import WaveformCanvas from './waveform/WaveformCanvas';
 import WaveformStatus from './waveform/WaveformStatus';
+import { useAudioPlayer } from '@/providers/GlobalAudioProvider';
+import { useWaveformProgress } from '@/hooks/useWaveformProgress';
 import { 
   storeWaveformData, 
-  getCachedWaveformData, 
+  getCachedWaveformData,
   markAnalysisAttempted,
   hasAttemptedAnalysis,
 } from './waveform/WaveformCache';
@@ -14,117 +15,61 @@ import {
 interface WaveformProps {
   audioUrl?: string;
   waveformAnalysisUrl?: string;
-  isPlaying: boolean;
-  currentTime: number;
-  duration: number;
-  onSeek: (time: number) => void;
   totalChunks?: number;
-  isBuffering?: boolean;
-  showBufferingUI?: boolean;
-  isMp3Available?: boolean;
-  isOpusAvailable?: boolean;
-  isGeneratingWaveform?: boolean;
-  audioLoaded?: boolean;
   audioQuality?: string;
 }
 
 const Waveform = ({ 
   audioUrl, 
   waveformAnalysisUrl,
-  isPlaying, 
-  currentTime, 
-  duration, 
-  onSeek,
   totalChunks = 1,
-  isBuffering = false,
-  showBufferingUI = false,
-  isMp3Available = false,
-  isOpusAvailable = false,
-  isGeneratingWaveform = false,
-  audioLoaded = false,
-  audioQuality
+  audioQuality = '',
 }: WaveformProps) => {
+  // Get audio player state from global context
+  const {
+    currentTime, 
+    duration, 
+    isPlaying, 
+    playbackState,
+    seek,
+    isBuffering,
+    isAudioLoaded
+  } = useAudioPlayer();
+  
+  // State for waveform data and display
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isWaveformGenerated, setIsWaveformGenerated] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [analysisAttempted, setAnalysisAttempted] = useState(false);
   const [analysisUrl, setAnalysisUrl] = useState<string | null>(null);
+  
+  // Refs for tracking state
+  const waveformContainerRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
   const prevUrlRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
-  const didRestoreFromVisibilityRef = useRef(false);
   
-  // Track visible state to handle tab switching
-  const visibilityStateRef = useRef<'visible' | 'hidden'>(
-    document.visibilityState === 'visible' ? 'visible' : 'hidden'
-  );
+  // Use the waveform progress hook for UI interactions
+  const {
+    progressPercent,
+    hoverPercent,
+    setHoverPercent,
+    getTimeFromPercent,
+    getPercentFromEvent,
+    handleMouseMove,
+    handleMouseLeave,
+  } = useWaveformProgress({
+    currentTime,
+    duration,
+    waveformData,
+    isPlaying,
+    isBuffering,
+  });
   
-  // Check for cached waveform data on mount
+  // Generate initial placeholder waveform
   useEffect(() => {
-    isMountedRef.current = true;
-    
-    // Handle visibility changes to persist state during tab switches
-    const handleVisibilityChange = () => {
-      const wasHidden = visibilityStateRef.current === 'hidden';
-      const isNowVisible = document.visibilityState === 'visible';
-      
-      visibilityStateRef.current = document.visibilityState === 'visible' ? 'visible' : 'hidden';
-      
-      // If we're becoming visible again after being hidden
-      if (wasHidden && isNowVisible) {
-        console.log('Waveform: Tab became visible, restoring state for url:', waveformAnalysisUrl);
-        
-        // If we have an analysis URL, attempt to restore cached data
-        if (waveformAnalysisUrl) {
-          const cachedData = getCachedWaveformData(waveformAnalysisUrl);
-          
-          if (cachedData && cachedData.length > 0) {
-            console.log('Waveform: Restored cached data on visibility change');
-            setWaveformData(cachedData);
-            setIsWaveformGenerated(true);
-            didRestoreFromVisibilityRef.current = true;
-          }
-          
-          // If analysis has been attempted for this URL, mark it as attempted
-          if (hasAttemptedAnalysis(waveformAnalysisUrl)) {
-            setAnalysisAttempted(true);
-          }
-        }
-      }
-    };
-    
-    // Also handle pageshow event for browser back/forward cache
-    const handlePageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) {
-        console.log('Waveform: Page restored from bfcache');
-        
-        // Similar logic to visibility change for bfcache restoration
-        if (waveformAnalysisUrl) {
-          const cachedData = getCachedWaveformData(waveformAnalysisUrl);
-          
-          if (cachedData && cachedData.length > 0) {
-            console.log('Waveform: Restored cached data from bfcache');
-            setWaveformData(cachedData);
-            setIsWaveformGenerated(true);
-            didRestoreFromVisibilityRef.current = true;
-          }
-        }
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('pageshow', handlePageShow);
-    
-    return () => {
-      isMountedRef.current = false;
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pageshow', handlePageShow);
-    };
-  }, [waveformAnalysisUrl]);
-  
-  // Generate initial placeholder waveform immediately with more segments for detail
-  useEffect(() => {
-    if (waveformData.length === 0 && !didRestoreFromVisibilityRef.current) {
+    if (waveformData.length === 0) {
       // Try to get cached data first
       if (waveformAnalysisUrl) {
         const cachedData = getCachedWaveformData(waveformAnalysisUrl);
@@ -141,27 +86,29 @@ const Waveform = ({
       const initialWaveformData = generateWaveformWithVariance(250, 0.6);
       setWaveformData(initialWaveformData);
     }
-  }, [waveformData.length]);
+    
+    // Cleanup on unmount
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   
-  // Log which URL we're using for analysis to help with debugging
+  // Track which URL we're using for analysis
   useEffect(() => {
     if (waveformAnalysisUrl && waveformAnalysisUrl !== prevUrlRef.current) {
       console.log('Waveform analysis URL set to:', waveformAnalysisUrl);
       setAnalysisUrl(waveformAnalysisUrl);
       prevUrlRef.current = waveformAnalysisUrl;
       
-      // Reset analysis state if URL changes significantly
-      if (waveformAnalysisUrl !== prevUrlRef.current) {
-        setAnalysisAttempted(false);
-        didRestoreFromVisibilityRef.current = false;
-      }
+      // Reset analysis state when URL changes
+      setAnalysisAttempted(false);
     }
   }, [waveformAnalysisUrl]);
   
-  // Attempt to analyze waveform data when analysis URL is available
+  // Attempt to load waveform data from JSON file
   useEffect(() => {
     // Only proceed if we have a URL to analyze and haven't attempted analysis yet
-    if (!analysisUrl || analysisAttempted || didRestoreFromVisibilityRef.current) return;
+    if (!analysisUrl || analysisAttempted) return;
     
     // Try to get from cache first
     const cachedData = getCachedWaveformData(analysisUrl);
@@ -177,37 +124,40 @@ const Waveform = ({
     setAnalysisAttempted(true);
     markAnalysisAttempted(analysisUrl);
     
-    const segments = 250;
-    
-    console.log('Starting waveform analysis from URL:', analysisUrl);
+    // Fetch the waveform JSON data
     setIsAnalyzing(true);
     setAnalysisError(null);
     
-    // Attempt to analyze the audio file with enhanced dynamics
-    analyzeAudio(analysisUrl, segments)
-      .then(analyzedData => {
+    fetch(analysisUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch waveform data: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
         if (!isMountedRef.current) return;
         
-        if (analyzedData && analyzedData.length > 0) {
-          console.log('Successfully analyzed waveform data:', analyzedData.length, 'segments');
+        if (data && data.length > 0) {
+          console.log('Successfully loaded waveform data:', data.length, 'points');
           
           // Cache the waveform data
-          storeWaveformData(analysisUrl, analyzedData);
+          storeWaveformData(analysisUrl, data);
           
-          setWaveformData(analyzedData);
+          setWaveformData(data);
           setIsWaveformGenerated(true);
         } else {
-          throw new Error("No waveform data generated from analysis");
+          throw new Error("No waveform data in response");
         }
       })
       .catch(error => {
         if (!isMountedRef.current) return;
         
-        console.error("Error analyzing audio:", error);
-        setAnalysisError(`Failed to analyze audio: ${error.message}. Using fallback visualization.`);
+        console.error("Error loading waveform data:", error);
+        setAnalysisError(`Failed to load waveform data: ${error.message}. Using fallback visualization.`);
         
-        // Fall back to generated data with higher variance for more realistic appearance
-        const fallbackData = generateWaveformWithVariance(segments, 0.6);
+        // Fall back to generated data with higher variance
+        const fallbackData = generateWaveformWithVariance(250, 0.6);
         setWaveformData(fallbackData);
         setIsWaveformGenerated(true);
       })
@@ -218,35 +168,129 @@ const Waveform = ({
       });
   }, [analysisUrl, analysisAttempted]);
   
+  // Handle seeking when user interacts with waveform
+  const handleSeek = (event: React.MouseEvent | React.TouchEvent) => {
+    const percent = getPercentFromEvent(event);
+    const seekTime = getTimeFromPercent(percent);
+    seek(seekTime);
+  };
+  
+  // Handle mouse down for dragging
+  const handleMouseDown = (event: React.MouseEvent) => {
+    isDraggingRef.current = true;
+    handleSeek(event);
+    
+    // Add global event listeners for dragging
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+  };
+  
+  // Handle touch start for mobile dragging
+  const handleTouchStart = (event: React.TouchEvent) => {
+    isDraggingRef.current = true;
+    handleSeek(event);
+  };
+  
+  // Handle global mouse move (for dragging outside component)
+  const handleGlobalMouseMove = (event: MouseEvent) => {
+    if (!isDraggingRef.current || !waveformContainerRef.current) return;
+    
+    const rect = waveformContainerRef.current.getBoundingClientRect();
+    const position = (event.clientX - rect.left) / rect.width;
+    const percent = Math.min(100, Math.max(0, position * 100));
+    const seekTime = getTimeFromPercent(percent);
+    
+    seek(seekTime);
+  };
+  
+  // Handle global mouse up (end dragging)
+  const handleGlobalMouseUp = () => {
+    isDraggingRef.current = false;
+    
+    // Remove global event listeners
+    window.removeEventListener('mousemove', handleGlobalMouseMove);
+    window.removeEventListener('mouseup', handleGlobalMouseUp);
+  };
+  
+  // Handle touch move for mobile dragging
+  const handleTouchMove = (event: React.TouchEvent) => {
+    if (!isDraggingRef.current) return;
+    handleSeek(event);
+  };
+  
+  // Handle touch end for mobile
+  const handleTouchEnd = () => {
+    isDraggingRef.current = false;
+  };
+  
   // Show loading states
   if (isAnalyzing) {
     return <WaveformLoader isAnalyzing={true} />;
   }
   
-  if (isGeneratingWaveform) {
-    return <WaveformLoader isGeneratingWaveform={true} />;
-  }
-  
   const isAudioDurationValid = isFinite(duration) && duration > 0;
+  const showBufferingUI = isBuffering && isPlaying;
+  const isMp3Available = !!audioUrl;
   
+  // Render the waveform visualization
   return (
-    <div className="w-full h-32 relative">
-      <WaveformCanvas 
-        waveformData={waveformData}
-        currentTime={currentTime}
-        duration={duration}
-        isPlaying={isPlaying}
-        isBuffering={isBuffering}
-        isMp3Available={isMp3Available || isOpusAvailable}
-        onSeek={onSeek}
+    <div 
+      ref={waveformContainerRef}
+      className="w-full h-32 relative"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Waveform bars */}
+      <div className="w-full h-full flex items-center">
+        {waveformData.map((value, index) => {
+          const normalizedHeight = value * 100;
+          const barPercent = (index / waveformData.length) * 100;
+          const isActive = barPercent <= progressPercent;
+          const heightClass = `${Math.max(4, normalizedHeight)}%`;
+          
+          return (
+            <div
+              key={`bar-${index}`}
+              className={`flex-1 mx-px ${isActive ? 'bg-purple-500' : 'bg-gray-600'}`}
+              style={{ height: heightClass }}
+            />
+          );
+        })}
+      </div>
+      
+      {/* Progress indicator */}
+      {progressPercent > 0 && (
+        <div
+          className="absolute top-0 h-full bg-purple-500 opacity-20 pointer-events-none"
+          style={{ width: `${progressPercent}%`, transition: 'width 0.1s linear' }}
+        />
+      )}
+      
+      {/* Playhead */}
+      <div
+        className="absolute top-0 w-1 h-full bg-purple-400 pointer-events-none"
+        style={{ left: `${progressPercent}%`, transition: isDraggingRef.current ? 'none' : 'left 0.1s linear' }}
       />
       
+      {/* Hover position */}
+      {hoverPercent !== null && (
+        <div
+          className="absolute top-0 w-0.5 h-full bg-white opacity-50 pointer-events-none"
+          style={{ left: `${hoverPercent}%` }}
+        />
+      )}
+      
+      {/* Status overlay */}
       <WaveformStatus 
         isBuffering={isBuffering}
         showBufferingUI={showBufferingUI}
         isMp3Available={isMp3Available}
         analysisError={analysisError}
-        isAudioLoading={!isAudioDurationValid && !analysisError}
+        isAudioLoading={!isAudioDurationValid && !analysisError && playbackState === 'loading'}
         currentTime={currentTime}
         audioQuality={audioQuality}
       />
