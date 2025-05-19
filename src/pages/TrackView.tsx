@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+
+import React, { useMemo, useEffect } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import Header from "@/components/layout/Header";
@@ -9,6 +10,7 @@ import TrackHeaderSection from "@/components/track/TrackHeaderSection";
 import TrackPlayerSection from "@/components/track/TrackPlayerSection";
 import TrackTabsSection from "@/components/track/TrackTabsSection";
 import { useTrackData } from "@/hooks/useTrackData";
+import { setDocumentTitle, updateMetaTags } from "@/lib/metadataUtils";
 
 const TrackView: React.FC = () => {
   const params = useParams<{ trackId?: string; shareKey?: string; "*"?: string }>();
@@ -53,6 +55,29 @@ const TrackView: React.FC = () => {
     isShareRoute,
     userId
   });
+
+  // Update metadata when track data is loaded
+  useEffect(() => {
+    if (trackData) {
+      // Set document title with track name
+      const trackTitle = `Listen to ${trackData.title} - Demo Manager`;
+      setDocumentTitle(trackTitle);
+      
+      // Update meta tags for social sharing
+      updateMetaTags({
+        title: trackTitle,
+        description: `Listen to ${trackData.title} - Version ${trackData.version_number || 1} on Demo Manager by Basic Wavez`,
+        imageUrl: "/lovable-uploads/723beaa8-0198-4cde-8ef2-d170e19e5512.png",
+        url: window.location.href
+      });
+    }
+    
+    // Clean up function to reset metadata when component unmounts
+    return () => {
+      // Reset title and metadata to defaults
+      setDocumentTitle("Demo Manager by Basic Wavez");
+    };
+  }, [trackData]);
 
   // Handler for when processing completes
   const handleProcessingComplete = () => {
