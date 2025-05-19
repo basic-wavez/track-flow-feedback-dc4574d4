@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowUpCircle, History } from "lucide-react";
@@ -24,6 +24,9 @@ const TrackView = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  // Get userId for dependency tracking instead of the whole user object
+  const userId = user?.id;
+
   const [trackData, setTrackData] = useState<TrackData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
@@ -39,6 +42,11 @@ const TrackView = () => {
   const isShareRoute = location.pathname.startsWith('/track/share/');
 
   useEffect(() => {
+    // Skip loading when the tab is hidden to prevent duplicate fetches
+    if (document.visibilityState === 'hidden') {
+      return;
+    }
+    
     const loadTrack = async () => {
       setIsLoading(true);
       setError(null);
@@ -107,8 +115,8 @@ const TrackView = () => {
         console.log("Track data loaded:", track.id);
         setTrackData(track);
         
-        if (track && user) {
-          setIsOwner(track.user_id === user.id);
+        if (track && userId) {
+          setIsOwner(track.user_id === userId);
         }
         
         // Load track versions using our improved function
@@ -138,7 +146,7 @@ const TrackView = () => {
     };
 
     loadTrack();
-  }, [params.trackId, isShareRoute, user, location.pathname, refreshKey]); // Add refreshKey to the dependency array
+  }, [params.trackId, isShareRoute, userId, location.pathname, refreshKey]); // Changed from user to userId
   
   // Handler for when processing completes
   const handleProcessingComplete = () => {
@@ -161,6 +169,15 @@ const TrackView = () => {
   const displayName = trackData.title;
   const versionNumber = trackData.version_number || 1;
   
+  // Memoize important derived values
+  const playbackUrl = useMemo(() => {
+    return getPlaybackUrl();
+  }, [trackData]);
+  
+  const waveformUrl = useMemo(() => {
+    return getWaveformUrl();
+  }, [trackData]);
+
   // Determine if we need to show the processing indicator instead of the player
   const originalFileType = getFileTypeFromUrl(trackData?.original_url);
   const showProcessingIndicator = trackData ? needsProcessingIndicator(
@@ -251,9 +268,9 @@ const TrackView = () => {
             <TrackPlayer 
               trackId={trackData.id}
               trackName={trackData.title} 
-              audioUrl={getPlaybackUrl()} 
+              audioUrl={playbackUrl} 
               originalUrl={trackData.original_url}
-              waveformAnalysisUrl={getWaveformUrl()}
+              waveformAnalysisUrl={waveformUrl}
               originalFilename={trackData.original_filename}
               isOwner={isOwner}
               mp3Url={trackData.mp3_url}
@@ -312,4 +329,5 @@ const TrackView = () => {
   );
 };
 
-export default TrackView;
+// Export with React.memo to prevent unnecessary re-renders from parent components
+export default React.memo(TrackView);

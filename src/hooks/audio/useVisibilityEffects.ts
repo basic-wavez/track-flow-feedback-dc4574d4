@@ -66,3 +66,18 @@ export const useVisibilityEffects = ({
     lastInteractionRef
   };
 };
+
+// Export additional utility hooks for visibility-aware components
+export const useVisibilityAwareEffect = (
+  effect: () => void | (() => void),
+  deps: React.DependencyList
+) => {
+  useEffect(() => {
+    // Only run the effect when the tab is visible
+    if (document.visibilityState === 'hidden') {
+      return;
+    }
+    
+    return effect();
+  }, [...deps, /* Add document.visibilityState here if needed */]);
+};

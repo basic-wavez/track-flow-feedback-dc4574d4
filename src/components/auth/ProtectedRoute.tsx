@@ -13,12 +13,15 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [authChecked, setAuthChecked] = useState(false);
   const initialCheckDoneRef = useRef(false);
   
+  // User ID for dependency tracking rather than the full user object
+  const userId = user?.id;
+  
   useEffect(() => {
     // Only log and set authChecked if this is the first check or if visibility is visible
-    if (!initialCheckDoneRef.current || document.visibilityState === 'visible') {
+    if ((!initialCheckDoneRef.current || document.visibilityState === 'visible') && !loading) {
       // Debug logging to help troubleshoot auth state issues
       console.log("ProtectedRoute - Auth state:", { 
-        user: user ? `User: ${user.email}` : "No user", 
+        user: userId ? `User: ${user?.email}` : "No user", 
         loading, 
         path: location.pathname,
         authChecked,
@@ -26,12 +29,10 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       });
       
       // Only set authChecked after loading is complete
-      if (!loading) {
-        setAuthChecked(true);
-        initialCheckDoneRef.current = true;
-      }
+      setAuthChecked(true);
+      initialCheckDoneRef.current = true;
     }
-  }, [user, loading, location, authChecked]);
+  }, [userId, loading, location, authChecked]); // Changed from user to userId
   
   // Use a ref to prevent re-rendering the loading state on tab visibility changes
   const renderedLoadingRef = useRef(false);

@@ -70,7 +70,7 @@ function App() {
         <Toaster />
       </Router>
     </AuthProvider>
-  ), []);
+  ), []); // Empty dependency array ensures this only runs once
 
   return (
     <QueryClientProvider client={queryClient}>

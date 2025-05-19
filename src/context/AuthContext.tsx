@@ -101,9 +101,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             path: window.location.pathname
           });
           
-          // Update auth state synchronously
+          // Update auth state - ONLY if the user ID has actually changed
+          // This prevents unnecessary re-renders when just refreshing the session token
           setSession(session);
-          setUser(session?.user ?? null);
+          
+          // Only update the user if the ID has changed or if we're signing in/out
+          setUser(prevUser => {
+            if (!session?.user) return null;
+            if (!prevUser) return session.user;
+            // Only update if the ID has actually changed
+            return prevUser.id === session.user.id ? prevUser : session.user;
+          });
+          
           setIsAuthenticated(!!session?.user); // Update explicit auth state
           
           // Check if the user is an admin
@@ -137,7 +146,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       
       setSession(session);
-      setUser(session?.user ?? null);
+      // Stabilize the user object based on ID
+      setUser(prevUser => {
+        if (!session?.user) return null;
+        if (!prevUser) return session.user;
+        // Only update if the ID has actually changed
+        return prevUser.id === session.user.id ? prevUser : session.user;
+      });
       setIsAuthenticated(!!session?.user); // Update explicit auth state
       lastSessionCheckRef.current = Date.now();
       
@@ -172,7 +187,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (session?.user && (!user || session.user.id !== user.id)) {
               // Only update if there is no user or the user has actually changed
               setSession(session);
-              setUser(session.user);
+              setUser(prevUser => {
+                if (!prevUser) return session.user;
+                // Only update if the ID has actually changed
+                return prevUser.id === session.user.id ? prevUser : session.user;
+              });
               setIsAuthenticated(true);
               
               // Update admin status and profile if user changed
@@ -434,7 +453,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Memoize the context value to prevent unnecessary re-renders
+  // Memoize the context value based on individual values that matter, not the whole objects
   const contextValue = useMemo(() => ({
     user,
     session,
@@ -452,12 +471,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     profile,
     refreshProfile,
   }), [
-    user, 
-    session, 
+    // Depend on user ID, not the whole user object
+    user?.id, 
+    // These still need to be dependencies
+    session?.expires_at, 
     loading, 
     isAuthenticated, 
     isAdmin, 
-    profile
+    profile?.id
   ]);
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
