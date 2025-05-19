@@ -1,7 +1,7 @@
 
 import { Playlist } from "@/types/playlist";
 import { formatDistanceToNow } from "date-fns";
-import { ListMusic, Lock, Globe, Edit, Share2, Play } from "lucide-react";
+import { ListMusic, Lock, Globe, ExternalLink, Share2, Play } from "lucide-react";
 import { Button } from "../ui/button";
 import { useNavigate } from "react-router-dom";
 import PlaylistShareDialog from "./PlaylistShareDialog";
@@ -55,17 +55,17 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ playlist, onDelete }) => {
             size="sm"
             onClick={() => navigate(`/playlist/${playlist.id}/play`)}
           >
-            <Play className="h-4 w-4 mr-1" />
-            Play Playlist
+            <ExternalLink className="h-4 w-4 mr-1" />
+            Open
           </Button>
           
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => navigate(`/playlist/${playlist.id}/edit`)}
+            onClick={() => navigate(`/playlist/${playlist.id}`)}
           >
-            <Edit className="h-4 w-4 mr-1" />
-            Edit
+            <ListMusic className="h-4 w-4 mr-1" />
+            View
           </Button>
           
           <PlaylistShareDialog 
