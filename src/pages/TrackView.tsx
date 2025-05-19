@@ -251,9 +251,9 @@ const TrackView = () => {
             <TrackPlayer 
               trackId={trackData.id}
               trackName={trackData.title} 
-              audioUrl={getPlaybackUrl()} // Use our helper function
+              audioUrl={getPlaybackUrl()} 
               originalUrl={trackData.original_url}
-              waveformAnalysisUrl={getWaveformUrl()} // Use our helper function
+              waveformAnalysisUrl={getWaveformUrl()}
               originalFilename={trackData.original_filename}
               isOwner={isOwner}
               mp3Url={trackData.mp3_url}
