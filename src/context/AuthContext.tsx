@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,9 +39,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const { toast } = useToast();
   
-  // Create refs to store subscription and initialization state
+  // Create refs to store subscription, initialization state, and last session check time
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
   const initializedRef = useRef(false);
+  const lastSessionCheckRef = useRef<number>(Date.now());
 
   // Fetch user profile function - memoized to prevent recreation
   const fetchUserProfile = useMemo(() => async (userId: string) => {
@@ -139,6 +139,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session?.user); // Update explicit auth state
+      lastSessionCheckRef.current = Date.now();
       
       // Check if the user is an admin and fetch profile
       if (session?.user) {
@@ -156,19 +157,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Visibility change handler to resume functionality without remounting
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // Refresh session data without remounting components
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session?.user && session?.user?.id !== user?.id) {
-            // Only update if the user has actually changed
-            setSession(session);
-            setUser(session.user);
-            setIsAuthenticated(true);
+        // Only refresh session if it's been at least 5 minutes since the last check
+        // This aligns with the staleTime set in QueryClient
+        const currentTime = Date.now();
+        const fiveMinutesInMs = 5 * 60 * 1000;
+        
+        if (currentTime - lastSessionCheckRef.current > fiveMinutesInMs) {
+          console.log("AuthProvider - Session considered stale, refreshing on visibility change");
+          
+          // Refresh session data without remounting components
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            lastSessionCheckRef.current = currentTime;
             
-            // Update admin status and profile if user changed
-            checkAdminRole().then(isAdmin => setIsAdmin(isAdmin));
-            fetchUserProfile(session.user.id).then(profileData => setProfile(profileData));
-          }
-        });
+            if (session?.user && (!user || session.user.id !== user.id)) {
+              // Only update if there is no user or the user has actually changed
+              setSession(session);
+              setUser(session.user);
+              setIsAuthenticated(true);
+              
+              // Update admin status and profile if user changed
+              checkAdminRole().then(isAdmin => setIsAdmin(isAdmin));
+              fetchUserProfile(session.user.id).then(profileData => setProfile(profileData));
+            }
+          });
+        } else {
+          console.log("AuthProvider - Session still fresh, skipping refresh on visibility change");
+        }
       }
     };
     

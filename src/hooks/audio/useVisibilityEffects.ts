@@ -9,6 +9,8 @@ interface UseVisibilityEffectsProps {
 
 /**
  * Custom hook to handle visibility change effects for audio playback
+ * This implementation respects the application's staleTime policy (5 minutes)
+ * and prevents unnecessary re-renders or network requests on tab focus
  */
 export const useVisibilityEffects = ({
   audioRef,
@@ -16,6 +18,7 @@ export const useVisibilityEffects = ({
   setIsPlaying
 }: UseVisibilityEffectsProps) => {
   const wasPlayingBeforeHideRef = useRef(false);
+  const lastInteractionRef = useRef(Date.now());
   
   useEffect(() => {
     // Handler for visibility changes
@@ -23,18 +26,28 @@ export const useVisibilityEffects = ({
       const audio = audioRef.current;
       if (!audio) return;
       
+      const currentTime = Date.now();
+      const fiveMinutesInMs = 5 * 60 * 1000;
+      
       if (document.visibilityState === 'hidden') {
         // Store playback state when hiding
         wasPlayingBeforeHideRef.current = isPlaying;
+        lastInteractionRef.current = currentTime;
       } else if (document.visibilityState === 'visible') {
+        // Only take action if it's been a significant time since last interaction
+        const timeSinceLastInteraction = currentTime - lastInteractionRef.current;
+        
         // Resume audio context if it was suspended
         if (wasPlayingBeforeHideRef.current && audio.paused) {
           // If it was playing before and is now paused, try to resume
-          audio.play().catch(error => {
-            console.error('Failed to resume audio after visibility change', error);
-            // Update state to match reality
-            setIsPlaying(false);
-          });
+          // only if we've been away long enough that the browser might have suspended it
+          if (timeSinceLastInteraction > 10000) { // 10 seconds threshold
+            audio.play().catch(error => {
+              console.error('Failed to resume audio after visibility change', error);
+              // Update state to match reality
+              setIsPlaying(false);
+            });
+          }
         }
       }
     };
@@ -49,6 +62,7 @@ export const useVisibilityEffects = ({
   }, [audioRef, isPlaying, setIsPlaying]);
   
   return {
-    wasPlayingBeforeHideRef
+    wasPlayingBeforeHideRef,
+    lastInteractionRef
   };
 };

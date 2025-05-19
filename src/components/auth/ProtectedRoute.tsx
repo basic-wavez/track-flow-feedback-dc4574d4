@@ -33,7 +33,11 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     }
   }, [user, loading, location, authChecked]);
   
-  if (loading) {
+  // Use a ref to prevent re-rendering the loading state on tab visibility changes
+  const renderedLoadingRef = useRef(false);
+  
+  if (loading && !renderedLoadingRef.current) {
+    renderedLoadingRef.current = true;
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

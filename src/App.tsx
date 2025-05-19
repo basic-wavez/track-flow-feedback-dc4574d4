@@ -23,11 +23,13 @@ import CookieConsent from './components/CookieConsent';
 import AdminDashboard from './pages/admin/AdminDashboard';
 
 // Create a client with stabilized configuration
+// This configuration prevents unnecessary refetches when tab regains focus
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false, // Prevent refetch on tab focus
-      staleTime: 60000, // 1 minute
+      refetchOnReconnect: false,   // Keep behavior deterministic
+      staleTime: 5 * 60 * 1000,    // 5 minutes - data stays fresh longer
     },
   },
 });

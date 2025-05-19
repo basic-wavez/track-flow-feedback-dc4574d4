@@ -28,6 +28,12 @@ We've implemented several patterns to prevent component remounts during visibili
    - Resume audio context if it was suspended
    - Update audio state to match reality when visibility is restored
 
+5. **Optimized Data Fetching**
+   - Disabled automatic refetching on window focus
+   - Implemented a 5-minute stale time for queries
+   - Made refetch behavior deterministic by disabling automatic refetch on reconnect
+   - Added time-based checks before refreshing session data
+
 ## Consequences
 
 ### Positive
@@ -37,19 +43,24 @@ We've implemented several patterns to prevent component remounts during visibili
 - No more repeated "Initializing auth state listener" logs
 - React elements maintain identity across visibility changes
 - Better user experience with persistent state
+- Reduced network usage by preventing unnecessary refetches
+- Improved performance by avoiding unnecessary re-renders
 
 ### Negative
 
 - Slightly more complex code with refs and memoization
 - Need to be careful with visibility-conditional logic
 - Potential memory usage increase from keeping components mounted
+- Data could potentially become stale if the user keeps the tab open for extended periods
 
 ## Implementation Notes
 
-1. **AuthContext**: Added subscription refs and visibility-aware state updates
-2. **App.tsx**: Used useMemo for consistent provider trees
-3. **useAudioPlayer**: Enhanced with visibility effects
-4. **ProtectedRoute**: Added stability with initial check refs
-5. **Added useVisibilityEffects**: New hook for shared visibility logic
+1. **QueryClient**: Configured with explicit stale time and disabled automatic refetches
+2. **AuthContext**: Added subscription refs, time-based session refreshes
+3. **App.tsx**: Used useMemo for consistent provider trees
+4. **useAudioPlayer**: Enhanced with visibility effects
+5. **ProtectedRoute**: Added stability with initial check refs
+6. **Added useVisibilityEffects**: New hook for shared visibility logic
 
 These changes align with React's patterns for optimizing performance while maintaining correct behavior across visibility state changes.
+
