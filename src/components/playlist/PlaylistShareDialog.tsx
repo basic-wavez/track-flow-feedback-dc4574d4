@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -113,9 +112,10 @@ const PlaylistShareDialog = ({ playlistId, playlistName, children }: PlaylistSha
     }
   };
 
+  // UPDATED: Modified to point directly to the player view
   const copyShareLink = (shareKey: string) => {
     const baseUrl = window.location.origin;
-    const shareUrl = `${baseUrl}/shared/playlist/${shareKey}`;
+    const shareUrl = `${baseUrl}/shared/playlist/${shareKey}/play`;
     
     navigator.clipboard.writeText(shareUrl)
       .then(() => {
@@ -133,9 +133,10 @@ const PlaylistShareDialog = ({ playlistId, playlistName, children }: PlaylistSha
       });
   };
 
+  // UPDATED: Modified to point directly to the player view
   const getShareUrl = (shareKey: string) => {
     const baseUrl = window.location.origin;
-    return `${baseUrl}/shared/playlist/${shareKey}`;
+    return `${baseUrl}/shared/playlist/${shareKey}/play`;
   };
 
   return (

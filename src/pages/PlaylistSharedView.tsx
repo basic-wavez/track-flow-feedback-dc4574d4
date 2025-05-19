@@ -23,6 +23,12 @@ const PlaylistSharedView = () => {
         setIsLoading(true);
         const data = await getPlaylistByShareKey(shareKey || "");
         setPlaylistData(data);
+        
+        // Automatically redirect to the player view
+        if (data) {
+          setPlaylist(data);
+          navigate(`/shared/playlist/${shareKey}/play`);
+        }
       } catch (err) {
         console.error("Error fetching shared playlist:", err);
         setError("Failed to load the shared playlist.");
@@ -34,14 +40,7 @@ const PlaylistSharedView = () => {
     if (shareKey) {
       fetchPlaylist();
     }
-  }, [shareKey]);
-
-  const handlePlayPlaylist = () => {
-    if (playlist) {
-      setPlaylist(playlist);
-      navigate(`/shared/playlist/${shareKey}/play`);
-    }
-  };
+  }, [shareKey, navigate, setPlaylist]);
 
   if (isLoading) {
     return (
@@ -68,6 +67,7 @@ const PlaylistSharedView = () => {
     );
   }
 
+  // This is a fallback view that should rarely be seen since we're redirecting automatically
   return (
     <div className="container max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-start justify-between mb-6">
@@ -86,7 +86,7 @@ const PlaylistSharedView = () => {
           </p>
         </div>
 
-        <Button onClick={handlePlayPlaylist} size="lg">
+        <Button onClick={() => navigate(`/shared/playlist/${shareKey}/play`)} size="lg">
           <ListMusic className="h-4 w-4 mr-1" />
           Play All
         </Button>
