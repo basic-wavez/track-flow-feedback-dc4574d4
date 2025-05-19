@@ -36,7 +36,7 @@ const AddTracksToPlaylist = () => {
       setIsLoading(true);
       try {
         const userTracks = await getUserTracks();
-        // Ensure we get TrackData compatible objects
+        // Map each track to ensure it has all required TrackData properties
         setTracks(userTracks.map(track => ({
           id: track.id,
           title: track.title,
