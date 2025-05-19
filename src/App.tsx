@@ -66,7 +66,11 @@ function App() {
         />
         <Route
           path="/shared/playlist/:shareKey"
-          element={<PlaylistSharedView />}
+          element={
+            <PlaylistPlayerProvider>
+              <PlaylistSharedView />
+            </PlaylistPlayerProvider>
+          }
         />
         <Route
           path="/shared/playlist/:shareKey/play"
