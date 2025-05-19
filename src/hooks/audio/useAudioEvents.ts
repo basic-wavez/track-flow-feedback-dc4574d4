@@ -50,6 +50,24 @@ export function useAudioEvents({
       }
     };
     
+    const handlePause = () => {
+      console.log("Audio paused event triggered");
+      // Only update state if it doesn't match current reality
+      if (isPlaying) {
+        setIsPlaying(false);
+        setPlaybackState('paused');
+      }
+    };
+    
+    const handlePlay = () => {
+      console.log("Audio play event triggered");
+      // Only update state if it doesn't match current reality
+      if (!isPlaying) {
+        setIsPlaying(true);
+        setPlaybackState('playing');
+      }
+    };
+    
     const handleLoadedMetadata = () => {
       // Ensure we don't set Infinity or NaN as the duration
       if (isFinite(audio.duration) && !isNaN(audio.duration) && audio.duration > 0) {
@@ -162,6 +180,8 @@ export function useAudioEvents({
     audio.addEventListener("canplay", handleCanPlay);
     audio.addEventListener("waiting", handleWaiting);
     audio.addEventListener("error", handleError);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("play", handlePlay);
 
     // Set volume and muted state
     audio.volume = volume;
@@ -175,6 +195,8 @@ export function useAudioEvents({
       audio.removeEventListener("canplay", handleCanPlay);
       audio.removeEventListener("waiting", handleWaiting);
       audio.removeEventListener("error", handleError);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("play", handlePlay);
     };
   }, [isPlaying, playbackState]);
 

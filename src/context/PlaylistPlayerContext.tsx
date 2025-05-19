@@ -61,6 +61,7 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
   const playTrack = (index: number) => {
     if (!playlist || index < 0 || index >= playlist.tracks.length) return;
     
+    console.log("PlaylistContext: Playing track at index:", index);
     setCurrentTrackIndex(index);
     setIsPlaying(true);
     
@@ -73,6 +74,7 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
     if (!playlist || playlist.tracks.length === 0) return;
     
     const nextIndex = (currentTrackIndex + 1) % playlist.tracks.length;
+    console.log("PlaylistContext: Playing next track:", nextIndex);
     setCurrentTrackIndex(nextIndex);
     setIsPlaying(true);
   };
@@ -85,12 +87,14 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
       ? playlist.tracks.length - 1 
       : currentTrackIndex - 1;
     
+    console.log("PlaylistContext: Playing previous track:", prevIndex);
     setCurrentTrackIndex(prevIndex);
     setIsPlaying(true);
   };
 
   // Toggle play/pause state
   const togglePlayPause = () => {
+    console.log("PlaylistContext: Toggling play/pause from", isPlaying, "to", !isPlaying);
     setIsPlaying(prev => !prev);
   };
 

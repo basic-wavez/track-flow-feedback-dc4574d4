@@ -74,6 +74,17 @@ const TrackPlayer = ({
     isPlaying: false
   };
   
+  // Console logging for debugging
+  useEffect(() => {
+    if (isPlaylistMode) {
+      console.log("Playlist mode states:", { 
+        contextIsPlaying, 
+        isLoading,
+        "audio element exists": !!audioRef.current
+      });
+    }
+  }, [contextIsPlaying, isLoading, isPlaylistMode]);
+  
   // Determine which URL to use for playback - prefer Opus if available, then MP3, then audioUrl
   const playbackUrl = opusUrl || mp3Url || audioUrl;
 
@@ -115,14 +126,20 @@ const TrackPlayer = ({
     shareKey 
   });
   
-  // Sync with playlist context when in playlist mode
+  // Sync with playlist context when in playlist mode - fixed implementation
   useEffect(() => {
-    if (isPlaylistMode && audioRef.current) {
-      if (contextIsPlaying && !isPlaying) {
-        audioRef.current.play().catch(console.error);
-      } else if (!contextIsPlaying && isPlaying) {
-        audioRef.current.pause();
-      }
+    if (!isPlaylistMode || !audioRef.current) return;
+    
+    console.log("Sync effect triggered:", { contextIsPlaying, isPlaying });
+    
+    if (contextIsPlaying && !isPlaying) {
+      console.log("Context is playing but local is not - starting playback");
+      audioRef.current.play().catch(err => {
+        console.error("Error playing from context sync:", err);
+      });
+    } else if (!contextIsPlaying && isPlaying) {
+      console.log("Context is paused but local is playing - pausing playback");
+      audioRef.current.pause();
     }
   }, [contextIsPlaying, isPlaying, isPlaylistMode]);
   
@@ -142,12 +159,22 @@ const TrackPlayer = ({
     };
   }, [contextPlayNext, isPlaylistMode]);
   
-  // Combined toggle play function
+  // Combined toggle play function - updated to ensure both states update
   const handleTogglePlayPause = () => {
+    console.log("Toggle play/pause clicked", { isPlaylistMode, isPlaying, contextIsPlaying });
+    
     if (isPlaylistMode) {
+      // Update the context state first
       contextTogglePlayPause();
+      
+      // Also update the local audio state
+      // The sync effect will handle the actual audio element changes
+      // But we still call localTogglePlayPause to update local state in sync
+      localTogglePlayPause();
+    } else {
+      // Just use local toggle when not in playlist mode
+      localTogglePlayPause();
     }
-    localTogglePlayPause();
   };
   
   // Update playedRecently when a track finishes playing
@@ -204,7 +231,7 @@ const TrackPlayer = ({
       />
       
       <PlaybackControls 
-        isPlaying={isPlaying}
+        isPlaying={isPlaylistMode ? contextIsPlaying : isPlaying}
         playbackState={playbackState}
         currentTime={currentTime}
         duration={duration}
@@ -233,7 +260,7 @@ const TrackPlayer = ({
       <WaveformSection 
         playbackUrl={playbackUrl}
         waveformUrl={waveformUrl}
-        isPlaying={isPlaying}
+        isPlaying={isPlaylistMode ? contextIsPlaying : isPlaying}
         currentTime={currentTime}
         duration={duration}
         handleSeek={handleSeek}

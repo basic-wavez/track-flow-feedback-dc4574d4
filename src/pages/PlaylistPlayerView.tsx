@@ -7,7 +7,6 @@ import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
 import { ArrowLeft } from "lucide-react";
 import TrackPlayer from "@/components/TrackPlayer";
 import PlaylistTrackList from "@/components/playlist/PlaylistTrackList";
-import { PlaylistWithTracks } from "@/types/playlist";
 import { Separator } from "@/components/ui/separator";
 import { getTrack } from "@/services/trackQueryService";
 
@@ -20,12 +19,22 @@ const PlaylistPlayerView = () => {
     currentTrack,
     playlist: activePlaylist,
     currentTrackIndex,
-    isPlaying
+    isPlaying: contextIsPlaying
   } = usePlaylistPlayer();
   
   const [initialLoad, setInitialLoad] = useState(true);
   const [isLoadingTrack, setIsLoadingTrack] = useState(false);
   const [trackAudioUrl, setTrackAudioUrl] = useState<string | undefined>();
+  
+  // Log status for debugging
+  useEffect(() => {
+    console.log("PlaylistPlayerView state:", {
+      isPlaying: contextIsPlaying,
+      currentTrackIndex,
+      currentTrackId: currentTrack?.track_id,
+      isLoadingTrack
+    });
+  }, [contextIsPlaying, currentTrackIndex, currentTrack, isLoadingTrack]);
   
   // Fetch the playlist data
   const { 

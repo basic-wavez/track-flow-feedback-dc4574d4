@@ -1,3 +1,4 @@
+
 import { useRef, useMemo } from "react";
 import { useAudioState } from "./useAudioState";
 import { useBufferingState } from "./useBufferingState";
@@ -59,10 +60,13 @@ export function useAudioPlayer({
     const audio = audioRef.current;
     if (!audio) return;
 
+    console.log("useAudioPlayer: Toggle play/pause called, current state:", isPlaying);
+
     if (!isPlaying) {
       // Starting to play
       audio.play()
         .then(() => {
+          console.log("useAudioPlayer: Play successful");
           setIsPlaying(true);
           setPlaybackState('playing');
           // Start tracking play time for this track
@@ -81,6 +85,7 @@ export function useAudioPlayer({
         });
     } else {
       // Pausing playback
+      console.log("useAudioPlayer: Pausing audio");
       audio.pause();
       setIsPlaying(false);
       setPlaybackState('paused');
