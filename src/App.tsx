@@ -6,10 +6,11 @@ import {
   Navigate,
 } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
+import { PlaylistPlayerProvider } from "./context/PlaylistPlayerContext";
 import AuthPage from "./pages/AuthPage";
 import ProfilePage from "./pages/ProfilePage";
 import PlaylistsPage from "./pages/PlaylistsPage";
-import PlaylistPage from "./pages/PlaylistView"; // Fixed import path
+import PlaylistPage from "./pages/PlaylistView"; 
 import EditPlaylistPage from "./pages/EditPlaylistPage";
 import PlaylistPlayerView from "./pages/PlaylistPlayerView";
 import PlaylistSharedView from "./pages/PlaylistSharedView";
@@ -44,7 +45,15 @@ function App() {
         />
         <Route
           path="/playlist/:playlistId/play"
-          element={user ? <PlaylistPlayerView /> : <Navigate to="/auth" />}
+          element={
+            user ? (
+              <PlaylistPlayerProvider>
+                <PlaylistPlayerView />
+              </PlaylistPlayerProvider>
+            ) : (
+              <Navigate to="/auth" />
+            )
+          }
         />
         <Route
           path="/shared/playlist/:shareKey"
@@ -52,7 +61,11 @@ function App() {
         />
         <Route
           path="/shared/playlist/:shareKey/play"
-          element={<PlaylistSharedPlayerView />}
+          element={
+            <PlaylistPlayerProvider>
+              <PlaylistSharedPlayerView />
+            </PlaylistPlayerProvider>
+          }
         />
       </Routes>
     </Router>
