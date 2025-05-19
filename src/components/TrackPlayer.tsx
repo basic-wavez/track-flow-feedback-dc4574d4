@@ -1,6 +1,5 @@
 
 import { useState, useRef, useEffect } from "react";
-import Waveform from "./Waveform";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import TrackHeader from "./player/TrackHeader";
 import PlaybackControls from "./player/PlaybackControls";
@@ -9,6 +8,9 @@ import { isInServerCooldown } from "@/services/trackShareService";
 import { isWavFormat, getFileTypeFromUrl } from "@/lib/audioUtils";
 import { TrackVersion } from "@/types/track";
 import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
+import AudioStatusIndicator from "./player/AudioStatusIndicator";
+import WaveformSection from "./player/WaveformSection";
+import PlaylistModeIndicator from "./player/PlaylistModeIndicator";
 
 interface TrackPlayerProps {
   trackId: string;
@@ -30,7 +32,7 @@ interface TrackPlayerProps {
   isPlaylistMode?: boolean;
   currentIndex?: number;
   totalTracks?: number;
-  isLoading?: boolean; // Add the missing isLoading prop
+  isLoading?: boolean;
 }
 
 const TrackPlayer = ({ 
@@ -52,7 +54,8 @@ const TrackPlayer = ({
   trackVersions = [],
   isPlaylistMode = false,
   currentIndex = -1,
-  totalTracks = 0
+  totalTracks = 0,
+  isLoading = false
 }: TrackPlayerProps) => {
   // Local states
   const [serverCooldown, setServerCooldown] = useState(false);
@@ -174,8 +177,6 @@ const TrackPlayer = ({
   // Check if we're using the Opus version
   const usingOpus = !!opusUrl;
   
-  const isLoading = playbackState === 'loading';
-  
   // Determine combined cooldown state
   const isCooldown = inCooldownPeriod || serverCooldown;
   
@@ -192,7 +193,7 @@ const TrackPlayer = ({
         trackId={trackId}
         trackName={trackName}
         playbackState={playbackState}
-        isLoading={isLoading}
+        isLoading={isLoading || playbackState === 'loading'}
         usingMp3={usingMp3}
         processingStatus={processingStatus}
         showProcessButton={false}
@@ -209,7 +210,7 @@ const TrackPlayer = ({
         duration={duration}
         volume={volume}
         isMuted={isMuted}
-        isLoading={isLoading}
+        isLoading={isLoading || playbackState === 'loading'}
         onPlayPause={handleTogglePlayPause}
         onVolumeChange={handleVolumeChange}
         onToggleMute={toggleMute}
@@ -218,30 +219,28 @@ const TrackPlayer = ({
         onNext={isPlaylistMode ? contextPlayNext : undefined}
       />
       
-      {isPlaylistMode && currentIndex >= 0 && totalTracks > 0 && (
-        <div className="text-sm text-gray-400 mb-3">
-          Track {currentIndex + 1} of {totalTracks}
-        </div>
-      )}
+      <PlaylistModeIndicator 
+        isPlaylistMode={isPlaylistMode}
+        currentIndex={currentIndex}
+        totalTracks={totalTracks}
+      />
       
-      {isPlayingWav && processingStatus === 'pending' ? (
-        <div className="text-blue-400 text-sm mb-2 bg-blue-900/20 p-2 rounded">
-          Playing WAV file directly. MP3 version is being processed in the background for better streaming quality.
-        </div>
-      ) : null}
+      <AudioStatusIndicator 
+        isPlayingWav={isPlayingWav}
+        processingStatus={processingStatus}
+      />
       
-      <Waveform 
-        audioUrl={playbackUrl}
-        waveformAnalysisUrl={waveformUrl}
+      <WaveformSection 
+        playbackUrl={playbackUrl}
+        waveformUrl={waveformUrl}
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}
-        onSeek={handleSeek}
-        totalChunks={1}
+        handleSeek={handleSeek}
         isBuffering={isBuffering}
         showBufferingUI={showBufferingUI}
-        isMp3Available={usingMp3}
-        isOpusAvailable={usingOpus}
+        usingMp3={usingMp3}
+        usingOpus={usingOpus}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
       />
