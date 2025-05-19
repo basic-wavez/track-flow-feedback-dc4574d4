@@ -110,7 +110,7 @@ export const endPlayTracking = async (): Promise<boolean> => {
         const { error: updateError } = await supabase
           .from('playlist_share_links')
           .update({
-            play_count: supabase.sql`play_count + 1`,
+            play_count: supabase.sql('play_count + 1'),
             last_played_at: new Date().toISOString()
           })
           .eq('share_key', shareKey);
@@ -121,7 +121,7 @@ export const endPlayTracking = async (): Promise<boolean> => {
         const { error: updateError } = await supabase
           .from('share_links')
           .update({
-            play_count: supabase.sql`play_count + 1`,
+            play_count: supabase.sql('play_count + 1'),
             last_played_at: new Date().toISOString()
           })
           .eq('share_key', shareKey);

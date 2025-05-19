@@ -13,7 +13,11 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 
 // Add SQL helper function to Supabase client
 // This is a workaround to use SQL expressions in queries
-(supabase as any).sql = (strings: TemplateStringsArray, ...values: any[]) => {
+(supabase as any).sql = (strings: string | TemplateStringsArray, ...values: any[]) => {
+  if (typeof strings === 'string') {
+    return strings;
+  }
+  
   let result = strings[0];
   for (let i = 0; i < values.length; i++) {
     result += values[i] + strings[i + 1];

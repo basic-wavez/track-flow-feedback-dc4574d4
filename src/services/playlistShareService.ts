@@ -37,7 +37,8 @@ export async function getPlaylistByShareKey(shareKey: string): Promise<PlaylistW
             title,
             original_filename,
             mp3_url,
-            compressed_url
+            compressed_url,
+            version_number
           )
         )
       `)
@@ -67,9 +68,15 @@ export async function getPlaylistByShareKey(shareKey: string): Promise<PlaylistW
       id: pt.id,
       position: pt.position,
       track_id: pt.track_id,
-      created_at: pt.created_at, // Make sure to include required field
+      created_at: pt.created_at,
       playlist_id: playlist.id,
-      track: pt.tracks
+      track: {
+        title: pt.tracks.title,
+        original_filename: pt.tracks.original_filename,
+        version_number: pt.tracks.version_number,
+        mp3_url: pt.tracks.mp3_url,
+        compressed_url: pt.tracks.compressed_url
+      }
     }));
 
     // Sort tracks by position
@@ -84,8 +91,6 @@ export async function getPlaylistByShareKey(shareKey: string): Promise<PlaylistW
     return null;
   }
 }
-
-// Add the missing functions that PlaylistShareDialog is expecting to import
 
 export async function getPlaylistShareLinks(playlistId: string): Promise<any[]> {
   try {
