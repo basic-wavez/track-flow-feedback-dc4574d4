@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { getFeedbackForTrack, Feedback } from "@/services/feedbackService";
 import { supabase } from "@/integrations/supabase/client";
 import { TrackData } from "@/types/track";
-import { getTrackById } from "@/services/trackQueryService";
+import { getTrack } from "@/services/trackQueryService";
 
 export interface AverageRatings {
   mixing: number;
@@ -44,11 +44,11 @@ export function useFeedbackData(feedbackId?: string) {
       setIsLoading(true);
       try {
         // First fetch the track data
-        const trackResponse = await getTrackById(trackId);
-        if (trackResponse.error) {
-          throw new Error(trackResponse.error);
+        const track = await getTrack(trackId);
+        if (!track) {
+          throw new Error("Track not found");
         }
-        setTrackData(trackResponse.data);
+        setTrackData(track);
         
         // Then fetch feedback for the track
         const feedbackData = await getFeedbackForTrack(trackId);
@@ -154,9 +154,9 @@ export function useFeedbackData(feedbackId?: string) {
   const handleProcessingComplete = () => {
     if (trackId) {
       // Refetch track data when processing completes
-      getTrackById(trackId).then(response => {
-        if (response.data) {
-          setTrackData(response.data);
+      getTrack(trackId).then(track => {
+        if (track) {
+          setTrackData(track);
         }
       }).catch(err => {
         console.error("Error refreshing track data:", err);
