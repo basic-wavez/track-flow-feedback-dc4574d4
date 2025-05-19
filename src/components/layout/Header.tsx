@@ -1,5 +1,5 @@
 
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
@@ -8,6 +8,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const Header = () => {
   const { user, signOut } = useAuth();
   const isMobile = useIsMobile();
+  const location = useLocation();
+  
+  // Check if we're on a shared route
+  const isSharedRoute = location.pathname.includes('/shared/');
 
   return (
     <header className="bg-wip-dark border-b border-wip-gray/30">

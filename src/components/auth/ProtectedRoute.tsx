@@ -13,6 +13,9 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [authChecked, setAuthChecked] = useState(false);
   const initialCheckDoneRef = useRef(false);
   
+  // Check if we're on a shared route that should be publicly accessible
+  const isSharedRoute = location.pathname.includes('/shared/');
+  
   // User ID for dependency tracking rather than the full user object
   const userId = user?.id;
   
@@ -25,14 +28,15 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         loading, 
         path: location.pathname,
         authChecked,
-        visibilityState: document.visibilityState
+        visibilityState: document.visibilityState,
+        isSharedRoute
       });
       
       // Only set authChecked after loading is complete
       setAuthChecked(true);
       initialCheckDoneRef.current = true;
     }
-  }, [userId, loading, location, authChecked]); // Changed from user to userId
+  }, [userId, loading, location, authChecked, isSharedRoute]); // Changed from user to userId and added isSharedRoute
   
   // Use a ref to prevent re-rendering the loading state on tab visibility changes
   const renderedLoadingRef = useRef(false);
@@ -47,6 +51,11 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         </div>
       </div>
     );
+  }
+  
+  // Allow access to shared routes without authentication
+  if (isSharedRoute) {
+    return <>{children}</>;
   }
   
   // Only redirect after loading is complete and auth has been checked
