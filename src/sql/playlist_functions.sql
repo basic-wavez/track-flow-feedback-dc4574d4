@@ -53,3 +53,21 @@ BEGIN
     AND position < p_old_position;
 END;
 $$;
+
+-- Function to increment a position by a value
+CREATE OR REPLACE FUNCTION public.increment_position(value integer)
+RETURNS integer
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT position + value
+$$;
+
+-- Function to decrement a position by a value
+CREATE OR REPLACE FUNCTION public.decrement_position(value integer)
+RETURNS integer
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT position - value
+$$;

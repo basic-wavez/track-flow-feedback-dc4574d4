@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Playlist, PlaylistCreateInput, PlaylistTrack, PlaylistUpdateInput, PlaylistWithTracks } from "@/types/playlist";
 
@@ -182,10 +181,10 @@ export const removeTrackFromPlaylist = async (
   // Update positions for tracks after the removed one
   const removedPosition = trackData.position;
   
-  // Use manual SQL update instead of RPC
+  // Use raw SQL for the position updates
   const { error: updateError } = await supabase
     .from('playlist_tracks')
-    .update({ position: supabase.sql`position - 1` })
+    .update({ position: supabase.rpc('decrement_position', { value: 1 }) })
     .eq('playlist_id', playlistId)
     .gt('position', removedPosition);
 
@@ -229,7 +228,7 @@ export const reorderPlaylistTrack = async (
     // Moving down: decrease position of tracks between old+1 and new
     const { error: moveDownError } = await supabase
       .from('playlist_tracks')
-      .update({ position: supabase.sql`position - 1` })
+      .update({ position: supabase.rpc('decrement_position', { value: 1 }) })
       .eq('playlist_id', playlistId)
       .gt('position', oldPosition)
       .lte('position', newPosition);
@@ -242,7 +241,7 @@ export const reorderPlaylistTrack = async (
     // Moving up: increase position of tracks between new and old-1
     const { error: moveUpError } = await supabase
       .from('playlist_tracks')
-      .update({ position: supabase.sql`position + 1` })
+      .update({ position: supabase.rpc('increment_position', { value: 1 }) })
       .eq('playlist_id', playlistId)
       .gte('position', newPosition)
       .lt('position', oldPosition);
