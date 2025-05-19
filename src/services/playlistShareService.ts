@@ -1,13 +1,22 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 // Create a share link for a playlist
 export const createPlaylistShareLink = async (playlistId: string, name: string): Promise<any> => {
+  // Get the current user ID
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User must be authenticated to create a playlist share link');
+  }
+
   const { data, error } = await supabase
     .from('playlist_share_links')
     .insert({
       playlist_id: playlistId,
       name: name,
+      user_id: user.id
     })
     .select('*')
     .single();
@@ -87,7 +96,7 @@ export const getPlaylistByShareKey = async (shareKey: string): Promise<any> => {
   await supabase
     .from('playlist_share_links')
     .update({
-      play_count: shareData.play_count + 1,
+      play_count: (shareData.play_count || 0) + 1,
       last_played_at: new Date().toISOString()
     })
     .eq('id', shareData.id);

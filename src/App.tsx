@@ -1,3 +1,4 @@
+
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,14 +8,9 @@ import {
 import { useAuth } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
 import ProfilePage from "./pages/ProfilePage";
-import UploadPage from "./pages/UploadPage";
-import TrackPage from "./pages/TrackPage";
-import HomePage from "./pages/HomePage";
-import TrackEditPage from "./pages/TrackEditPage";
 import PlaylistsPage from "./pages/PlaylistsPage";
 import PlaylistPage from "./pages/PlaylistPage";
 import EditPlaylistPage from "./pages/EditPlaylistPage";
-import AddTracksPage from "./pages/AddTracksPage";
 import PlaylistPlayerView from "./pages/PlaylistPlayerView";
 import PlaylistSharedView from "./pages/PlaylistSharedView";
 import PlaylistSharedPlayerView from "./pages/PlaylistSharedPlayerView";
@@ -25,7 +21,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<Navigate to="/playlists" />} />
         <Route
           path="/auth"
           element={!user ? <AuthPage /> : <Navigate to="/profile" />}
@@ -33,15 +29,6 @@ function App() {
         <Route
           path="/profile"
           element={user ? <ProfilePage /> : <Navigate to="/auth" />}
-        />
-        <Route
-          path="/upload"
-          element={user ? <UploadPage /> : <Navigate to="/auth" />}
-        />
-        <Route path="/track/:trackId" element={<TrackPage />} />
-        <Route
-          path="/track/:trackId/edit"
-          element={user ? <TrackEditPage /> : <Navigate to="/auth" />}
         />
         <Route
           path="/playlists"
@@ -54,10 +41,6 @@ function App() {
         <Route
           path="/playlist/:playlistId/edit"
           element={user ? <EditPlaylistPage /> : <Navigate to="/auth" />}
-        />
-        <Route
-          path="/playlist/:playlistId/add-tracks"
-          element={user ? <AddTracksPage /> : <Navigate to="/auth" />}
         />
         <Route
           path="/playlist/:playlistId/play"
