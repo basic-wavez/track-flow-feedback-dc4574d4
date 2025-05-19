@@ -39,7 +39,7 @@ export function useAudioEvents({
   audioUrl: string | null | undefined;
   playbackState: string;
   isPlaying: boolean;
-  setPlaybackState: (state: string) => void;
+  setPlaybackState: (state: 'idle' | 'loading' | 'playing' | 'paused' | 'error') => void;
   setDuration: (duration: number) => void;
   setCurrentTime: (time: number) => void;
   setIsPlaying: (isPlaying: boolean) => void;

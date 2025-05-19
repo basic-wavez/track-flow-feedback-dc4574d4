@@ -23,7 +23,7 @@ export function useAudioBufferingEvents({
   clearBufferingTimeout: () => void;
   setShowBufferingUI: (show: boolean) => void;
   playbackState: string;
-  setPlaybackState: (state: string) => void;
+  setPlaybackState: (state: 'idle' | 'loading' | 'playing' | 'paused' | 'error') => void;
 }) {
   useEffect(() => {
     const audio = audioRef.current;

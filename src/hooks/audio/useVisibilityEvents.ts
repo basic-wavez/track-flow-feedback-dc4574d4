@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 
 /**
- * Hook that handles visibility change events
+ * Hook that handles visibility change events (tab switching)
  */
 export function useVisibilityEvents({
   audioRef,
@@ -15,36 +15,41 @@ export function useVisibilityEvents({
   audioRef: React.RefObject<HTMLAudioElement>;
   setCurrentTime: (time: number) => void;
   setIsPlaying: (isPlaying: boolean) => void;
-  setPlaybackState: (state: string) => void;
+  setPlaybackState: (state: 'idle' | 'loading' | 'playing' | 'paused' | 'error') => void;
   setDuration: (duration: number) => void;
   recentlySeekRef: React.MutableRefObject<boolean>;
 }) {
   useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    // Handle visibility change
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Tab visible - syncing audio state');
+        console.log('Tab became visible');
         
-        const audio = audioRef.current;
-        if (!audio) return;
-        
-        // When tab becomes visible, always sync the UI with the actual audio position
-        setCurrentTime(audio.currentTime || 0);
-        
-        // Reset the seeking flag to ensure seeking works properly after tab switch
-        recentlySeekRef.current = false;
-        
-        // Update play state based on actual audio element state
-        setIsPlaying(!audio.paused);
-        setPlaybackState(!audio.paused ? 'playing' : 'paused');
-        
-        // Ensure we have the updated duration
-        if (isFinite(audio.duration) && audio.duration > 0) {
-          setDuration(audio.duration);
+        // Check if audio is still playing and sync UI
+        if (!audio.paused) {
+          setIsPlaying(true);
+          setPlaybackState('playing');
+        } else {
+          setIsPlaying(false);
+          setPlaybackState('paused');
         }
+        
+        // Sync UI with audio state
+        setCurrentTime(audio.currentTime);
+        setDuration(audio.duration);
+        
+        // Mark that we've recently sought to avoid duplicate handling
+        recentlySeekRef.current = true;
+        setTimeout(() => {
+          recentlySeekRef.current = false;
+        }, 500);
       }
     };
-
-    // Add event listeners
+    
+    // Add event listener
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
     // Clean up

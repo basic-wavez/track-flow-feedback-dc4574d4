@@ -170,7 +170,7 @@ export function useAudioPlayer({
     loadRetries,
     lastSeekTimeRef,
     onTrackEnd: handleTrackEnd,
-    hasRestoredAfterTabSwitch,
+    hasRestoredAfterTabSwitch: hasRestoredAfterTabSwitch as React.MutableRefObject<boolean>, // Fix type mismatch here
     timeUpdateActiveRef
   });
   
@@ -215,7 +215,7 @@ export function useAudioPlayer({
     recentlySeekRef,
     currentTime,
     setCurrentTime,
-    hasRestoredAfterTabSwitch,
+    hasRestoredAfterTabSwitch: hasRestoredAfterTabSwitch as React.MutableRefObject<boolean>, // Fix type mismatch here
     allowBackgroundPlayback,
     timeUpdateActiveRef
   });

@@ -20,7 +20,11 @@ export function useAudioInitialization({
   const audioRef = useRef<HTMLAudioElement>(null);
   
   // Track whether we've restored state after tab switch
-  const [hasRestoredAfterTabSwitch, setHasRestoredAfterTabSwitch] = useState(false);
+  // Change from useState to useRef to match the expected type in useAudioPlayer
+  const hasRestoredAfterTabSwitch = useRef<boolean>(false);
+  const setHasRestoredAfterTabSwitch = (value: boolean) => {
+    hasRestoredAfterTabSwitch.current = value;
+  };
 
   // Store the last known position for tab switching
   const lastKnownPositionRef = useRef<number>(0);
