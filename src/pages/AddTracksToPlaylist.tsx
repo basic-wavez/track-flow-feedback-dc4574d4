@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -23,13 +24,6 @@ const AddTracksToPlaylist = () => {
     isLoading: isLoadingPlaylist,
   } = getPlaylist(playlistId || "");
 
-  // Redirect if not logged in
-  if (!user) {
-    navigate('/auth');
-    return null;
-  }
-
-  // Fetch user tracks on mount
   useEffect(() => {
     const loadTracks = async () => {
       setIsLoading(true);
@@ -99,6 +93,13 @@ const AddTracksToPlaylist = () => {
     }
   };
 
+  // Check ownership
+  useEffect(() => {
+    if (playlist && user && playlist.user_id !== user.id) {
+      navigate(`/playlist/${playlist.id}`);
+    }
+  }, [playlist, user, navigate]);
+
   // Handle loading and error states
   if (isLoadingPlaylist) {
     return (
@@ -122,13 +123,6 @@ const AddTracksToPlaylist = () => {
         </div>
       </div>
     );
-  }
-
-  // Check ownership
-  const isOwner = user && playlist.user_id === user.id;
-  if (!isOwner) {
-    navigate(`/playlist/${playlist.id}`);
-    return null;
   }
 
   return (

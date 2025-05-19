@@ -15,6 +15,7 @@ import EditPlaylistPage from "./pages/EditPlaylistPage";
 import PlaylistPlayerView from "./pages/PlaylistPlayerView";
 import PlaylistSharedView from "./pages/PlaylistSharedView";
 import PlaylistSharedPlayerView from "./pages/PlaylistSharedPlayerView";
+import AddTracksToPlaylist from "./pages/AddTracksToPlaylist";
 
 function App() {
   const { user } = useAuth();
@@ -42,6 +43,10 @@ function App() {
         <Route
           path="/playlist/:playlistId/edit"
           element={user ? <EditPlaylistPage /> : <Navigate to="/auth" />}
+        />
+        <Route
+          path="/playlist/:playlistId/add-tracks"
+          element={user ? <AddTracksToPlaylist /> : <Navigate to="/auth" />}
         />
         <Route
           path="/playlist/:playlistId/play"
