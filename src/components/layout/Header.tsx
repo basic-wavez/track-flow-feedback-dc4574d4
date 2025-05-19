@@ -55,8 +55,6 @@ const Header = () => {
                 <Music className="h-4 w-4 mr-1" />
                 My Demos
               </Link>
-              
-              {/* Removed the Playlists link here */}
             </>
           )}
           
