@@ -6,6 +6,17 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://qzykfyavenplpxpdnfxh.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6eWtmeWF2ZW5wbHB4cGRuZnhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcyMzk3NjQsImV4cCI6MjA2MjgxNTc2NH0.fMRSARTizLWE04-zI1v70kwugmlOkM1uwbhYSOgGO4g";
 
+// Extend the SupabaseClient type to include our custom sql method
+declare module '@supabase/supabase-js' {
+  interface SupabaseClient<
+    Database,
+    SchemaName extends string & keyof Database,
+    Schema extends Database[SchemaName]
+  > {
+    sql: (strings: string | TemplateStringsArray, ...values: any[]) => string;
+  }
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
@@ -13,7 +24,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 
 // Add SQL helper function to Supabase client
 // This is a workaround to use SQL expressions in queries
-(supabase as any).sql = (strings: string | TemplateStringsArray, ...values: any[]) => {
+supabase.sql = (strings: string | TemplateStringsArray, ...values: any[]) => {
   if (typeof strings === 'string') {
     return strings;
   }
