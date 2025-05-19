@@ -71,6 +71,50 @@ export type Database = {
           },
         ]
       }
+      playlist_share_links: {
+        Row: {
+          created_at: string
+          download_count: number
+          id: string
+          last_played_at: string | null
+          name: string
+          play_count: number
+          playlist_id: string
+          share_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          download_count?: number
+          id?: string
+          last_played_at?: string | null
+          name: string
+          play_count?: number
+          playlist_id: string
+          share_key?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          download_count?: number
+          id?: string
+          last_played_at?: string | null
+          name?: string
+          play_count?: number
+          playlist_id?: string
+          share_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_share_links_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       playlist_tracks: {
         Row: {
           created_at: string

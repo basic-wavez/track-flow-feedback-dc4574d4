@@ -1,9 +1,10 @@
 
 import { Playlist } from "@/types/playlist";
 import { formatDistanceToNow } from "date-fns";
-import { ListMusic, Lock, Globe } from "lucide-react";
+import { ListMusic, Lock, Globe, Edit, Share2, Play } from "lucide-react";
 import { Button } from "../ui/button";
 import { useNavigate } from "react-router-dom";
+import PlaylistShareDialog from "./PlaylistShareDialog";
 
 interface PlaylistCardProps {
   playlist: Playlist;
@@ -47,14 +48,39 @@ const PlaylistCard: React.FC<PlaylistCardProps> = ({ playlist, onDelete }) => {
         </p>
       )}
       
-      <div className="flex items-center justify-between mt-3">
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => navigate(`/playlist/${playlist.id}`)}
-        >
-          View Playlist
-        </Button>
+      <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            variant="default" 
+            size="sm"
+            onClick={() => navigate(`/playlist/${playlist.id}/play`)}
+          >
+            <Play className="h-4 w-4 mr-1" />
+            Play Playlist
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => navigate(`/playlist/${playlist.id}/edit`)}
+          >
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+          
+          <PlaylistShareDialog 
+            playlistId={playlist.id} 
+            playlistName={playlist.name}
+          >
+            <Button 
+              variant="outline" 
+              size="sm"
+            >
+              <Share2 className="h-4 w-4 mr-1" />
+              Share
+            </Button>
+          </PlaylistShareDialog>
+        </div>
         
         {onDelete && (
           <Button 

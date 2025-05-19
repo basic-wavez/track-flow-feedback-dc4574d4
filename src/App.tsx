@@ -1,73 +1,77 @@
-
-import { BrowserRouter as Router, Routes, Route, Outlet } from "react-router-dom";
-import Index from "./pages/Index";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
-import TrackView from "./pages/TrackView";
-import NotFound from "./pages/NotFound";
-import ProtectedRoute from "./components/auth/ProtectedRoute";
-import AboutPage from "./pages/AboutPage";
-import FAQPage from "./pages/FAQPage";
-import ContactPage from "./pages/ContactPage";
-import TermsOfServicePage from "./pages/TermsOfServicePage";
-import CookiePolicyPage from "./pages/CookiePolicyPage";
-import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
-import { Toaster } from "@/components/ui/toaster";
-import CookieConsent from "./components/CookieConsent";
 import ProfilePage from "./pages/ProfilePage";
-import FeedbackView from "./pages/FeedbackView";
-import NewVersionPage from "./pages/NewVersionPage";
-import BugReportPage from "./pages/BugReportPage";
-import AdminRoute from "./components/auth/AdminRoute";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import { AuthProvider } from "./context/AuthContext";
+import UploadPage from "./pages/UploadPage";
+import TrackPage from "./pages/TrackPage";
+import HomePage from "./pages/HomePage";
+import TrackEditPage from "./pages/TrackEditPage";
 import PlaylistsPage from "./pages/PlaylistsPage";
-import PlaylistView from "./pages/PlaylistView";
+import PlaylistPage from "./pages/PlaylistPage";
 import EditPlaylistPage from "./pages/EditPlaylistPage";
-import AddTracksToPlaylist from "./pages/AddTracksToPlaylist";
+import AddTracksPage from "./pages/AddTracksPage";
 import PlaylistPlayerView from "./pages/PlaylistPlayerView";
-import { PlaylistPlayerProvider } from "./context/PlaylistPlayerContext";
-import "./App.css";
+import PlaylistSharedView from "./pages/PlaylistSharedView";
+import PlaylistSharedPlayerView from "./pages/PlaylistSharedPlayerView";
 
 function App() {
+  const { user } = useAuth();
+
   return (
     <Router>
-      <AuthProvider>
-        <PlaylistPlayerProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/faq" element={<FAQPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/terms" element={<TermsOfServicePage />} />
-            <Route path="/cookies" element={<CookiePolicyPage />} />
-            <Route path="/privacy" element={<PrivacyPolicyPage />} />
-            <Route path="/bug-report" element={<BugReportPage />} />
-
-            {/* Protected routes */}
-            <Route element={<ProtectedRoute children={<Outlet />} />}>
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/track/:trackId" element={<TrackView />} />
-              <Route path="/track/:trackId/new-version" element={<NewVersionPage />} />
-              <Route path="/feedback/:feedbackId" element={<FeedbackView />} />
-              <Route path="/playlists" element={<PlaylistsPage />} />
-              <Route path="/playlist/:playlistId" element={<PlaylistView />} />
-              <Route path="/playlist/:playlistId/edit" element={<EditPlaylistPage />} />
-              <Route path="/playlist/:playlistId/add-tracks" element={<AddTracksToPlaylist />} />
-              <Route path="/playlist/:playlistId/play" element={<PlaylistPlayerView />} />
-            </Route>
-
-            {/* Admin routes */}
-            <Route element={<AdminRoute children={<Outlet />} />}>
-              <Route path="/admin" element={<AdminDashboard />} />
-            </Route>
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Toaster />
-          <CookieConsent />
-        </PlaylistPlayerProvider>
-      </AuthProvider>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route
+          path="/auth"
+          element={!user ? <AuthPage /> : <Navigate to="/profile" />}
+        />
+        <Route
+          path="/profile"
+          element={user ? <ProfilePage /> : <Navigate to="/auth" />}
+        />
+        <Route
+          path="/upload"
+          element={user ? <UploadPage /> : <Navigate to="/auth" />}
+        />
+        <Route path="/track/:trackId" element={<TrackPage />} />
+        <Route
+          path="/track/:trackId/edit"
+          element={user ? <TrackEditPage /> : <Navigate to="/auth" />}
+        />
+        <Route
+          path="/playlists"
+          element={user ? <PlaylistsPage /> : <Navigate to="/auth" />}
+        />
+        <Route
+          path="/playlist/:playlistId"
+          element={user ? <PlaylistPage /> : <Navigate to="/auth" />}
+        />
+        <Route
+          path="/playlist/:playlistId/edit"
+          element={user ? <EditPlaylistPage /> : <Navigate to="/auth" />}
+        />
+        <Route
+          path="/playlist/:playlistId/add-tracks"
+          element={user ? <AddTracksPage /> : <Navigate to="/auth" />}
+        />
+        <Route
+          path="/playlist/:playlistId/play"
+          element={user ? <PlaylistPlayerView /> : <Navigate to="/auth" />}
+        />
+        <Route
+          path="/shared/playlist/:shareKey"
+          element={<PlaylistSharedView />}
+        />
+        <Route
+          path="/shared/playlist/:shareKey/play"
+          element={<PlaylistSharedPlayerView />}
+        />
+      </Routes>
     </Router>
   );
 }
