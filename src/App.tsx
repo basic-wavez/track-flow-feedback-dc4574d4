@@ -75,7 +75,7 @@ function App() {
         <Route
           path="/shared/playlist/:shareKey/play"
           element={
-            <Navigate to={location => `/shared/playlist/${location.pathname.split('/')[3]}`} replace />
+            <Navigate to={(params) => `/shared/playlist/${params.params.shareKey}`} replace />
           }
         />
         {/* Track Routes - Note: More specific routes come first */}
