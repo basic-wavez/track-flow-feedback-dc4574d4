@@ -1,5 +1,5 @@
 
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Outlet } from "react-router-dom";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import TrackView from "./pages/TrackView";
@@ -45,7 +45,7 @@ function App() {
             <Route path="/bug-report" element={<BugReportPage />} />
 
             {/* Protected routes */}
-            <Route element={<ProtectedRoute />}>
+            <Route element={<ProtectedRoute children={<Outlet />} />}>
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/track/:trackId" element={<TrackView />} />
               <Route path="/track/:trackId/new-version" element={<NewVersionPage />} />
@@ -58,7 +58,7 @@ function App() {
             </Route>
 
             {/* Admin routes */}
-            <Route element={<AdminRoute />}>
+            <Route element={<AdminRoute children={<Outlet />} />}>
               <Route path="/admin" element={<AdminDashboard />} />
             </Route>
 
