@@ -66,7 +66,7 @@ const TrackVersionsDrawer: React.FC<TrackVersionsDrawerProps> = ({
                 key={version.id}
                 version={version}
                 trackId={trackId}
-                isCurrent={version.is_current}
+                isCurrent={version.is_latest_version}
               />
             ))}
           </div>

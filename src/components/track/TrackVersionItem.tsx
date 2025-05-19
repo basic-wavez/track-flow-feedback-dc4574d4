@@ -8,11 +8,14 @@ import { useNavigate } from "react-router-dom";
 
 interface TrackVersionItemProps {
   version: TrackVersion;
-  isLatest: boolean;
+  trackId: string;
+  isCurrent?: boolean;
 }
 
-const TrackVersionItem = ({ version, isLatest }: TrackVersionItemProps) => {
+const TrackVersionItem = ({ version, trackId, isCurrent = false }: TrackVersionItemProps) => {
   const navigate = useNavigate();
+  
+  const isLatest = isCurrent || version.is_latest_version;
   
   return (
     <div className="flex items-center justify-between py-2 border-b border-wip-gray/20 last:border-0">

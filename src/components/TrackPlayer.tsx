@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import Waveform from "./Waveform";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
@@ -154,7 +155,7 @@ const TrackPlayer = ({
         usingMp3={usingMp3}
         processingStatus={processingStatus}
         showProcessButton={false}
-        isRequestingProcessing={async () => {}}
+        isRequestingProcessing={false}
         onRequestProcessing={async () => {}}
         isOwner={isOwner}
         versionNumber={versionNumber}
