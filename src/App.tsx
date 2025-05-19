@@ -21,6 +21,10 @@ import FAQPage from './pages/FAQPage';
 import BugReportPage from './pages/BugReportPage';
 import CookieConsent from './components/CookieConsent';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import PlaylistsPage from './pages/PlaylistsPage';
+import PlaylistView from './pages/PlaylistView';
+import EditPlaylistPage from './pages/EditPlaylistPage';
+import AddTracksToPlaylist from './pages/AddTracksToPlaylist';
 
 // Create a client with stabilized configuration
 // This configuration prevents unnecessary refetches when tab regains focus
@@ -49,6 +53,12 @@ function App() {
           {/* Protected routes */}
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/track/:trackId/version" element={<ProtectedRoute><NewVersionPage /></ProtectedRoute>} />
+          
+          {/* Playlist routes */}
+          <Route path="/playlists" element={<ProtectedRoute><PlaylistsPage /></ProtectedRoute>} />
+          <Route path="/playlist/:playlistId" element={<ProtectedRoute><PlaylistView /></ProtectedRoute>} />
+          <Route path="/playlist/:playlistId/edit" element={<ProtectedRoute><EditPlaylistPage /></ProtectedRoute>} />
+          <Route path="/playlist/:playlistId/add-tracks" element={<ProtectedRoute><AddTracksToPlaylist /></ProtectedRoute>} />
           
           {/* Admin routes */}
           <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

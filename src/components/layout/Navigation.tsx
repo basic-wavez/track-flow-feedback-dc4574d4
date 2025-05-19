@@ -1,100 +1,78 @@
 
-import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { Bug, HelpCircle, Info, MessageSquare, LayoutDashboard } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
+import { Link, useNavigate } from "react-router-dom";
+import { ListMusic, Upload } from "lucide-react";
+import { useMobile } from "@/hooks/use-mobile";
+import Profile from "@/components/auth/Profile";
+import { Logo } from "./Logo";
 
 const Navigation = () => {
-  const { user, isAdmin } = useAuth();
-  const location = useLocation();
-  const isMobile = useIsMobile();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const isMobile = useMobile();
 
-  // Don't render Navigation on mobile screens
-  if (isMobile) {
-    return null;
-  }
+  // Don't show navigation on mobile - we have a separate MobileNav component
+  if (isMobile) return null;
 
   return (
-    <nav className="bg-wip-dark border-b border-wip-gray/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-center h-12">
-          <div className="flex space-x-8">
-            <Link
-              to="/"
-              className={`inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-300 hover:text-wip-pink border-b-2 ${
-                location.pathname === '/' ? 'border-wip-pink text-wip-pink' : 'border-transparent'
-              } hover:border-wip-pink transition-colors`}
-            >
-              Home
+    <header className="border-b border-wip-gray">
+      <div className="container max-w-6xl mx-auto px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-8">
+            <Link to="/" className="flex items-center">
+              <Logo className="h-8 w-auto" />
             </Link>
-            
-            <Link
-              to="/about"
-              className={`inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-300 hover:text-wip-pink border-b-2 ${
-                location.pathname === '/about' ? 'border-wip-pink text-wip-pink' : 'border-transparent'
-              } hover:border-wip-pink transition-colors`}
-            >
-              <Info className="h-4 w-4 mr-1" />
-              About
-            </Link>
-            
-            <div className="relative group">
-              <button className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-300 hover:text-wip-pink border-b-2 border-transparent hover:border-wip-pink transition-colors">
-                <HelpCircle className="h-4 w-4 mr-1" />
-                Support
-              </button>
-              <div className="absolute left-0 mt-2 w-48 bg-supabase-darker border border-supabase-border rounded-md shadow-lg z-10 hidden group-hover:block">
-                <div className="py-1">
+
+            <nav className="hidden md:flex items-center space-x-4">
+              {user && (
+                <>
                   <Link
-                    to="/faq"
-                    className="block px-4 py-2 text-sm text-gray-300 hover:bg-wip-pink/10 hover:text-wip-pink"
+                    to="/playlists"
+                    className="text-sm font-medium hover:text-wip-pink transition-colors"
                   >
-                    FAQ
+                    <span className="flex items-center gap-1">
+                      <ListMusic className="h-4 w-4" />
+                      Playlists
+                    </span>
                   </Link>
                   <Link
-                    to="/contact"
-                    className="block px-4 py-2 text-sm text-gray-300 hover:bg-wip-pink/10 hover:text-wip-pink"
+                    to="/profile"
+                    className="text-sm font-medium hover:text-wip-pink transition-colors"
                   >
-                    <MessageSquare className="h-4 w-4 inline mr-1" />
-                    Contact Us
+                    My Profile
                   </Link>
-                  <Link
-                    to="/bug-report"
-                    className="block px-4 py-2 text-sm text-gray-300 hover:bg-wip-pink/10 hover:text-wip-pink"
-                  >
-                    <Bug className="h-4 w-4 inline mr-1" />
-                    Report a Bug
-                  </Link>
-                </div>
-              </div>
-            </div>
-            
-            {user && (
+                </>
+              )}
               <Link
-                to="/profile"
-                className={`inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-300 hover:text-wip-pink border-b-2 ${
-                  location.pathname === '/profile' ? 'border-wip-pink text-wip-pink' : 'border-transparent'
-                } hover:border-wip-pink transition-colors`}
+                to="/about"
+                className="text-sm font-medium hover:text-wip-pink transition-colors"
               >
-                My Demos
+                About
               </Link>
-            )}
-            
-            {isAdmin && (
-              <Link
-                to="/admin"
-                className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
-                  location.pathname === '/admin' ? 'text-wip-pink border-wip-pink' : 'text-wip-pink/80 border-transparent'
-                } border-b-2 hover:text-wip-pink hover:border-wip-pink transition-colors`}
-              >
-                <LayoutDashboard className="h-4 w-4 mr-1" />
-                Admin
-              </Link>
+            </nav>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            {user ? (
+              <>
+                <Button
+                  variant="default"
+                  onClick={() => navigate("/")}
+                  className="bg-wip-pink hover:bg-wip-pink/90"
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  Upload
+                </Button>
+                <Profile />
+              </>
+            ) : (
+              <Button onClick={() => navigate("/auth")}>Sign In</Button>
             )}
           </div>
         </div>
       </div>
-    </nav>
+    </header>
   );
 };
 
