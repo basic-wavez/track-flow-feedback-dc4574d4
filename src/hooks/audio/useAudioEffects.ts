@@ -1,8 +1,7 @@
-
 import { useEffect } from "react";
 
 /**
- * Hook that handles audio special effects and side effects
+ * Hook that provides audio effects for the audio player
  */
 export function useAudioEffects({
   audioRef,
@@ -18,108 +17,75 @@ export function useAudioEffects({
   recentlySeekRef,
   currentTime,
   setCurrentTime,
-  hasRestoredAfterTabSwitch = { current: false },
-  allowBackgroundPlayback = false,
-  timeUpdateActiveRef = { current: true },
-  setSourceReady
-}: {
-  audioRef: React.RefObject<HTMLAudioElement>;
-  audioUrl: string | null | undefined;
-  setAudioLoaded: (loaded: boolean) => void;
-  setPlaybackState: (state: 'idle' | 'loading' | 'playing' | 'paused' | 'error') => void;
-  setDuration: (duration: number) => void;
-  clearBufferingTimeout: () => void;
-  setShowBufferingUI: (show: boolean) => void;
-  bufferingStartTimeRef: React.MutableRefObject<number | null>;
-  setIsGeneratingWaveform: (generating: boolean) => void;
-  playbackState: string;
-  recentlySeekRef: React.MutableRefObject<boolean>;
-  currentTime: number;
-  setCurrentTime: (time: number) => void;
-  hasRestoredAfterTabSwitch?: React.MutableRefObject<boolean>;
-  allowBackgroundPlayback?: boolean;
-  timeUpdateActiveRef?: React.MutableRefObject<boolean>;
-  setSourceReady?: (ready: boolean) => void;
-}) {
-  // Reset audio loaded state when URL changes
+  hasRestoredAfterTabSwitch,
+  allowBackgroundPlayback,
+  timeUpdateActiveRef
+}: any) {
+  // Reset state when audio URL changes
   useEffect(() => {
-    if (!audioUrl) return;
+    const audio = audioRef.current;
+    if (!audio) return;
     
-    console.log(`AudioEffects: Audio URL changed to ${audioUrl}`);
-    setAudioLoaded(false);
-    if (setSourceReady) {
-      setSourceReady(false);
-    }
-    
-    // Reset buffering state
-    clearBufferingTimeout();
-    bufferingStartTimeRef.current = null;
-    setShowBufferingUI(false);
-    
-    // Generate waveform if needed
-    if (!audioRef.current?.src?.includes(audioUrl)) {
-      setIsGeneratingWaveform(true);
+    if (audioUrl) {
+      console.log(`Audio URL changed to ${audioUrl}`);
+      
+      // Reset state when audio URL changes
+      setAudioLoaded(false);
+      
+      if (playbackState !== 'error') {
+        setPlaybackState('idle');
+      }
+      
+      // Reset buffering indicators
+      clearBufferingTimeout();
+      bufferingStartTimeRef.current = null;
+      setShowBufferingUI(false);
+      
+      // Reset waveform generation
+      setIsGeneratingWaveform(false);
+      
+      // Force load the audio to ensure metadata is loaded
+      audio.load();
+      
+      // After a short delay, check if the audio has a valid duration
+      setTimeout(() => {
+        if (audio && isFinite(audio.duration) && audio.duration > 0) {
+          setDuration(audio.duration);
+        }
+      }, 200);
     }
   }, [audioUrl]);
 
-  // Effect to update audio loaded state
+  // Keep audio element and state in sync
   useEffect(() => {
-    if (!audioUrl || !audioRef.current) return;
+    const audio = audioRef.current;
+    if (!audio) return;
     
-    // Track audio loaded state
-    if (audioRef.current.readyState >= 3) {
-      console.log(`AudioEffects: Audio loaded state reached: ${audioRef.current.readyState}`);
-      setAudioLoaded(true);
-      if (setSourceReady) {
-        setSourceReady(true);
-      }
-    }
-  }, [audioRef.current?.readyState, audioUrl, setAudioLoaded, setSourceReady]);
-  
-  // Reset waveform generation state when playback state changes
-  useEffect(() => {
-    if (playbackState === 'playing' || playbackState === 'paused') {
-      setIsGeneratingWaveform(false);
-    }
-  }, [playbackState, setIsGeneratingWaveform]);
-  
-  // Extra effect to handle tab switching
-  useEffect(() => {
-    function handleVisibilityChange() {
+    // Synchronize when tab becomes visible
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Document became visible again, updating audio state');
-        const audio = audioRef.current;
+        console.log('Tab visible - syncing audio effects');
         
-        if (audio && audioUrl) {
-          // Check if audio element has a valid source
-          if (audio.src !== audioUrl) {
-            console.log(`Restoring audio src to ${audioUrl} after visibility change`);
-            audio.src = audioUrl;
-            if (setSourceReady) {
-              setSourceReady(false);
-            }
+        // When coming back to the tab, check if audio has loaded
+        // and update duration if needed
+        if (audio && audio.readyState >= 2) {
+          if (isFinite(audio.duration)) {
+            setDuration(audio.duration);
           }
-          
-          // Check playback state
-          console.log('Current audio status:', {
-            paused: audio.paused,
-            ended: audio.ended,
-            muted: audio.muted,
-            volume: audio.volume,
-            readyState: audio.readyState,
-            currentTime: audio.currentTime,
-            duration: audio.duration
-          });
+          setAudioLoaded(true);
+        }
+        
+        // If audio is playing and we have a current position, sync with it
+        if (!audio.paused && !recentlySeekRef.current) {
+          setCurrentTime(audio.currentTime);
         }
       }
-    }
+    };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [audioRef, audioUrl, setSourceReady]);
-  
-  return {};
+  }, [audioRef, setCurrentTime, recentlySeekRef, setDuration, setAudioLoaded]);
 }
