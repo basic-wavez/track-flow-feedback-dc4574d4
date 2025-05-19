@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import Waveform from "./Waveform";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
@@ -7,6 +6,7 @@ import PlaybackControls from "./player/PlaybackControls";
 import TrackActions from "./player/TrackActions";
 import { isInServerCooldown } from "@/services/trackShareService";
 import { isWavFormat, getFileTypeFromUrl } from "@/lib/audioUtils";
+import { TrackVersion } from "@/types/track";
 
 interface TrackPlayerProps {
   trackId: string;
@@ -24,6 +24,7 @@ interface TrackPlayerProps {
   inCooldownPeriod?: boolean;
   downloadsEnabled?: boolean;
   versionNumber?: number;
+  trackVersions?: TrackVersion[];
 }
 
 const TrackPlayer = ({ 
@@ -41,7 +42,8 @@ const TrackPlayer = ({
   shareKey,
   inCooldownPeriod = false,
   downloadsEnabled = false,
-  versionNumber = 1
+  versionNumber = 1,
+  trackVersions = []
 }: TrackPlayerProps) => {
   // Local states
   const [serverCooldown, setServerCooldown] = useState(false);
@@ -152,7 +154,7 @@ const TrackPlayer = ({
         usingMp3={usingMp3}
         processingStatus={processingStatus}
         showProcessButton={false}
-        isRequestingProcessing={false}
+        isRequestingProcessing={async () => {}}
         onRequestProcessing={async () => {}}
         isOwner={isOwner}
         versionNumber={versionNumber}
@@ -200,6 +202,8 @@ const TrackPlayer = ({
         trackId={trackId}
         downloadsEnabled={downloadsEnabled}
         shareKey={shareKey}
+        trackVersions={trackVersions}
+        trackTitle={trackName}
       />
     </div>
   );

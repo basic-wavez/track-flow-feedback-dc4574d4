@@ -3,20 +3,22 @@ import { getFileTypeFromUrl, needsProcessingIndicator, isWavFormat } from "@/lib
 import TrackPlayer from "@/components/TrackPlayer";
 import ProcessingIndicator from "@/components/ProcessingIndicator";
 import { isInCooldownPeriod } from "@/services/playCountService";
-import { TrackData } from "@/types/track";
+import { TrackData, TrackVersion } from "@/types/track";
 
 interface TrackPlayerSectionProps {
   trackData: TrackData;
   currentShareKey?: string;
   isOwner: boolean;
   onProcessingComplete: () => void;
+  trackVersions: TrackVersion[];
 }
 
 const TrackPlayerSection: React.FC<TrackPlayerSectionProps> = ({
   trackData,
   currentShareKey,
   isOwner,
-  onProcessingComplete
+  onProcessingComplete,
+  trackVersions
 }) => {
   // Determine if share key is in cooldown period
   const inCooldownPeriod = currentShareKey ? isInCooldownPeriod(currentShareKey) : false;
@@ -89,6 +91,7 @@ const TrackPlayerSection: React.FC<TrackPlayerSectionProps> = ({
       processingStatus={trackData.processing_status}
       downloadsEnabled={trackData.downloads_enabled || false}
       versionNumber={versionNumber}
+      trackVersions={trackVersions}
     />
   );
 };

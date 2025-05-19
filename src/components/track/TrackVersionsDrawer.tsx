@@ -1,97 +1,86 @@
 
+import React from "react";
 import {
   Drawer,
   DrawerClose,
   DrawerContent,
-  DrawerDescription,
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import TrackVersionItem from "@/components/track/TrackVersionItem";
 import { TrackVersion } from "@/types/track";
-import { Button } from "../ui/button";
-import { ArrowUpCircle, History } from "lucide-react";
-import TrackVersionItem from "./TrackVersionItem";
-import { useNavigate } from "react-router-dom";
 
 interface TrackVersionsDrawerProps {
   trackId: string;
   trackTitle: string;
   versions: TrackVersion[];
   children?: React.ReactNode;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-const TrackVersionsDrawer = ({
+const TrackVersionsDrawer: React.FC<TrackVersionsDrawerProps> = ({
   trackId,
   trackTitle,
   versions,
   children,
-}: TrackVersionsDrawerProps) => {
-  const navigate = useNavigate();
-  // Always sort versions by version number (highest first)
-  const sortedVersions = [...versions].sort((a, b) => b.version_number - a.version_number);
-  // Log versions for debugging
-  console.log("TrackVersionsDrawer - Received versions:", versions.map(v => ({ id: v.id, version: v.version_number })));
-  console.log("TrackVersionsDrawer - Sorted versions:", sortedVersions.map(v => ({ id: v.id, version: v.version_number })));
+  isOpen,
+  onClose
+}) => {
+  const [open, setOpen] = React.useState(false);
   
-  const latestVersion = sortedVersions.find(v => v.is_latest_version) || sortedVersions[0];
+  // If external control props are provided, use them
+  React.useEffect(() => {
+    if (isOpen !== undefined) {
+      setOpen(isOpen);
+    }
+  }, [isOpen]);
   
-  const handleCreateNewVersion = () => {
-    navigate(`/track/${trackId}/version`);
+  // Handle internal state changes and notify parent if needed
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen && onClose) {
+      onClose();
+    }
   };
+  
+  // If no versions to show, don't render anything
+  if (!versions || versions.length === 0) {
+    return null;
+  }
 
   return (
-    <Drawer>
-      <DrawerTrigger asChild>
-        {children}
-      </DrawerTrigger>
-      <DrawerContent className="bg-wip-darker border-t border-wip-gray">
-        <div className="mx-auto w-full max-w-md">
-          <DrawerHeader>
-            <DrawerTitle className="text-xl">{trackTitle}</DrawerTitle>
-            <DrawerDescription>
-              {versions.length} version{versions.length !== 1 ? 's' : ''}
-            </DrawerDescription>
-          </DrawerHeader>
-          
-          <div className="p-4">
-            <div className="mb-4">
-              <Button 
-                className="w-full flex items-center gap-2"
-                onClick={handleCreateNewVersion}
-              >
-                <ArrowUpCircle className="h-4 w-4" />
-                Create New Version
-              </Button>
-            </div>
-            
-            <div className="bg-wip-dark rounded-lg border border-wip-gray p-4">
-              <h3 className="text-sm font-medium mb-3 flex items-center gap-2 text-gray-300">
-                <History className="h-4 w-4" />
-                Version History
-              </h3>
-              
-              <div className="space-y-1">
-                {sortedVersions.map(version => (
-                  <TrackVersionItem
-                    key={version.id}
-                    version={version}
-                    isLatest={version.id === latestVersion.id}
-                  />
-                ))}
-              </div>
-            </div>
+    <Drawer open={open} onOpenChange={handleOpenChange}>
+      {children && <DrawerTrigger asChild>{children}</DrawerTrigger>}
+      <DrawerContent className="bg-wip-dark border-t border-wip-gray">
+        <DrawerHeader>
+          <DrawerTitle className="text-center text-xl">
+            Version History for {trackTitle}
+          </DrawerTitle>
+        </DrawerHeader>
+        <div className="p-4">
+          <div className="space-y-4">
+            {versions.map((version) => (
+              <TrackVersionItem
+                key={version.id}
+                version={version}
+                trackId={trackId}
+                isCurrent={version.is_current}
+              />
+            ))}
           </div>
-          
-          <div className="mt-2 p-4 pt-0">
-            <DrawerClose asChild>
-              <Button variant="outline" className="w-full">Close</Button>
-            </DrawerClose>
-          </div>
+        </div>
+        <div className="p-4 flex justify-center">
+          <DrawerClose asChild>
+            <button className="px-4 py-2 rounded-md bg-wip-darker border border-wip-gray hover:bg-wip-gray/20 transition-colors">
+              Close
+            </button>
+          </DrawerClose>
         </div>
       </DrawerContent>
     </Drawer>
   );
 };
 
-export default TrackVersionsDrawer;
+export default React.memo(TrackVersionsDrawer);

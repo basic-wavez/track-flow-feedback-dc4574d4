@@ -78,7 +78,8 @@ const TrackView: React.FC = () => {
       
       <main className="flex-1 py-12 px-4">
         <div className="max-w-5xl mx-auto space-y-8">
-          
+          {/* We keep the HeaderSection component to maintain the structure,
+              but it won't display anything visible */}
           <TrackHeaderSection 
             trackId={trackData.id}
             displayName={displayName}
@@ -91,6 +92,7 @@ const TrackView: React.FC = () => {
             currentShareKey={currentShareKey}
             isOwner={isOwner}
             onProcessingComplete={handleProcessingComplete}
+            trackVersions={trackVersions}
           />
           
           <TrackTabsSection

@@ -1,16 +1,19 @@
-
 import { useState } from "react";
-import { Download, Share2, MoreHorizontal, Settings } from "lucide-react";
+import { Download, Share2, MoreHorizontal, Settings, FilePlus, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { incrementDownloadCount } from "@/services/trackShareService";
 import TrackSettingsDialog from "@/components/track/TrackSettingsDialog";
+import { useNavigate } from "react-router-dom";
+import TrackVersionsDrawer from "@/components/track/TrackVersionsDrawer";
+import { TrackVersion } from "@/types/track";
 
 interface TrackActionsProps {
   isOwner: boolean;
@@ -19,6 +22,8 @@ interface TrackActionsProps {
   trackId: string;
   downloadsEnabled?: boolean;
   shareKey?: string;
+  trackVersions?: TrackVersion[];
+  trackTitle?: string;
 }
 
 const TrackActions = ({ 
@@ -27,11 +32,15 @@ const TrackActions = ({
   originalFilename,
   trackId,
   downloadsEnabled = false,
-  shareKey
+  shareKey,
+  trackVersions = [],
+  trackTitle = "",
 }: TrackActionsProps) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const handleDownload = async () => {
     try {
@@ -114,6 +123,10 @@ const TrackActions = ({
       });
   };
   
+  const handleNewVersion = () => {
+    navigate(`/track/${trackId}/version`);
+  };
+  
   const showDownloadButton = isOwner || downloadsEnabled;
   
   return (
@@ -141,32 +154,57 @@ const TrackActions = ({
         Share
       </Button>
       
-      {isOwner && (
-        <>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {isOwner && (
+            <>
+              <DropdownMenuItem onClick={handleNewVersion}>
+                <FilePlus className="h-4 w-4 mr-2" />
+                New Version
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem onClick={() => setIsVersionsOpen(true)}>
+                <History className="h-4 w-4 mr-2" />
+                Version History
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              
               <DropdownMenuItem onClick={() => setIsSettingsOpen(true)}>
                 <Settings className="h-4 w-4 mr-2" />
                 Track Settings
               </DropdownMenuItem>
+              
               <DropdownMenuItem onClick={() => window.location.href = `/track/${trackId}/delete`} className="text-destructive">
                 Delete Track
               </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          
-          <TrackSettingsDialog 
-            isOpen={isSettingsOpen}
-            onClose={() => setIsSettingsOpen(false)}
-            trackId={trackId}
-            downloadsEnabled={downloadsEnabled}
-          />
-        </>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      
+      {/* Settings dialog */}
+      <TrackSettingsDialog 
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        trackId={trackId}
+        downloadsEnabled={downloadsEnabled}
+      />
+      
+      {/* Versions drawer */}
+      {isOwner && trackVersions.length > 0 && (
+        <TrackVersionsDrawer
+          isOpen={isVersionsOpen}
+          onClose={() => setIsVersionsOpen(false)}
+          trackId={trackId}
+          trackTitle={trackTitle}
+          versions={trackVersions}
+        />
       )}
     </div>
   );
