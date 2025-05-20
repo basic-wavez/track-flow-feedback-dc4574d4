@@ -1,15 +1,13 @@
 
-import { useRef, useMemo, useCallback, useEffect } from "react";
-import { useLocation } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-
+import { useRef, useMemo, useCallback } from "react";
 import { useAudioState } from "./useAudioState";
 import { useBufferingState } from "./useBufferingState";
 import { useAudioEvents } from "./useAudioEvents";
 import { useAudioControls } from "./useAudioControls";
 import { useAudioEffects } from "./useAudioEffects";
-import { usePlayCountTracking } from "./usePlayCountTracking";
-import { useVisibilityState } from "./useVisibilityState";
+import { startPlayTracking, endPlayTracking, cancelPlayTracking } from "@/services/playCountService";
+import { useLocation } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
@@ -29,8 +27,8 @@ export function useAudioPlayer({
   // Create audio element reference
   const audioRef = useRef<HTMLAudioElement>(null);
   
-  // Get visibility-related state
-  const { wasPlayingBeforeHideRef } = useVisibilityState();
+  // Store visibility-related state
+  const wasPlayingBeforeHideRef = useRef(false);
   
   // Get location to check if we're in a shared route
   const location = useLocation();
@@ -67,103 +65,27 @@ export function useAudioPlayer({
     clearBufferingTimeout
   } = useBufferingState();
 
-  // Play count tracking
-  const {
-    startTracking,
-    endTracking,
-    handleTrackEnd
-  } = usePlayCountTracking({
-    isPlaying,
-    isSharedRoute,
-    trackId,
-    shareKey,
-    user,
-    audioRef
-  });
-
-  // Setup audio source when URL changes
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !audioUrl) return;
-    
-    // Reset states
-    audio.pause();
-    audio.currentTime = 0;
-    setIsPlaying(false);
-    setPlaybackState('loading');
-    setAudioLoaded(false);
-    
-    // Show generating waveform state briefly when loading new audio
-    setIsGeneratingWaveform(true);
-    
-    // Important: Set crossOrigin first, before src
-    audio.crossOrigin = "anonymous";
-    
-    // Explicitly ensure audio is not muted
-    audio.muted = false;
-    setIsMuted(false);
-    
-    // Set the source - this triggers metadata loading
-    audio.src = audioUrl;
-    audio.load();
-    
-    // Hide waveform generation indicator after a delay
-    setTimeout(() => {
-      setIsGeneratingWaveform(false);
-    }, 1500);
-  }, [audioUrl, setIsPlaying, setPlaybackState, setAudioLoaded, setIsGeneratingWaveform, setIsMuted]);
-
-  // Custom toggle play/pause handler - memoized
+  // Custom toggle play/pause handler for play count tracking - memoized
   const handleTogglePlayPause = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio) {
-      console.error('Audio element not available');
-      return;
-    }
+    if (!audio) return;
 
     if (!isPlaying) {
-      // Starting to play - IMPORTANT: Source is already set in the useEffect
-      console.debug('Starting playback with URL:', audioUrl);
-      
-      // Record the time when play was clicked
-      playClickTimeRef.current = Date.now();
-      
-      // Clear any buffering state
-      clearBufferingTimeout();
-      setShowBufferingUI(false);
-      
-      // Set state to loading while we prepare to play
-      setPlaybackState('loading');
-      
-      // Explicitly ensure we're not muted
-      audio.muted = false;
-      setIsMuted(false);
-      
-      // Try to resume the audio context if we're using it
-      const audioContext = (window as any).audioContext;
-      if (audioContext && audioContext.state === 'suspended') {
-        console.log('Resuming AudioContext');
-        audioContext.resume()
-          .then(() => {
-            console.log('AudioContext resumed successfully');
-          })
-          .catch((err: any) => console.error('Failed to resume AudioContext:', err));
-      }
-      
-      // Now attempt to play (source is already set)
+      // Starting to play
       audio.play()
         .then(() => {
-          console.debug('Playback started successfully for URL:', audioUrl);
           setIsPlaying(true);
           setPlaybackState('playing');
           
-          // Start tracking play count
-          startTracking();
+          // Only track plays if user is logged in or if we're not on a shared route
+          if (user || isSharedRoute) {
+            // Start tracking play time for this track
+            startPlayTracking(trackId || null, shareKey || null);
+          }
         })
         .catch(error => {
           console.error('Error playing audio:', error);
           setPlaybackState('error');
-          setIsPlaying(false);
         });
     } else {
       // Pausing playback
@@ -171,10 +93,42 @@ export function useAudioPlayer({
       setIsPlaying(false);
       setPlaybackState('paused');
       
-      // End tracking when pausing
-      endTracking();
+      // Only end tracking when user is authenticated or we're on a shared route
+      if (user || isSharedRoute) {
+        // Only end tracking when pausing if we've played for some time
+        if (audio.currentTime > 2) {
+          endPlayTracking()
+            .then(incremented => {
+              if (incremented) {
+                console.log("Play count incremented successfully");
+              }
+            })
+            .catch(error => {
+              console.error("Error handling play count:", error);
+            });
+        } else {
+          cancelPlayTracking();
+        }
+      }
     }
-  }, [audioUrl, isPlaying, setIsPlaying, setPlaybackState, startTracking, endTracking, clearBufferingTimeout, playClickTimeRef, setShowBufferingUI, setIsMuted]);
+  }, [isPlaying, isSharedRoute, setIsPlaying, setPlaybackState, shareKey, trackId, user]);
+
+  // Handle reaching the end of the track - memoized
+  const handleTrackEnd = useCallback(() => {
+    // Only track plays if user is logged in or if we're on a shared route
+    if (user || isSharedRoute) {
+      // Track has finished playing naturally, check if we should increment
+      endPlayTracking()
+        .then(incremented => {
+          if (incremented) {
+            console.log("Play count incremented after track finished");
+          }
+        })
+        .catch(error => {
+          console.error("Error handling play count at track end:", error);
+        });
+    }
+  }, [isSharedRoute, user]);
   
   // Setup audio event listeners
   useAudioEvents({

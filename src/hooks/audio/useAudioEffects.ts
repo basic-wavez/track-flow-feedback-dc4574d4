@@ -18,6 +18,32 @@ export function useAudioEffects({
   recentlySeekRef,
   currentTime
 }: any) {
+  // When mp3Url changes, reload the audio element
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !audioUrl) return;
+    
+    // Reset states on new audio load
+    setAudioLoaded(false);
+    setPlaybackState('loading');
+    setDuration(0);
+    clearBufferingTimeout();
+    setShowBufferingUI(false);
+    bufferingStartTimeRef.current = null;
+    
+    console.log(`Loading audio: ${audioUrl}`);
+    
+    // Show generating waveform state briefly when loading new audio
+    setIsGeneratingWaveform(true);
+    setTimeout(() => {
+      setIsGeneratingWaveform(false);
+    }, 1500);
+    
+    audio.src = audioUrl;
+    audio.load();
+    
+  }, [audioUrl]);
+
   // Clean up on unmount
   useEffect(() => {
     return () => {
