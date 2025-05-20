@@ -1,5 +1,5 @@
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { PlaylistTrack, PlaylistWithTracks } from "@/types/playlist";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -24,63 +24,45 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Check if we're on a shared route - memoized
-  const isSharedRoute = useMemo(() => 
-    location.pathname.includes('/shared/'), [location.pathname]);
+  // Check if we're on a shared route
+  const isSharedRoute = location.pathname.includes('/shared/');
 
-  // Calculate the current track based on the index - memoized
-  const currentTrack = useMemo(() => 
-    playlist && currentTrackIndex >= 0 && currentTrackIndex < playlist.tracks.length
-      ? playlist.tracks[currentTrackIndex]
-      : null, 
-    [playlist, currentTrackIndex]
-  );
+  // Calculate the current track based on the index
+  const currentTrack = playlist && currentTrackIndex >= 0 && currentTrackIndex < playlist.tracks.length
+    ? playlist.tracks[currentTrackIndex]
+    : null;
 
   // Set up media session API
   useEffect(() => {
-    if (!('mediaSession' in navigator) || !currentTrack) return;
-    
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: currentTrack.track?.title || 'Unknown Track',
-      artist: playlist?.name || 'Unknown Playlist',
-    });
+    if ('mediaSession' in navigator && currentTrack) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentTrack.track?.title || 'Unknown Track',
+        artist: playlist?.name || 'Unknown Playlist',
+      });
 
-    // Set up media session action handlers
-    const actionHandlers = [
-      ['play', () => setIsPlaying(true)],
-      ['pause', () => setIsPlaying(false)],
-      ['nexttrack', playNextTrack],
-      ['previoustrack', playPreviousTrack]
-    ] as const;
-    
-    // Register each handler
-    actionHandlers.forEach(([action, handler]) => {
-      try {
-        navigator.mediaSession.setActionHandler(action, handler);
-      } catch (error) {
-        console.log(`The media session action "${action}" is not supported`);
-      }
-    });
+      navigator.mediaSession.setActionHandler('play', () => togglePlayPause());
+      navigator.mediaSession.setActionHandler('pause', () => togglePlayPause());
+      navigator.mediaSession.setActionHandler('nexttrack', () => playNextTrack());
+      navigator.mediaSession.setActionHandler('previoustrack', () => playPreviousTrack());
+    }
     
     return () => {
-      // Clean up handlers when component unmounts or track changes
-      actionHandlers.forEach(([action]) => {
-        try {
-          navigator.mediaSession.setActionHandler(action, null);
-        } catch (error) {
-          // Ignore errors when cleaning up
-        }
-      });
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler('play', null);
+        navigator.mediaSession.setActionHandler('pause', null);
+        navigator.mediaSession.setActionHandler('nexttrack', null);
+        navigator.mediaSession.setActionHandler('previoustrack', null);
+      }
     };
-  }, [currentTrack, playlist?.name]);
+  }, [currentTrack, isPlaying]);
 
-  // Set the playlist and optionally start playing a track - memoized
-  const setPlaylist = useCallback((newPlaylist: PlaylistWithTracks) => {
+  // Set the playlist and optionally start playing a track
+  const setPlaylist = (newPlaylist: PlaylistWithTracks) => {
     setPlaylistState(newPlaylist);
-  }, []);
+  };
 
-  // Play a specific track by index - memoized
-  const playTrack = useCallback((index: number) => {
+  // Play a specific track by index
+  const playTrack = (index: number) => {
     if (!playlist || index < 0 || index >= playlist.tracks.length) return;
     
     console.log("PlaylistContext: Playing track at index:", index);
@@ -97,23 +79,23 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
         const shareKey = pathParts[shareKeyIndex];
         navigate(`/shared/playlist/${shareKey}/play`);
       }
-    } else if (playlist) {
+    } else {
       navigate(`/playlist/${playlist.id}/play`);
     }
-  }, [playlist, isSharedRoute, location.pathname, navigate]);
+  };
 
-  // Play the next track in the playlist - memoized
-  const playNextTrack = useCallback(() => {
+  // Play the next track in the playlist
+  const playNextTrack = () => {
     if (!playlist || playlist.tracks.length === 0) return;
     
     const nextIndex = (currentTrackIndex + 1) % playlist.tracks.length;
     console.log("PlaylistContext: Playing next track:", nextIndex);
     setCurrentTrackIndex(nextIndex);
     setIsPlaying(true);
-  }, [currentTrackIndex, playlist]);
+  };
 
-  // Play the previous track in the playlist - memoized
-  const playPreviousTrack = useCallback(() => {
+  // Play the previous track in the playlist
+  const playPreviousTrack = () => {
     if (!playlist || playlist.tracks.length === 0) return;
     
     const prevIndex = currentTrackIndex <= 0 
@@ -123,16 +105,15 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
     console.log("PlaylistContext: Playing previous track:", prevIndex);
     setCurrentTrackIndex(prevIndex);
     setIsPlaying(true);
-  }, [currentTrackIndex, playlist]);
+  };
 
-  // Toggle play/pause state - memoized
-  const togglePlayPause = useCallback(() => {
+  // Toggle play/pause state
+  const togglePlayPause = () => {
     console.log("PlaylistContext: Toggling play/pause from", isPlaying, "to", !isPlaying);
     setIsPlaying(prev => !prev);
-  }, [isPlaying]);
+  };
 
-  // Memoize context value to prevent unnecessary re-renders
-  const value = useMemo(() => ({
+  const value = {
     playlist,
     currentTrackIndex,
     isPlaying,
@@ -142,17 +123,7 @@ export function PlaylistPlayerProvider({ children }: { children: ReactNode }) {
     playPreviousTrack,
     togglePlayPause,
     currentTrack
-  }), [
-    playlist,
-    currentTrackIndex,
-    isPlaying,
-    setPlaylist,
-    playTrack,
-    playNextTrack,
-    playPreviousTrack,
-    togglePlayPause,
-    currentTrack
-  ]);
+  };
 
   return (
     <PlaylistPlayerContext.Provider value={value}>
