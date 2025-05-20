@@ -37,14 +37,23 @@ const AudioElement: React.FC<AudioElementProps> = ({
     audio.crossOrigin = "anonymous";
     audio.src = playbackUrl;
     
-    // Log readyState when play is triggered for debugging
-    const logReadyState = () => {
-      console.debug('Audio readyState after play:', audio.readyState);
+    // If isPlaying flag is true, start playback after setting the source
+    if (isPlaying) {
+      audio.play().catch(err => {
+        console.error('Could not start playback:', err);
+      });
+    }
+    
+    // Log readyState for debugging
+    console.debug('Audio element configured with src:', playbackUrl);
+    
+    const logPlayEvent = () => {
+      console.debug('Audio play event triggered, readyState:', audio.readyState);
     };
     
-    audio.addEventListener('play', logReadyState, { once: true });
-    return () => audio.removeEventListener('play', logReadyState);
-  }, [playbackUrl, audioRef]);
+    audio.addEventListener('play', logPlayEvent, { once: true });
+    return () => audio.removeEventListener('play', logPlayEvent);
+  }, [playbackUrl, audioRef, isPlaying]);
   
   return <audio ref={audioRef} preload="auto" />;
 };
