@@ -8,11 +8,15 @@ export interface AudioContextState {
   isInitialized: boolean;
   fftSize: number;
   setFFTSize: (size: number) => void;
+  error: Error | null;
+  corsIssueDetected: boolean;
 }
 
 export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement | null>) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [fftSize, setFFTSize] = useState(2048); // Default FFT size
+  const [error, setError] = useState<Error | null>(null);
+  const [corsIssueDetected, setCorsIssueDetected] = useState(false);
   
   // Use refs to avoid re-creating the audio nodes
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -39,23 +43,54 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement | nul
         analyserNodeRef.current.fftSize = fftSize;
         analyserNodeRef.current.smoothingTimeConstant = 0.85;
         
-        // Connect source node
-        sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current!);
-        sourceNodeRef.current.connect(analyserNodeRef.current);
-        
-        // Connect to destination (speakers)
-        analyserNodeRef.current.connect(audioContextRef.current.destination);
-        
-        setIsInitialized(true);
-        console.log('Audio context initialized for visualizers');
+        try {
+          // Connect source node - this is where CORS errors typically happen
+          sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current!);
+          sourceNodeRef.current.connect(analyserNodeRef.current);
+          
+          // Connect to destination (speakers)
+          analyserNodeRef.current.connect(audioContextRef.current.destination);
+          
+          setIsInitialized(true);
+          console.log('Audio context initialized for visualizers');
+        } catch (err) {
+          // Handle CORS errors specifically
+          console.error('Error connecting audio source:', err);
+          
+          if (err instanceof DOMException && 
+             (err.message.includes('security') || 
+              err.message.includes('CORS') || 
+              err.message.includes('cross-origin'))) {
+            setCorsIssueDetected(true);
+            console.warn('CORS issue detected with audio source. Visualizers will be disabled.');
+          }
+          
+          setError(err instanceof Error ? err : new Error(String(err)));
+          
+          // Attempt to clean up any partially created resources
+          if (sourceNodeRef.current) {
+            sourceNodeRef.current.disconnect();
+            sourceNodeRef.current = null;
+          }
+          
+          if (analyserNodeRef.current) {
+            analyserNodeRef.current.disconnect();
+          }
+          
+          if (audioContextRef.current) {
+            audioContextRef.current.close().catch(console.error);
+            audioContextRef.current = null;
+          }
+        }
       } catch (error) {
         console.error('Failed to initialize audio context:', error);
+        setError(error instanceof Error ? error : new Error(String(error)));
       }
     };
 
     // Initialize on user interaction (play/click)
     const handleInteraction = () => {
-      if (!isInitialized) {
+      if (!isInitialized && !corsIssueDetected) {
         initializeAudio();
       }
     };
@@ -78,10 +113,10 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement | nul
       }
       
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close();
+        audioContextRef.current.close().catch(console.error);
       }
     };
-  }, [audioRef, isInitialized]);
+  }, [audioRef, isInitialized, corsIssueDetected]);
 
   // Update FFT size when it changes
   useEffect(() => {
@@ -98,7 +133,9 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement | nul
     isInitialized,
     fftSize,
     setFFTSize,
-  }), [isInitialized, fftSize]);
+    error,
+    corsIssueDetected
+  }), [isInitialized, fftSize, error, corsIssueDetected]);
 
   return audioContextState;
 }
