@@ -1,4 +1,3 @@
-
 import { memo } from "react";
 import { TrackVersion } from "@/types/track";
 import TrackHeader from "./player/TrackHeader";
@@ -99,7 +98,6 @@ const TrackPlayer = ({
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
       <AudioElement
         audioRef={audioRef}
-        playbackUrl={playbackUrl}
         isPlaying={isPlaying}
         isPlaylistMode={isPlaylistMode}
       />
