@@ -99,6 +99,10 @@ export function useAudioPlayer({
     // Important: Set crossOrigin first, before src
     audio.crossOrigin = "anonymous";
     
+    // Explicitly ensure audio is not muted
+    audio.muted = false;
+    setIsMuted(false);
+    
     // Set the source - this triggers metadata loading
     audio.src = audioUrl;
     audio.load();
@@ -107,7 +111,7 @@ export function useAudioPlayer({
     setTimeout(() => {
       setIsGeneratingWaveform(false);
     }, 1500);
-  }, [audioUrl, setIsPlaying, setPlaybackState, setAudioLoaded, setIsGeneratingWaveform]);
+  }, [audioUrl, setIsPlaying, setPlaybackState, setAudioLoaded, setIsGeneratingWaveform, setIsMuted]);
 
   // Custom toggle play/pause handler - memoized
   const handleTogglePlayPause = useCallback(() => {
@@ -131,11 +135,19 @@ export function useAudioPlayer({
       // Set state to loading while we prepare to play
       setPlaybackState('loading');
       
+      // Explicitly ensure we're not muted
+      audio.muted = false;
+      setIsMuted(false);
+      
       // Try to resume the audio context if we're using it
       const audioContext = (window as any).audioContext;
       if (audioContext && audioContext.state === 'suspended') {
         console.log('Resuming AudioContext');
-        audioContext.resume().catch((err: any) => console.error('Failed to resume AudioContext:', err));
+        audioContext.resume()
+          .then(() => {
+            console.log('AudioContext resumed successfully');
+          })
+          .catch((err: any) => console.error('Failed to resume AudioContext:', err));
       }
       
       // Now attempt to play (source is already set)
@@ -162,7 +174,7 @@ export function useAudioPlayer({
       // End tracking when pausing
       endTracking();
     }
-  }, [audioUrl, isPlaying, setIsPlaying, setPlaybackState, startTracking, endTracking, clearBufferingTimeout, playClickTimeRef, setShowBufferingUI]);
+  }, [audioUrl, isPlaying, setIsPlaying, setPlaybackState, startTracking, endTracking, clearBufferingTimeout, playClickTimeRef, setShowBufferingUI, setIsMuted]);
   
   // Setup audio event listeners
   useAudioEvents({

@@ -46,6 +46,9 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement | nul
         // Connect to destination (speakers)
         analyserNodeRef.current.connect(audioContextRef.current.destination);
         
+        // Store the AudioContext in window for other components to access
+        (window as any).audioContext = audioContextRef.current;
+        
         setIsInitialized(true);
         console.log('Audio context initialized for visualizers');
       } catch (error) {
