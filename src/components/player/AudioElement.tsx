@@ -28,7 +28,7 @@ const AudioElement: React.FC<AudioElementProps> = ({
     return () => audio.removeEventListener('ended', handleTrackEnd);
   }, [contextPlayNext, isPlaylistMode, audioRef]);
   
-  return <audio ref={audioRef} src={playbackUrl} preload="auto" />;
+  return <audio ref={audioRef} crossOrigin="anonymous" src={playbackUrl} preload="auto" />;
 };
 
 export default AudioElement;
