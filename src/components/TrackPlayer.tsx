@@ -210,11 +210,12 @@ const TrackPlayer = ({
   
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
-      {/* Main audio element */}
+      {/* Main audio element - adding crossOrigin attribute */}
       <audio 
         ref={audioRef} 
         src={playbackUrl}
         preload="auto"
+        crossOrigin="anonymous"
       />
       
       <TrackHeader 
