@@ -68,25 +68,54 @@ export function useAudioPlayer({
   // Custom toggle play/pause handler for play count tracking - memoized
   const handleTogglePlayPause = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      console.error('Audio element not available');
+      return;
+    }
 
     if (!isPlaying) {
-      // Starting to play
-      audio.play()
-        .then(() => {
-          setIsPlaying(true);
-          setPlaybackState('playing');
-          
-          // Only track plays if user is logged in or if we're not on a shared route
-          if (user || isSharedRoute) {
-            // Start tracking play time for this track
-            startPlayTracking(trackId || null, shareKey || null);
-          }
-        })
-        .catch(error => {
-          console.error('Error playing audio:', error);
-          setPlaybackState('error');
-        });
+      // Starting to play - IMPORTANT: Set up everything in the correct order
+      console.debug('Starting playback with URL:', audioUrl);
+      
+      // First pause any existing playback and reset
+      audio.pause();
+      audio.currentTime = 0;
+      
+      // Set crossOrigin first (before src)
+      audio.crossOrigin = "anonymous";
+      
+      // Set the source - this triggers the browser to queue the fetch
+      if (audioUrl && audioUrl.startsWith('http')) {
+        audio.src = audioUrl;
+        
+        // Explicitly load the audio
+        audio.load();
+        
+        // Set state to loading while we prepare the audio
+        setPlaybackState('loading');
+        
+        // Now attempt to play
+        audio.play()
+          .then(() => {
+            console.debug('Playback started successfully for URL:', audioUrl);
+            setIsPlaying(true);
+            setPlaybackState('playing');
+            
+            // Only track plays if user is logged in or if we're not on a shared route
+            if (user || isSharedRoute) {
+              // Start tracking play time for this track
+              startPlayTracking(trackId || null, shareKey || null);
+            }
+          })
+          .catch(error => {
+            console.error('Error playing audio:', error);
+            setPlaybackState('error');
+            setIsPlaying(false);
+          });
+      } else {
+        console.error('Invalid or missing audio URL:', audioUrl);
+        setPlaybackState('error');
+      }
     } else {
       // Pausing playback
       audio.pause();
@@ -111,7 +140,7 @@ export function useAudioPlayer({
         }
       }
     }
-  }, [isPlaying, isSharedRoute, setIsPlaying, setPlaybackState, shareKey, trackId, user]);
+  }, [audioUrl, isPlaying, isSharedRoute, setIsPlaying, setPlaybackState, shareKey, trackId, user]);
 
   // Handle reaching the end of the track - memoized
   const handleTrackEnd = useCallback(() => {

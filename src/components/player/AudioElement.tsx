@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
 
 interface AudioElementProps {
@@ -16,8 +16,6 @@ const AudioElement: React.FC<AudioElementProps> = ({
   isPlaylistMode = false
 }) => {
   const { playNextTrack: contextPlayNext } = usePlaylistPlayer();
-  const previousUrlRef = useRef<string>('');
-  const playAttemptTimeoutRef = useRef<number | null>(null);
   
   // Handle track end for playlist autoplay
   useEffect(() => {
@@ -29,119 +27,6 @@ const AudioElement: React.FC<AudioElementProps> = ({
     audio.addEventListener('ended', handleTrackEnd);
     return () => audio.removeEventListener('ended', handleTrackEnd);
   }, [contextPlayNext, isPlaylistMode, audioRef]);
-  
-  // Combined audio source setup and playback control in one effect
-  // to ensure proper sequencing of operations
-  useEffect(() => {
-    // Clear any pending play attempts when effect runs
-    if (playAttemptTimeoutRef.current) {
-      window.clearTimeout(playAttemptTimeoutRef.current);
-      playAttemptTimeoutRef.current = null;
-    }
-    
-    const audio = audioRef.current;
-    if (!audio) {
-      console.error('Audio element not available');
-      return;
-    }
-    
-    if (!playbackUrl) {
-      console.error('No playback URL provided');
-      return;
-    }
-    
-    // Log the current state to help diagnose issues
-    console.debug('AudioElement effect running with:', { 
-      playbackUrl, 
-      isPlaying, 
-      currentSrc: audio.src,
-      previousUrl: previousUrlRef.current
-    });
-    
-    // Validate URL format (basic check)
-    if (!playbackUrl.startsWith('http')) {
-      console.error('Invalid playback URL format:', playbackUrl);
-      return;
-    }
-    
-    // If URL hasn't changed, just handle play state
-    if (previousUrlRef.current === playbackUrl) {
-      console.debug('URL unchanged, only updating play state:', { isPlaying });
-      
-      if (isPlaying) {
-        if (audio.paused && audio.readyState >= 2) {
-          console.debug('Playing with existing source');
-          audio.play()
-            .then(() => console.debug('Playback started'))
-            .catch(err => console.error('Play failed with existing source:', err));
-        }
-      } else {
-        audio.pause();
-      }
-      return;
-    }
-    
-    // URL has changed, need to reset and reconfigure audio
-    console.debug('Setting up new audio source:', playbackUrl);
-    
-    // Always pause and reset before changing source
-    audio.pause();
-    audio.currentTime = 0;
-    
-    // Set crossOrigin first (before src)
-    audio.crossOrigin = "anonymous";
-    
-    try {
-      // Save the URL we're about to use
-      previousUrlRef.current = playbackUrl;
-      
-      // Set the source
-      audio.src = playbackUrl;
-      console.debug('Audio source set:', playbackUrl);
-      
-      // Load the audio (explicit call)
-      audio.load();
-      
-      // If we should be playing, set up a play attempt
-      if (isPlaying) {
-        // Wait for metadata loading to start
-        const attemptPlay = () => {
-          console.debug('Attempting to play, readyState:', audio.readyState);
-          
-          audio.play()
-            .then(() => {
-              console.debug('Playback started successfully');
-            })
-            .catch(err => {
-              console.error('Play failed:', err.name, err.message);
-              
-              // If not ready, retry once more after a delay
-              if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
-                console.debug('Retrying play after delay');
-                playAttemptTimeoutRef.current = window.setTimeout(() => {
-                  audio.play()
-                    .then(() => console.debug('Retry playback successful'))
-                    .catch(retryErr => console.error('Retry play failed:', retryErr));
-                }, 300);
-              }
-            });
-        };
-        
-        // Small delay before playing to allow browser to process the source change
-        playAttemptTimeoutRef.current = window.setTimeout(attemptPlay, 100);
-      }
-    } catch (err) {
-      console.error('Error configuring audio source:', err);
-    }
-    
-    // Clean up function
-    return () => {
-      if (playAttemptTimeoutRef.current) {
-        window.clearTimeout(playAttemptTimeoutRef.current);
-        playAttemptTimeoutRef.current = null;
-      }
-    };
-  }, [playbackUrl, isPlaying, audioRef]); // Dependencies include all used variables
   
   // Enhanced debug event listeners
   useEffect(() => {
