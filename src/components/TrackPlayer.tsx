@@ -1,15 +1,8 @@
+
 import { memo } from "react";
 import { TrackVersion } from "@/types/track";
-import TrackHeader from "./player/TrackHeader";
-import PlaybackControls from "./player/PlaybackControls";
-import TrackActions from "./player/TrackActions";
 import { isWavFormat, getFileTypeFromUrl } from "@/lib/audioUtils";
-import AudioStatusIndicator from "./player/AudioStatusIndicator";
-import WaveformSection from "./player/WaveformSection";
-import PlaylistModeIndicator from "./player/PlaylistModeIndicator";
-import AudioVisualizer from "./visualizers/AudioVisualizer";
-import AudioElement from "./player/AudioElement";
-import PlayerStateManager from "./player/PlayerStateManager";
+import TrackPlayerContainer from "./player/TrackPlayerContainer";
 import { useTrackPlayer } from "@/hooks/useTrackPlayer";
 
 interface TrackPlayerProps {
@@ -95,105 +88,44 @@ const TrackPlayer = ({
   });
   
   return (
-    <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
-      <AudioElement
-        audioRef={audioRef}
-        isPlaying={isPlaying}
-        isPlaylistMode={isPlaylistMode}
-      />
-      
-      <PlayerStateManager
-        audioRef={audioRef}
-        shareKey={shareKey}
-        playbackState={playbackState}
-        currentTime={currentTime}
-        duration={duration}
-      >
-        {({ serverCooldown, playedRecently }) => {
-          // Determine combined cooldown state
-          const isCooldown = inCooldownPeriod || serverCooldown;
-          
-          return (
-            <>
-              <TrackHeader 
-                trackId={trackId}
-                trackName={trackName}
-                playbackState={playbackState}
-                isLoading={isLoading || playbackState === 'loading'}
-                usingMp3={usingMp3}
-                processingStatus={processingStatus}
-                showProcessButton={false}
-                isRequestingProcessing={false}
-                onRequestProcessing={async () => {}}
-                isOwner={isOwner}
-                versionNumber={versionNumber}
-              />
-              
-              <PlaybackControls 
-                isPlaying={isPlaying}
-                playbackState={playbackState}
-                currentTime={currentTime}
-                duration={duration}
-                volume={volume}
-                isMuted={isMuted}
-                isLoading={isLoading || playbackState === 'loading'}
-                onPlayPause={handleTogglePlayPause}
-                onVolumeChange={handleVolumeChange}
-                onToggleMute={toggleMute}
-                isPlaylistMode={isPlaylistMode}
-                onPrevious={isPlaylistMode ? contextPlayPrevious : undefined}
-                onNext={isPlaylistMode ? contextPlayNext : undefined}
-              />
-              
-              <PlaylistModeIndicator 
-                isPlaylistMode={isPlaylistMode}
-                currentIndex={currentIndex}
-                totalTracks={totalTracks}
-              />
-              
-              <AudioStatusIndicator 
-                isPlayingWav={isPlayingWav}
-                processingStatus={processingStatus}
-              />
-              
-              <WaveformSection 
-                playbackUrl={playbackUrl}
-                waveformUrl={waveformUrl}
-                isPlaying={isPlaying}
-                currentTime={currentTime}
-                duration={duration}
-                handleSeek={handleSeek}
-                isBuffering={isBuffering}
-                showBufferingUI={showBufferingUI}
-                usingMp3={usingMp3}
-                usingOpus={usingOpus}
-                isGeneratingWaveform={isGeneratingWaveform}
-                audioLoaded={audioLoaded}
-              />
-              
-              {/* Audio Visualizer */}
-              <AudioVisualizer 
-                audioRef={audioRef}
-                isPlaying={isPlaying}
-              />
-              
-              {!isPlaylistMode && (
-                <TrackActions 
-                  isOwner={isOwner}
-                  originalUrl={originalUrl}
-                  originalFilename={originalFilename}
-                  trackId={trackId}
-                  downloadsEnabled={downloadsEnabled}
-                  shareKey={shareKey}
-                  trackVersions={trackVersions}
-                  trackTitle={trackName}
-                />
-              )}
-            </>
-          );
-        }}
-      </PlayerStateManager>
-    </div>
+    <TrackPlayerContainer
+      trackId={trackId}
+      trackName={trackName}
+      audioRef={audioRef}
+      isPlaying={isPlaying}
+      currentTime={currentTime}
+      duration={duration}
+      volume={volume}
+      isMuted={isMuted}
+      playbackState={playbackState}
+      isGeneratingWaveform={isGeneratingWaveform}
+      audioLoaded={audioLoaded}
+      showBufferingUI={showBufferingUI}
+      isBuffering={isBuffering}
+      handleTogglePlayPause={handleTogglePlayPause}
+      handleSeek={handleSeek}
+      toggleMute={toggleMute}
+      handleVolumeChange={handleVolumeChange}
+      isPlayingWav={isPlayingWav}
+      contextPlayNext={contextPlayNext}
+      contextPlayPrevious={contextPlayPrevious}
+      playbackUrl={playbackUrl}
+      waveformUrl={waveformUrl}
+      usingMp3={usingMp3}
+      usingOpus={usingOpus}
+      processingStatus={processingStatus}
+      isOwner={isOwner}
+      isPlaylistMode={isPlaylistMode}
+      currentIndex={currentIndex}
+      totalTracks={totalTracks}
+      isLoading={isLoading}
+      shareKey={shareKey}
+      originalUrl={originalUrl}
+      originalFilename={originalFilename}
+      downloadsEnabled={downloadsEnabled}
+      trackVersions={trackVersions}
+      versionNumber={versionNumber}
+    />
   );
 };
 
