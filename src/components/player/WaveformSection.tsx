@@ -1,7 +1,7 @@
 
 import React from 'react';
 import Waveform from "../Waveform";
-import FFTVisualizer from '../visualizer/FFTVisualizer';
+import MultiVisualizer from '../visualizer/MultiVisualizer';
 
 interface WaveformSectionProps {
   playbackUrl: string | undefined;
@@ -34,12 +34,12 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   isGeneratingWaveform,
   audioLoaded,
   audioRef,
-  showFFTVisualizer = false
+  showFFTVisualizer = true
 }) => {
   return (
     <>
       {showFFTVisualizer && (
-        <FFTVisualizer 
+        <MultiVisualizer 
           audioRef={audioRef}
           isPlaying={isPlaying}
           className="mb-4"
