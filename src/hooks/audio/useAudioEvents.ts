@@ -109,16 +109,12 @@ export function useAudioEvents({
       clearBufferingTimeout();
       setShowBufferingUI(false); // Always hide buffering UI when we can play
       
-      // FIXED: Always resume playback if isPlaying is true, regardless of playbackState
-      if (isPlaying) {
+      // If we're supposed to be playing but aren't, try to resume
+      if (isPlaying && audio.paused) {
         console.log('Resuming playback after canplay event');
         audio.play()
-          .then(() => {
-            setPlaybackState('playing');
-            setLoadRetries(0);
-          })
           .catch(error => {
-            console.error(`Error playing audio:`, error);
+            console.error(`Error resuming playback:`, error);
             handlePlaybackError();
           });
       } else if (playbackState === 'loading') {
@@ -127,9 +123,10 @@ export function useAudioEvents({
     };
     
     const handleWaiting = () => {
+      // Just log the waiting event, don't pause or show buffering UI
       console.log(`Audio is waiting/buffering`);
       
-      // Only log buffering state for debugging, never show UI or change state
+      // Only log buffering state for debugging
       const timeSinceLastSeek = Date.now() - lastSeekTimeRef.current;
       const timeSincePlayClick = Date.now() - playClickTimeRef.current;
       
@@ -137,12 +134,7 @@ export function useAudioEvents({
       console.log(`Time since play click: ${timeSincePlayClick}ms`);
       console.log(`Current time: ${audio.currentTime}`);
       
-      // FIXED: No longer pausing audio during waiting/buffering events
-      
-      // Reset buffering state and never show the UI
-      clearBufferingTimeout();
-      bufferingStartTimeRef.current = null;
-      
+      // Let the browser handle buffering natively
       // CRITICAL: Always force buffering UI to be hidden
       setShowBufferingUI(false);
     };

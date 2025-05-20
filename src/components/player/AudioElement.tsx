@@ -4,14 +4,12 @@ import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
 
 interface AudioElementProps {
   audioRef: React.RefObject<HTMLAudioElement>;
-  playbackUrl: string;
   isPlaying: boolean;
   isPlaylistMode?: boolean;
 }
 
 const AudioElement: React.FC<AudioElementProps> = ({ 
   audioRef, 
-  playbackUrl, 
   isPlaying,
   isPlaylistMode = false
 }) => {
@@ -73,6 +71,7 @@ const AudioElement: React.FC<AudioElementProps> = ({
     };
   }, [audioRef]);
   
+  // Note that we're not setting src here anymore - that happens in useAudioPlayer effect
   return <audio ref={audioRef} preload="auto" />;
 };
 

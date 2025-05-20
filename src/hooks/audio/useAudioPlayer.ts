@@ -1,5 +1,5 @@
 
-import { useRef, useMemo, useCallback } from "react";
+import { useRef, useMemo, useCallback, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
@@ -81,6 +81,34 @@ export function useAudioPlayer({
     audioRef
   });
 
+  // Setup audio source when URL changes
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !audioUrl) return;
+    
+    // Reset states
+    audio.pause();
+    audio.currentTime = 0;
+    setIsPlaying(false);
+    setPlaybackState('loading');
+    setAudioLoaded(false);
+    
+    // Show generating waveform state briefly when loading new audio
+    setIsGeneratingWaveform(true);
+    
+    // Important: Set crossOrigin first, before src
+    audio.crossOrigin = "anonymous";
+    
+    // Set the source - this triggers metadata loading
+    audio.src = audioUrl;
+    audio.load();
+    
+    // Hide waveform generation indicator after a delay
+    setTimeout(() => {
+      setIsGeneratingWaveform(false);
+    }, 1500);
+  }, [audioUrl, setIsPlaying, setPlaybackState, setAudioLoaded, setIsGeneratingWaveform]);
+
   // Custom toggle play/pause handler - memoized
   const handleTogglePlayPause = useCallback(() => {
     const audio = audioRef.current;
@@ -90,52 +118,41 @@ export function useAudioPlayer({
     }
 
     if (!isPlaying) {
-      // Starting to play - IMPORTANT: Set up everything in the correct order
+      // Starting to play - IMPORTANT: Source is already set in the useEffect
       console.debug('Starting playback with URL:', audioUrl);
       
-      // First pause any existing playback and reset
-      audio.pause();
-      audio.currentTime = 0;
+      // Record the time when play was clicked
+      playClickTimeRef.current = Date.now();
       
-      // Set crossOrigin first (before src)
-      audio.crossOrigin = "anonymous";
+      // Clear any buffering state
+      clearBufferingTimeout();
+      setShowBufferingUI(false);
       
-      // Set the source - this triggers the browser to queue the fetch
-      if (audioUrl && audioUrl.startsWith('http')) {
-        audio.src = audioUrl;
-        
-        // Explicitly load the audio
-        audio.load();
-        
-        // Set state to loading while we prepare the audio
-        setPlaybackState('loading');
-        
-        // Try to resume the audio context if we're using it
-        const audioContext = (window as any).audioContext;
-        if (audioContext && audioContext.state === 'suspended') {
-          console.log('Resuming AudioContext');
-          audioContext.resume().catch((err: any) => console.error('Failed to resume AudioContext:', err));
-        }
-        
-        // Now attempt to play
-        audio.play()
-          .then(() => {
-            console.debug('Playback started successfully for URL:', audioUrl);
-            setIsPlaying(true);
-            setPlaybackState('playing');
-            
-            // Start tracking play count
-            startTracking();
-          })
-          .catch(error => {
-            console.error('Error playing audio:', error);
-            setPlaybackState('error');
-            setIsPlaying(false);
-          });
-      } else {
-        console.error('Invalid or missing audio URL:', audioUrl);
-        setPlaybackState('error');
+      // Set state to loading while we prepare to play
+      setPlaybackState('loading');
+      
+      // Try to resume the audio context if we're using it
+      const audioContext = (window as any).audioContext;
+      if (audioContext && audioContext.state === 'suspended') {
+        console.log('Resuming AudioContext');
+        audioContext.resume().catch((err: any) => console.error('Failed to resume AudioContext:', err));
       }
+      
+      // Now attempt to play (source is already set)
+      audio.play()
+        .then(() => {
+          console.debug('Playback started successfully for URL:', audioUrl);
+          setIsPlaying(true);
+          setPlaybackState('playing');
+          
+          // Start tracking play count
+          startTracking();
+        })
+        .catch(error => {
+          console.error('Error playing audio:', error);
+          setPlaybackState('error');
+          setIsPlaying(false);
+        });
     } else {
       // Pausing playback
       audio.pause();
@@ -145,7 +162,7 @@ export function useAudioPlayer({
       // End tracking when pausing
       endTracking();
     }
-  }, [audioUrl, isPlaying, setIsPlaying, setPlaybackState, startTracking, endTracking]);
+  }, [audioUrl, isPlaying, setIsPlaying, setPlaybackState, startTracking, endTracking, clearBufferingTimeout, playClickTimeRef, setShowBufferingUI]);
   
   // Setup audio event listeners
   useAudioEvents({
