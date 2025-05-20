@@ -152,12 +152,12 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
       case '3x2':
         return 'grid-cols-3 grid-rows-2';
       default:
-        return 'grid-cols-2 grid-rows-2';
+        return 'grid-cols-2 grid-rows-3';
     }
   };
 
   return (
-    <div className={`relative overflow-hidden ${className}`}>
+    <div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-wip-darker ${className}`}>
       <Button
         variant="ghost"
         size="sm"
@@ -177,9 +177,9 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         />
       )}
       
-      <div className={`grid ${getGridLayoutClass()} gap-2 bg-wip-darker rounded-md p-2`}>
+      <div className={`grid ${getGridLayoutClass()} gap-2 p-2`}>
         {/* FFT Visualizer */}
-        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-24">
+        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-28">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">FFT Spectrum</div>
           {settings.fftEnabled ? (
             <div className="h-[calc(100%-24px)]">
@@ -193,7 +193,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         </div>
         
         {/* Oscilloscope Visualizer */}
-        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-24">
+        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-28">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Oscilloscope</div>
           {settings.oscilloscopeEnabled ? (
             <div className="h-[calc(100%-24px)]">
@@ -207,7 +207,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         </div>
         
         {/* Spectrogram Visualizer */}
-        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-24">
+        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-28">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Spectrogram</div>
           {settings.spectrogramEnabled ? (
             <div className="h-[calc(100%-24px)]">
@@ -221,7 +221,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         </div>
         
         {/* Stereo Meter Visualizer */}
-        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-24">
+        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-28">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Stereo Meter</div>
           {settings.stereoMeterEnabled ? (
             <div className="h-[calc(100%-24px)]">
@@ -235,7 +235,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         </div>
         
         {/* LUFS Meter Visualizer */}
-        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-24">
+        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-28">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">LUFS Meter</div>
           {settings.lufsEnabled ? (
             <div className="h-[calc(100%-24px)]">
@@ -249,7 +249,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         </div>
         
         {/* Stats Panel */}
-        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-24">
+        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-28">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Audio Stats</div>
           <div className="p-2 text-xs text-gray-300 space-y-1 h-[calc(100%-24px)] overflow-y-auto">
             <p>Short-term LUFS: {isFinite(currentLUFS) ? currentLUFS.toFixed(1) : 'N/A'}</p>

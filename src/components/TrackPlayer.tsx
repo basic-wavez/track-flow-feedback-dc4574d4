@@ -274,20 +274,17 @@ const TrackPlayer = ({
         audioLoaded={audioLoaded}
         audioRef={audioRef}
         showFFTVisualizer={showFFTVisualizer}
+        // Pass track action props directly to WaveformSection
+        isOwner={isOwner}
+        originalUrl={originalUrl}
+        originalFilename={originalFilename}
+        trackId={trackId}
+        downloadsEnabled={downloadsEnabled}
+        shareKey={shareKey}
+        trackVersions={trackVersions}
+        trackTitle={trackName}
+        isPlaylistMode={isPlaylistMode}
       />
-      
-      {!isPlaylistMode && (
-        <TrackActions 
-          isOwner={isOwner}
-          originalUrl={originalUrl}
-          originalFilename={originalFilename}
-          trackId={trackId}
-          downloadsEnabled={downloadsEnabled}
-          shareKey={shareKey}
-          trackVersions={trackVersions}
-          trackTitle={trackName}
-        />
-      )}
     </div>
   );
 };

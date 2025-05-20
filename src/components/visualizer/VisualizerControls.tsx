@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { X } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface VisualizerControlsProps {
   settings: VisualizerSettings;
@@ -40,7 +41,7 @@ const VisualizerControls: React.FC<VisualizerControlsProps> = ({
   };
 
   return (
-    <div className="absolute top-10 right-2 z-20 bg-wip-darker border border-gray-700 rounded-md shadow-lg p-4 w-64">
+    <div className="absolute top-10 right-2 z-20 bg-wip-darker border border-gray-700 rounded-md shadow-lg p-4 w-64 max-h-[calc(100vh-150px)] overflow-y-auto">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-wip-pink">Visualizer Settings</h3>
         <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0">
