@@ -17,6 +17,8 @@ export function useOscilloscopeVisualizer(
 ) {
   const animationFrameId = useRef<number | null>(null);
   const dataArray = useRef<Float32Array | null>(null);
+  const lastWidth = useRef<number>(0);
+  const lastHeight = useRef<number>(0);
 
   // Default options
   const {
@@ -51,15 +53,20 @@ export function useOscilloscopeVisualizer(
     
     if (!ctx) return;
     
-    // Get current dimensions from the container, not from getBoundingClientRect
+    // Get current dimensions from the parent element
     const parent = canvas.parentElement;
-    const width = parent ? parent.clientWidth : canvas.clientWidth;
-    const height = parent ? parent.clientHeight : canvas.clientHeight;
+    const width = parent ? parent.clientWidth : canvas.width;
+    const height = parent ? parent.clientHeight : canvas.height;
     
     // Only update canvas dimensions if they've changed
+    // This prevents continuous resizing that causes the growing issue
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
+      
+      // Store the last dimensions we set
+      lastWidth.current = width;
+      lastHeight.current = height;
     }
     
     // Clear the canvas

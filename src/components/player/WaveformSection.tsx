@@ -38,16 +38,7 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
 }) => {
   return (
     <div className="flex flex-col space-y-4">
-      {showFFTVisualizer && (
-        <div className="h-[240px]">
-          <MultiVisualizer 
-            audioRef={audioRef}
-            isPlaying={isPlaying}
-            className="h-full w-full"
-          />
-        </div>
-      )}
-      
+      {/* Waveform comes first */}
       <Waveform 
         audioUrl={playbackUrl}
         waveformAnalysisUrl={waveformUrl}
@@ -63,6 +54,17 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
       />
+      
+      {/* Visualizers moved below waveform */}
+      {showFFTVisualizer && (
+        <div className="h-[240px] mt-4">
+          <MultiVisualizer 
+            audioRef={audioRef}
+            isPlaying={isPlaying}
+            className="h-full w-full"
+          />
+        </div>
+      )}
     </div>
   );
 };
