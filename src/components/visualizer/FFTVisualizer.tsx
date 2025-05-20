@@ -1,9 +1,10 @@
+
 import React, { useRef, useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
 import VisualizerCanvas from './VisualizerCanvas';
 import { Button } from '@/components/ui/button';
-import { WaveformCircle } from 'lucide-react';
+import { AudioWaveform } from 'lucide-react';
 
 interface FFTVisualizerProps {
   audioRef: React.RefObject<HTMLAudioElement>;
@@ -63,7 +64,7 @@ const FFTVisualizer: React.FC<FFTVisualizerProps> = ({
         }`}
         title={isActive ? "Disable visualizer" : "Enable visualizer"}
       >
-        <WaveformCircle size={18} />
+        <AudioWaveform size={18} />
       </Button>
       
       {isActive ? (
