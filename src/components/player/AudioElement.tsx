@@ -28,24 +28,27 @@ const AudioElement: React.FC<AudioElementProps> = ({
     return () => audio.removeEventListener('ended', handleTrackEnd);
   }, [contextPlayNext, isPlaylistMode, audioRef]);
   
-  // Properly set crossOrigin before src to prevent fetch cancellation
+  // Main audio configuration and playback control
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !playbackUrl) return;
+    
+    // Reset audio state
+    audio.pause();
+    audio.currentTime = 0;
     
     // First set crossOrigin, then src to ensure proper fetch sequence
     audio.crossOrigin = "anonymous";
     audio.src = playbackUrl;
     
-    // If isPlaying flag is true, start playback after setting the source
+    console.debug('Audio element configured with src:', playbackUrl, 'isPlaying:', isPlaying);
+    
+    // If isPlaying flag is true, start playback AFTER setting the source
     if (isPlaying) {
       audio.play().catch(err => {
         console.error('Could not start playback:', err);
       });
     }
-    
-    // Log readyState for debugging
-    console.debug('Audio element configured with src:', playbackUrl);
     
     const logPlayEvent = () => {
       console.debug('Audio play event triggered, readyState:', audio.readyState);
