@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
 
 interface AudioElementProps {
@@ -28,7 +28,25 @@ const AudioElement: React.FC<AudioElementProps> = ({
     return () => audio.removeEventListener('ended', handleTrackEnd);
   }, [contextPlayNext, isPlaylistMode, audioRef]);
   
-  return <audio ref={audioRef} crossOrigin="anonymous" src={playbackUrl} preload="auto" />;
+  // Properly set crossOrigin before src to prevent fetch cancellation
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !playbackUrl) return;
+    
+    // First set crossOrigin, then src to ensure proper fetch sequence
+    audio.crossOrigin = "anonymous";
+    audio.src = playbackUrl;
+    
+    // Log readyState when play is triggered for debugging
+    const logReadyState = () => {
+      console.debug('Audio readyState after play:', audio.readyState);
+    };
+    
+    audio.addEventListener('play', logReadyState, { once: true });
+    return () => audio.removeEventListener('play', logReadyState);
+  }, [playbackUrl, audioRef]);
+  
+  return <audio ref={audioRef} preload="auto" />;
 };
 
 export default AudioElement;
