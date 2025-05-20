@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import TrackPlayer from "@/components/TrackPlayer";
 import ProcessingIndicator from "@/components/ProcessingIndicator";
@@ -83,6 +84,7 @@ const TrackPlayerView: React.FC<TrackPlayerViewProps> = ({
       isOwner={true}
       versionNumber={trackData.version_number || 1}
       mp3Url={trackData.mp3_url}
+      showFFTVisualizer={true}
     />
   );
 };

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -155,6 +154,7 @@ const PlaylistSharedPlayerView = () => {
               currentIndex={currentTrackIndex}
               totalTracks={playlistData.tracks.length}
               isLoading={isLoadingTrack}
+              showFFTVisualizer={true}
             />
           </div>
         )}

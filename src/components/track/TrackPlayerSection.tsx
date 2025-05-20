@@ -1,3 +1,4 @@
+
 import React from "react";
 import { getFileTypeFromUrl, needsProcessingIndicator, isWavFormat } from "@/lib/audioUtils";
 import TrackPlayer from "@/components/TrackPlayer";
@@ -92,6 +93,7 @@ const TrackPlayerSection: React.FC<TrackPlayerSectionProps> = ({
       downloadsEnabled={trackData.downloads_enabled || false}
       versionNumber={versionNumber}
       trackVersions={trackVersions}
+      showFFTVisualizer={true}
     />
   );
 };

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import Waveform from "../Waveform";
+import FFTVisualizer from '../visualizer/FFTVisualizer';
 
 interface WaveformSectionProps {
   playbackUrl: string | undefined;
@@ -15,6 +16,8 @@ interface WaveformSectionProps {
   usingOpus: boolean;
   isGeneratingWaveform: boolean;
   audioLoaded: boolean;
+  audioRef: React.RefObject<HTMLAudioElement>;
+  showFFTVisualizer?: boolean;
 }
 
 const WaveformSection: React.FC<WaveformSectionProps> = ({
@@ -29,24 +32,36 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   usingMp3,
   usingOpus,
   isGeneratingWaveform,
-  audioLoaded
+  audioLoaded,
+  audioRef,
+  showFFTVisualizer = false
 }) => {
   return (
-    <Waveform 
-      audioUrl={playbackUrl}
-      waveformAnalysisUrl={waveformUrl}
-      isPlaying={isPlaying}
-      currentTime={currentTime}
-      duration={duration}
-      onSeek={handleSeek}
-      totalChunks={1}
-      isBuffering={isBuffering}
-      showBufferingUI={showBufferingUI}
-      isMp3Available={usingMp3}
-      isOpusAvailable={usingOpus}
-      isGeneratingWaveform={isGeneratingWaveform}
-      audioLoaded={audioLoaded}
-    />
+    <>
+      {showFFTVisualizer && (
+        <FFTVisualizer 
+          audioRef={audioRef}
+          isPlaying={isPlaying}
+          className="mb-4"
+        />
+      )}
+      
+      <Waveform 
+        audioUrl={playbackUrl}
+        waveformAnalysisUrl={waveformUrl}
+        isPlaying={isPlaying}
+        currentTime={currentTime}
+        duration={duration}
+        onSeek={handleSeek}
+        totalChunks={1}
+        isBuffering={isBuffering}
+        showBufferingUI={showBufferingUI}
+        isMp3Available={usingMp3}
+        isOpusAvailable={usingOpus}
+        isGeneratingWaveform={isGeneratingWaveform}
+        audioLoaded={audioLoaded}
+      />
+    </>
   );
 };
 

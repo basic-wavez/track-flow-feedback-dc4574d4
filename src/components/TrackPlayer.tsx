@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import TrackHeader from "./player/TrackHeader";
@@ -33,6 +32,7 @@ interface TrackPlayerProps {
   currentIndex?: number;
   totalTracks?: number;
   isLoading?: boolean;
+  showFFTVisualizer?: boolean;
 }
 
 const TrackPlayer = ({ 
@@ -55,7 +55,8 @@ const TrackPlayer = ({
   isPlaylistMode = false,
   currentIndex = -1,
   totalTracks = 0,
-  isLoading = false
+  isLoading = false,
+  showFFTVisualizer = true
 }: TrackPlayerProps) => {
   // Local states
   const [serverCooldown, setServerCooldown] = useState(false);
@@ -270,6 +271,8 @@ const TrackPlayer = ({
         usingOpus={usingOpus}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
+        audioRef={audioRef}
+        showFFTVisualizer={showFFTVisualizer}
       />
       
       {!isPlaylistMode && (
