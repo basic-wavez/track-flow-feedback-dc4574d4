@@ -179,69 +179,79 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
       
       <div className={`grid ${getGridLayoutClass()} gap-2 bg-wip-darker rounded-md p-2`}>
         {/* FFT Visualizer */}
-        <div className="rounded-md overflow-hidden border border-gray-800 bg-black">
+        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-24">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">FFT Spectrum</div>
           {settings.fftEnabled ? (
-            <VisualizerCanvas ref={fftCanvasRef} className="bg-black h-full" />
+            <div className="h-[calc(100%-24px)]">
+              <VisualizerCanvas ref={fftCanvasRef} className="bg-black" />
+            </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
+            <div className="w-full h-[calc(100%-24px)] flex items-center justify-center text-xs text-gray-500">
               FFT disabled
             </div>
           )}
         </div>
         
         {/* Oscilloscope Visualizer */}
-        <div className="rounded-md overflow-hidden border border-gray-800 bg-black">
+        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-24">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Oscilloscope</div>
           {settings.oscilloscopeEnabled ? (
-            <VisualizerCanvas ref={oscilloscopeCanvasRef} className="bg-black h-full" />
+            <div className="h-[calc(100%-24px)]">
+              <VisualizerCanvas ref={oscilloscopeCanvasRef} className="bg-black" />
+            </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
+            <div className="w-full h-[calc(100%-24px)] flex items-center justify-center text-xs text-gray-500">
               Oscilloscope disabled
             </div>
           )}
         </div>
         
         {/* Spectrogram Visualizer */}
-        <div className="rounded-md overflow-hidden border border-gray-800 bg-black">
+        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-24">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Spectrogram</div>
           {settings.spectrogramEnabled ? (
-            <VisualizerCanvas ref={spectrogramCanvasRef} className="bg-black h-full" />
+            <div className="h-[calc(100%-24px)]">
+              <VisualizerCanvas ref={spectrogramCanvasRef} className="bg-black" />
+            </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
+            <div className="w-full h-[calc(100%-24px)] flex items-center justify-center text-xs text-gray-500">
               Spectrogram disabled
             </div>
           )}
         </div>
         
         {/* Stereo Meter Visualizer */}
-        <div className="rounded-md overflow-hidden border border-gray-800 bg-black">
+        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-24">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Stereo Meter</div>
           {settings.stereoMeterEnabled ? (
-            <VisualizerCanvas ref={stereoMeterCanvasRef} className="bg-black h-full" />
+            <div className="h-[calc(100%-24px)]">
+              <VisualizerCanvas ref={stereoMeterCanvasRef} className="bg-black" />
+            </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
+            <div className="w-full h-[calc(100%-24px)] flex items-center justify-center text-xs text-gray-500">
               Stereo meter disabled
             </div>
           )}
         </div>
         
         {/* LUFS Meter Visualizer */}
-        <div className="rounded-md overflow-hidden border border-gray-800 bg-black">
+        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-24">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">LUFS Meter</div>
           {settings.lufsEnabled ? (
-            <VisualizerCanvas ref={lufsMeterCanvasRef} className="bg-black h-full" />
+            <div className="h-[calc(100%-24px)]">
+              <VisualizerCanvas ref={lufsMeterCanvasRef} className="bg-black" />
+            </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
+            <div className="w-full h-[calc(100%-24px)] flex items-center justify-center text-xs text-gray-500">
               LUFS meter disabled
             </div>
           )}
         </div>
         
         {/* Stats Panel */}
-        <div className="rounded-md overflow-hidden border border-gray-800 bg-black">
+        <div className="rounded-md overflow-hidden border border-gray-800 bg-black h-24">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Audio Stats</div>
-          <div className="p-2 text-xs text-gray-300 space-y-2">
+          <div className="p-2 text-xs text-gray-300 space-y-1 h-[calc(100%-24px)] overflow-y-auto">
             <p>Short-term LUFS: {isFinite(currentLUFS) ? currentLUFS.toFixed(1) : 'N/A'}</p>
             <p>Integrated LUFS: {isFinite(integratedLUFS) ? integratedLUFS.toFixed(1) : 'N/A'}</p>
             <p>Sample Rate: {audioContext.audioContext?.sampleRate || 'N/A'} Hz</p>

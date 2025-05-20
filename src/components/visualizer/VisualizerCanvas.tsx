@@ -10,7 +10,7 @@ const VisualizerCanvas = forwardRef<HTMLCanvasElement, VisualizerCanvasProps>(
     return (
       <canvas 
         ref={ref}
-        className={`w-full h-24 rounded-md ${className}`}
+        className={`w-full h-full rounded-md ${className}`}
         role="img"
         aria-label="Audio frequency visualizer"
       />

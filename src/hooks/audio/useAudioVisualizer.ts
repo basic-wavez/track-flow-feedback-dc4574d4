@@ -55,6 +55,11 @@ export function useAudioVisualizer(
     setIsActive(prev => !prev);
   };
 
+  // Set initial active state to true
+  useEffect(() => {
+    setIsActive(true);
+  }, []);
+
   // Draw the visualizer frame
   const draw = () => {
     if (!canvasRef.current || !audioContext.analyserNode || !dataArray.current || !isActive) {
@@ -66,10 +71,16 @@ export function useAudioVisualizer(
     
     if (!ctx) return;
     
-    // Make sure the canvas dimensions match the element's display size
-    const { width, height } = canvas.getBoundingClientRect();
-    canvas.width = width;
-    canvas.height = height;
+    // Get current dimensions from the parent element, not from getBoundingClientRect
+    const parent = canvas.parentElement;
+    const width = parent ? parent.clientWidth : canvas.clientWidth;
+    const height = parent ? parent.clientHeight : canvas.clientHeight;
+    
+    // Only update canvas dimensions if they've changed
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
     
     // Clear the canvas
     ctx.clearRect(0, 0, width, height);

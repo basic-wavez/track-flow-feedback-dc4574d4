@@ -51,10 +51,16 @@ export function useOscilloscopeVisualizer(
     
     if (!ctx) return;
     
-    // Make sure the canvas dimensions match the element's display size
-    const { width, height } = canvas.getBoundingClientRect();
-    canvas.width = width;
-    canvas.height = height;
+    // Get current dimensions from the container, not from getBoundingClientRect
+    const parent = canvas.parentElement;
+    const width = parent ? parent.clientWidth : canvas.clientWidth;
+    const height = parent ? parent.clientHeight : canvas.clientHeight;
+    
+    // Only update canvas dimensions if they've changed
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
     
     // Clear the canvas
     ctx.fillStyle = backgroundColor;

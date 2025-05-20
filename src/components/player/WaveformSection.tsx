@@ -37,13 +37,15 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   showFFTVisualizer = true
 }) => {
   return (
-    <>
+    <div className="flex flex-col space-y-4">
       {showFFTVisualizer && (
-        <MultiVisualizer 
-          audioRef={audioRef}
-          isPlaying={isPlaying}
-          className="mb-4"
-        />
+        <div className="h-[240px]">
+          <MultiVisualizer 
+            audioRef={audioRef}
+            isPlaying={isPlaying}
+            className="h-full w-full"
+          />
+        </div>
       )}
       
       <Waveform 
@@ -61,7 +63,7 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
       />
-    </>
+    </div>
   );
 };
 
