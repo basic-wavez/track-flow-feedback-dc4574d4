@@ -11,3 +11,7 @@ export * from './useOscilloscope';
 export * from './useSpectrogram';
 export * from './usePlayCountTracking';
 export * from './useVisibilityState';
+export * from './useAudioMetadata';
+export * from './usePlaybackEvents';
+export * from './useBufferEvents';
+export * from './useErrorHandling';
