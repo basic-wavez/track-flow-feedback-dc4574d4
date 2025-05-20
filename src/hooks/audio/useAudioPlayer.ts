@@ -1,4 +1,3 @@
-
 import { useRef, useMemo, useCallback } from "react";
 import { useAudioState } from "./useAudioState";
 import { useBufferingState } from "./useBufferingState";
@@ -93,6 +92,13 @@ export function useAudioPlayer({
         
         // Set state to loading while we prepare the audio
         setPlaybackState('loading');
+        
+        // Try to resume the audio context if we're using it
+        const audioContext = (window as any).audioContext;
+        if (audioContext && audioContext.state === 'suspended') {
+          console.log('Resuming AudioContext');
+          audioContext.resume().catch((err: any) => console.error('Failed to resume AudioContext:', err));
+        }
         
         // Now attempt to play
         audio.play()
