@@ -6,8 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, range, accept',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Expose-Headers': 'Content-Length, Content-Range',
+  'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Content-Type',
 };
+
+// Version for debugging
+const VERSION = "1.2";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -27,13 +30,13 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Proxying request to: ${targetUrl}`);
+    console.log(`Audio Proxy v${VERSION} - Proxying request to: ${targetUrl}`);
     
-    // Forward the original request headers
+    // Create headers to forward
     const headers = new Headers();
     for (const [key, value] of req.headers.entries()) {
-      // Skip host header to avoid conflicts
-      if (key.toLowerCase() !== 'host') {
+      // Skip host header and a few others to avoid conflicts
+      if (!['host', 'origin', 'referer'].includes(key.toLowerCase())) {
         headers.set(key, value);
       }
     }
@@ -42,23 +45,45 @@ serve(async (req) => {
     const response = await fetch(targetUrl, {
       method: req.method,
       headers,
-      // For GET requests, no need to forward body
+      // No need to forward body for GET requests
     });
 
-    // Get the response data
-    const body = response.body;
+    // If response is not ok, return error
+    if (!response.ok) {
+      console.error(`Error from target: ${response.status} ${response.statusText}`);
+      return new Response(JSON.stringify({ 
+        error: `Target returned ${response.status}`,
+        targetStatus: response.status,
+        targetStatusText: response.statusText
+      }), {
+        status: response.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get the response headers to preserve
+    const responseHeaders = new Headers();
     
-    // Create and return a new response with CORS headers
-    const proxyResponse = new Response(body, {
+    // Add all response headers
+    for (const [key, value] of response.headers.entries()) {
+      responseHeaders.set(key, value);
+    }
+    
+    // Add CORS headers
+    for (const [key, value] of Object.entries(corsHeaders)) {
+      responseHeaders.set(key, value);
+    }
+
+    // Important: Log content type for debugging
+    console.log(`Target Content-Type: ${response.headers.get('content-type')}`);
+    
+    // Create and return a new response with original body and combined headers
+    // Note: We're using the response body directly, preserving the binary data
+    return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
-      headers: {
-        ...Object.fromEntries(response.headers),
-        ...corsHeaders
-      }
+      headers: responseHeaders
     });
-    
-    return proxyResponse;
   } catch (error) {
     console.error("Error in audio-proxy:", error);
     return new Response(JSON.stringify({ error: error.message }), {

@@ -22,12 +22,18 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement | nul
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserNodeRef = useRef<AnalyserNode | null>(null);
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const initAttemptedRef = useRef<boolean>(false);
 
   // Initialize the audio context and nodes
   useEffect(() => {
-    if (!audioRef.current || isInitialized) return;
+    if (!audioRef.current) return;
 
     const initializeAudio = () => {
+      // Skip if already attempted initialization and failed with CORS
+      if (initAttemptedRef.current && corsIssueDetected) return;
+      
+      initAttemptedRef.current = true;
+      
       try {
         // Create audio context
         const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -36,23 +42,31 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement | nul
           return;
         }
 
-        audioContextRef.current = new AudioContext();
-        analyserNodeRef.current = audioContextRef.current.createAnalyser();
-        
-        // Configure analyzer
-        analyserNodeRef.current.fftSize = fftSize;
-        analyserNodeRef.current.smoothingTimeConstant = 0.85;
+        // Create new context only if we don't have one
+        if (!audioContextRef.current) {
+          audioContextRef.current = new AudioContext();
+          analyserNodeRef.current = audioContextRef.current.createAnalyser();
+          
+          // Configure analyzer
+          analyserNodeRef.current.fftSize = fftSize;
+          analyserNodeRef.current.smoothingTimeConstant = 0.85;
+        }
         
         try {
+          // Don't attempt to connect if we've already detected CORS issues
+          if (corsIssueDetected) return;
+          
           // Connect source node - this is where CORS errors typically happen
-          sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current!);
-          sourceNodeRef.current.connect(analyserNodeRef.current);
-          
-          // Connect to destination (speakers)
-          analyserNodeRef.current.connect(audioContextRef.current.destination);
-          
-          setIsInitialized(true);
-          console.log('Audio context initialized for visualizers');
+          if (!sourceNodeRef.current && audioRef.current) {
+            sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
+            sourceNodeRef.current.connect(analyserNodeRef.current!);
+            
+            // Connect to destination (speakers)
+            analyserNodeRef.current!.connect(audioContextRef.current.destination);
+            
+            setIsInitialized(true);
+            console.log('Audio context initialized for visualizers');
+          }
         } catch (err) {
           // Handle CORS errors specifically
           console.error('Error connecting audio source:', err);
@@ -68,23 +82,30 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement | nul
           setError(err instanceof Error ? err : new Error(String(err)));
           
           // Attempt to clean up any partially created resources
-          if (sourceNodeRef.current) {
-            sourceNodeRef.current.disconnect();
-            sourceNodeRef.current = null;
-          }
-          
-          if (analyserNodeRef.current) {
-            analyserNodeRef.current.disconnect();
-          }
-          
-          if (audioContextRef.current) {
-            audioContextRef.current.close().catch(console.error);
-            audioContextRef.current = null;
-          }
+          cleanupAudioNodes();
         }
       } catch (error) {
         console.error('Failed to initialize audio context:', error);
         setError(error instanceof Error ? error : new Error(String(error)));
+      }
+    };
+
+    const cleanupAudioNodes = () => {
+      if (sourceNodeRef.current) {
+        try {
+          sourceNodeRef.current.disconnect();
+        } catch (e) {
+          console.error('Error disconnecting source node:', e);
+        }
+        sourceNodeRef.current = null;
+      }
+      
+      if (analyserNodeRef.current) {
+        try {
+          analyserNodeRef.current.disconnect();
+        } catch (e) {
+          console.error('Error disconnecting analyser node:', e);
+        }
       }
     };
 
@@ -96,21 +117,19 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement | nul
     };
 
     // Listen for play event to initialize audio context (browser policy)
-    audioRef.current.addEventListener('play', handleInteraction, { once: true });
+    const audio = audioRef.current;
+    audio.addEventListener('play', handleInteraction, { once: true });
+    
+    // Also try on canplay as a fallback
+    audio.addEventListener('canplay', handleInteraction, { once: true });
     
     return () => {
       if (audioRef.current) {
         audioRef.current.removeEventListener('play', handleInteraction);
+        audioRef.current.removeEventListener('canplay', handleInteraction);
       }
       
-      // Clean up audio nodes
-      if (sourceNodeRef.current) {
-        sourceNodeRef.current.disconnect();
-      }
-      
-      if (analyserNodeRef.current) {
-        analyserNodeRef.current.disconnect();
-      }
+      cleanupAudioNodes();
       
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close().catch(console.error);
@@ -124,6 +143,22 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement | nul
       analyserNodeRef.current.fftSize = fftSize;
     }
   }, [fftSize, isInitialized]);
+
+  // Reset CORS detection when the audio source changes
+  useEffect(() => {
+    if (audioRef.current && audioRef.current.src) {
+      const audioSrc = audioRef.current.src;
+      const isLocalOrProxied = audioSrc.includes('localhost') || 
+                              audioSrc.includes('.functions.supabase.co') || 
+                              audioSrc.startsWith('/');
+      
+      // If we switch to a local or proxied source, reset CORS detection
+      if (isLocalOrProxied && corsIssueDetected) {
+        setCorsIssueDetected(false);
+        initAttemptedRef.current = false;
+      }
+    }
+  }, [audioRef.current?.src, corsIssueDetected]);
 
   // Expose the audio nodes and context
   const audioContextState = useMemo<AudioContextState>(() => ({
