@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   BarChart, 
-  AudioWaveform, 
+  Waveform, 
   Square, 
   Layers, 
   Sliders,
@@ -82,7 +82,7 @@ const VisualizerControls: React.FC<VisualizerControlsProps> = ({
                 className={`h-8 w-8 ${getIconColor('oscilloscope')}`}
                 onClick={() => setActiveVisualizer('oscilloscope')}
               >
-                <AudioWaveform size={16} />
+                <Waveform size={16} />
               </Button>
             </TooltipTrigger>
             <TooltipContent>

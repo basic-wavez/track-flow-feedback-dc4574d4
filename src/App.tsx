@@ -21,25 +21,6 @@ import NewVersionPage from "./pages/NewVersionPage";
 import FeedbackView from "./pages/FeedbackView";
 import Index from "./pages/Index";
 
-// Create wrapped track components
-const TrackViewWithProvider = () => (
-  <PlaylistPlayerProvider>
-    <TrackView />
-  </PlaylistPlayerProvider>
-);
-
-const NewVersionPageWithProvider = () => (
-  <PlaylistPlayerProvider>
-    <NewVersionPage />
-  </PlaylistPlayerProvider>
-);
-
-const FeedbackViewWithProvider = () => (
-  <PlaylistPlayerProvider>
-    <FeedbackView />
-  </PlaylistPlayerProvider>
-);
-
 function App() {
   const { user } = useAuth();
 
@@ -99,11 +80,11 @@ function App() {
             </PlaylistPlayerProvider>
           }
         />
-        {/* Track Routes with PlaylistPlayerProvider */}
-        <Route path="/track/share/:shareKey" element={<TrackViewWithProvider />} />
-        <Route path="/track/:trackId/version" element={<NewVersionPageWithProvider />} />
-        <Route path="/track/:trackId/feedback" element={<FeedbackViewWithProvider />} />
-        <Route path="/track/:trackId" element={<TrackViewWithProvider />} />
+        {/* Track Routes - Note: More specific routes come first */}
+        <Route path="/track/share/:shareKey" element={<TrackView />} />
+        <Route path="/track/:trackId/version" element={<NewVersionPage />} />
+        <Route path="/track/:trackId/feedback" element={<FeedbackView />} />
+        <Route path="/track/:trackId" element={<TrackView />} />
       </Routes>
     </Router>
   );

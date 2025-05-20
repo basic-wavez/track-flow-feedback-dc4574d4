@@ -1,12 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useVisualizer, VisualizerProvider } from '@/context/VisualizerContext';
 import SpectrumVisualizer from './SpectrumVisualizer';
 import OscilloscopeVisualizer from './OscilloscopeVisualizer';
 import SpectrogramVisualizer from './SpectrogramVisualizer';
 import VisualizerControls from './VisualizerControls';
-import { toast } from "@/components/ui/use-toast";
 
 interface AudioVisualizerProps {
   audioRef: React.RefObject<HTMLAudioElement>;
@@ -14,28 +13,12 @@ interface AudioVisualizerProps {
 }
 
 const VisualizerContent = ({ audioRef, isPlaying }: AudioVisualizerProps) => {
-  const { activeVisualizer, isVisible, setActiveVisualizer } = useVisualizer();
+  const { activeVisualizer, isVisible } = useVisualizer();
   const [isExpanded, setIsExpanded] = useState(false);
   const audioContext = useAudioContext(audioRef);
-  const [hasShownCorsWarning, setHasShownCorsWarning] = useState(false);
   
-  // Handle CORS issues for visualizers
-  useEffect(() => {
-    if (audioContext.corsIssueDetected && !hasShownCorsWarning) {
-      setHasShownCorsWarning(true);
-      // Disable visualizer automatically
-      setActiveVisualizer('none');
-      // Show a toast message to inform the user
-      toast({
-        title: "Visualizers Disabled",
-        description: "Audio visualizers have been disabled due to cross-origin restrictions. Audio playback will continue normally.",
-        duration: 5000,
-      });
-    }
-  }, [audioContext.corsIssueDetected, hasShownCorsWarning, setActiveVisualizer]);
-  
-  // Show nothing if visualizer is disabled or CORS issue detected
-  if (activeVisualizer === 'none' || !isVisible || audioContext.corsIssueDetected) {
+  // Show nothing if visualizer is disabled
+  if (activeVisualizer === 'none' || !isVisible) {
     return null;
   }
   
