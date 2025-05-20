@@ -1,12 +1,15 @@
+
 import { useRef, useMemo, useCallback } from "react";
+import { useLocation } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+
 import { useAudioState } from "./useAudioState";
 import { useBufferingState } from "./useBufferingState";
 import { useAudioEvents } from "./useAudioEvents";
 import { useAudioControls } from "./useAudioControls";
 import { useAudioEffects } from "./useAudioEffects";
-import { startPlayTracking, endPlayTracking, cancelPlayTracking } from "@/services/playCountService";
-import { useLocation } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import { usePlayCountTracking } from "./usePlayCountTracking";
+import { useVisibilityState } from "./useVisibilityState";
 
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
@@ -26,8 +29,8 @@ export function useAudioPlayer({
   // Create audio element reference
   const audioRef = useRef<HTMLAudioElement>(null);
   
-  // Store visibility-related state
-  const wasPlayingBeforeHideRef = useRef(false);
+  // Get visibility-related state
+  const { wasPlayingBeforeHideRef } = useVisibilityState();
   
   // Get location to check if we're in a shared route
   const location = useLocation();
@@ -64,7 +67,21 @@ export function useAudioPlayer({
     clearBufferingTimeout
   } = useBufferingState();
 
-  // Custom toggle play/pause handler for play count tracking - memoized
+  // Play count tracking
+  const {
+    startTracking,
+    endTracking,
+    handleTrackEnd
+  } = usePlayCountTracking({
+    isPlaying,
+    isSharedRoute,
+    trackId,
+    shareKey,
+    user,
+    audioRef
+  });
+
+  // Custom toggle play/pause handler - memoized
   const handleTogglePlayPause = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) {
@@ -107,11 +124,8 @@ export function useAudioPlayer({
             setIsPlaying(true);
             setPlaybackState('playing');
             
-            // Only track plays if user is logged in or if we're not on a shared route
-            if (user || isSharedRoute) {
-              // Start tracking play time for this track
-              startPlayTracking(trackId || null, shareKey || null);
-            }
+            // Start tracking play count
+            startTracking();
           })
           .catch(error => {
             console.error('Error playing audio:', error);
@@ -128,42 +142,10 @@ export function useAudioPlayer({
       setIsPlaying(false);
       setPlaybackState('paused');
       
-      // Only end tracking when user is authenticated or we're on a shared route
-      if (user || isSharedRoute) {
-        // Only end tracking when pausing if we've played for some time
-        if (audio.currentTime > 2) {
-          endPlayTracking()
-            .then(incremented => {
-              if (incremented) {
-                console.log("Play count incremented successfully");
-              }
-            })
-            .catch(error => {
-              console.error("Error handling play count:", error);
-            });
-        } else {
-          cancelPlayTracking();
-        }
-      }
+      // End tracking when pausing
+      endTracking();
     }
-  }, [audioUrl, isPlaying, isSharedRoute, setIsPlaying, setPlaybackState, shareKey, trackId, user]);
-
-  // Handle reaching the end of the track - memoized
-  const handleTrackEnd = useCallback(() => {
-    // Only track plays if user is logged in or if we're on a shared route
-    if (user || isSharedRoute) {
-      // Track has finished playing naturally, check if we should increment
-      endPlayTracking()
-        .then(incremented => {
-          if (incremented) {
-            console.log("Play count incremented after track finished");
-          }
-        })
-        .catch(error => {
-          console.error("Error handling play count at track end:", error);
-        });
-    }
-  }, [isSharedRoute, user]);
+  }, [audioUrl, isPlaying, setIsPlaying, setPlaybackState, startTracking, endTracking]);
   
   // Setup audio event listeners
   useAudioEvents({

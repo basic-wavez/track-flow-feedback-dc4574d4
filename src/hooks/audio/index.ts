@@ -9,3 +9,5 @@ export * from './useAudioContext';
 export * from './useSpectrum';
 export * from './useOscilloscope';
 export * from './useSpectrogram';
+export * from './usePlayCountTracking';
+export * from './useVisibilityState';
