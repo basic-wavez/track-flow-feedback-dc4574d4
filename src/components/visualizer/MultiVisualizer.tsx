@@ -1,7 +1,8 @@
+
 import React, { useRef, useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
-import { useOscilloscopeVisualizer, OscilloscopeOptions } from '@/hooks/audio/useOscilloscopeVisualizer';
+import { useOscilloscopeVisualizer } from '@/hooks/audio/useOscilloscopeVisualizer';
 import { useSpectrogramVisualizer } from '@/hooks/audio/useSpectrogramVisualizer';
 import { useVisualizerSettings } from '@/hooks/audio/useVisualizerSettings';
 import VisualizerCanvas from './VisualizerCanvas';
@@ -35,24 +36,21 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   // Audio context initialization
   const audioContext = useAudioContext(audioRef);
   
-  // Define max frequency - focusing on up to 15kHz instead of full range
-  const maxFrequency = 15000; // 15kHz
-  
   // Initialize FFT visualizer
   const { isActive: fftActive } = useAudioVisualizer(
     fftCanvasRef,
     audioContext,
     isPlaying && settings.fftEnabled,
     {
-      barCount: 64,
+      barCount: settings.fftBarCount || 64,
       barColor: settings.fftBarColor,
-      capColor: '#D946EF',
-      maxFrequency: maxFrequency, // Pass max frequency to visualizer
+      capColor: settings.fftCapColor || '#D946EF',
+      maxFrequency: settings.fftMaxFrequency || 15000,
     }
   );
 
   // Create oscilloscope options from settings
-  const oscilloscopeOptions: OscilloscopeOptions = {
+  const oscilloscopeOptions = {
     lineColor: settings.oscilloscopeColor,
     sensitivity: settings.oscilloscopeSensitivity || settings.sensitivity,
     lineWidth: settings.oscilloscopeLineWidth,
@@ -78,9 +76,9 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
     audioContext,
     isPlaying && settings.spectrogramEnabled,
     {
-      colorMid: settings.fftBarColor,
-      timeScale: 3 / settings.sensitivity,
-      maxFrequency: maxFrequency, // Pass max frequency to visualizer
+      colorMid: settings.spectrogramColorMid || settings.fftBarColor,
+      timeScale: (settings.spectrogramTimeScale || 3) / settings.sensitivity,
+      maxFrequency: settings.spectrogramMaxFrequency || 15000,
     }
   );
   
@@ -160,11 +158,13 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         />
       )}
       
-      {/* Reduced height by half (from 300px to 150px) */}
+      {/* Visualizer containers */}
       <div className="flex gap-2 p-2 h-[150px]">
         {/* FFT Visualizer - Takes more space (40%) */}
         <div className="w-[40%] rounded-md overflow-hidden border border-gray-800 bg-black">
-          <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">FFT Spectrum (0-15kHz)</div>
+          <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">
+            FFT Spectrum ({settings.fftMaxFrequency ? (settings.fftMaxFrequency / 1000) : 15}kHz)
+          </div>
           {settings.fftEnabled ? (
             <div className="h-[calc(100%-24px)]">
               <VisualizerCanvas ref={fftCanvasRef} className="bg-black" />
@@ -192,7 +192,9 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         
         {/* Spectrogram Visualizer - Takes more space (40%) */}
         <div className="w-[40%] rounded-md overflow-hidden border border-gray-800 bg-black">
-          <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Spectrogram (0-15kHz)</div>
+          <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">
+            Spectrogram ({settings.spectrogramMaxFrequency ? (settings.spectrogramMaxFrequency / 1000) : 15}kHz)
+          </div>
           {settings.spectrogramEnabled ? (
             <div className="h-[calc(100%-24px)]">
               <VisualizerCanvas ref={spectrogramCanvasRef} className="bg-black" />

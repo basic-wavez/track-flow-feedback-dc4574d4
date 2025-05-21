@@ -17,6 +17,9 @@ export interface VisualizerSettings {
   
   // FFT appearance settings
   fftBarColor: string;
+  fftMaxFrequency?: number;
+  fftBarCount?: number;
+  fftCapColor?: string;
   
   // Oscilloscope settings
   oscilloscopeColor: string;
@@ -28,6 +31,11 @@ export interface VisualizerSettings {
   oscilloscopeFillColor?: string;
   oscilloscopeFillOpacity?: number;
   oscilloscopeInvertY?: boolean;
+  
+  // Spectrogram settings
+  spectrogramColorMid?: string;
+  spectrogramTimeScale?: number;
+  spectrogramMaxFrequency?: number;
 }
 
 const defaultSettings: VisualizerSettings = {
@@ -46,17 +54,25 @@ const defaultSettings: VisualizerSettings = {
   
   // FFT appearance settings - Updated to match the light blue from screenshot 2
   fftBarColor: '#8ADEFD', // Updated to match the color in the second screenshot
+  fftMaxFrequency: 15000, // Default to 15kHz
+  fftBarCount: 64, // Default to 64 bars
+  fftCapColor: '#D946EF', // Default to magenta cap color
   
-  // Oscilloscope settings - Updated to match screenshot 1
+  // Oscilloscope settings - Updated to match screenshot 1 but with solid lines
   oscilloscopeColor: '#7DE3FF', // Updated to match the blue from first screenshot
   oscilloscopeSensitivity: 1.5, // Default to 1.5x as shown in screenshot 1
   oscilloscopeLineWidth: 2, // Default to 2px as shown in screenshot 1
   oscilloscopeBackgroundColor: '#000000',
   oscilloscopeDrawMode: 'line',
-  oscilloscopeDashPattern: [2, 2], // Dotted line pattern as shown in screenshot 1
-  oscilloscopeFillColor: '#00FF00', // Updated to the green fill color from screenshot 1
+  oscilloscopeDashPattern: [], // Changed to empty array for solid lines
+  oscilloscopeFillColor: '#00FF00', // Green fill color from screenshot 1
   oscilloscopeFillOpacity: 0.0, // Default to 0 as shown in screenshot 1
   oscilloscopeInvertY: false,
+  
+  // Spectrogram settings
+  spectrogramColorMid: '#8ADEFD', // Match FFT color
+  spectrogramTimeScale: 3, // Default time scale
+  spectrogramMaxFrequency: 15000, // Default to 15kHz
 };
 
 export function useVisualizerSettings() {
