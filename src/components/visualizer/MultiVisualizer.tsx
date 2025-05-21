@@ -8,7 +8,6 @@ import { useVisualizerSettings } from '@/hooks/audio/useVisualizerSettings';
 import { useIsMobile } from '@/hooks/use-mobile';
 import VisualizerCanvas from './VisualizerCanvas';
 import { toast } from "@/components/ui/use-toast";
-import ParticleVisualizer from './ParticleVisualizer';
 
 interface MultiVisualizerProps {
   audioRef: React.RefObject<HTMLAudioElement>;
@@ -144,9 +143,9 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   return (
     <div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-wip-darker ${className}`} id="visualizer-container">
       {/* Visualizer containers with dynamic height */}
-      <div className={`flex flex-wrap gap-2 p-2 ${visualizerHeight}`}>
-        {/* FFT Visualizer */}
-        <div className="w-[23%] rounded-md overflow-hidden border border-gray-800 bg-black">
+      <div className={`flex gap-2 p-2 ${visualizerHeight}`}>
+        {/* FFT Visualizer - Takes more space (40%) */}
+        <div className="w-[40%] rounded-md overflow-hidden border border-gray-800 bg-black">
           {settings.fftEnabled ? (
             <div className="h-full">
               <VisualizerCanvas ref={fftCanvasRef} className="bg-black" />
@@ -158,8 +157,8 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
           )}
         </div>
         
-        {/* Oscilloscope Visualizer */}
-        <div className="w-[23%] rounded-md overflow-hidden border border-gray-800 bg-black">
+        {/* Oscilloscope Visualizer - Square in the middle (20%) */}
+        <div className="w-[20%] aspect-square rounded-md overflow-hidden border border-gray-800 bg-black">
           {settings.oscilloscopeEnabled ? (
             <div className="h-full">
               <VisualizerCanvas ref={oscilloscopeCanvasRef} className="bg-black" />
@@ -171,8 +170,8 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
           )}
         </div>
         
-        {/* Spectrogram Visualizer */}
-        <div className="w-[23%] rounded-md overflow-hidden border border-gray-800 bg-black">
+        {/* Spectrogram Visualizer - Takes more space (40%) */}
+        <div className="w-[40%] rounded-md overflow-hidden border border-gray-800 bg-black">
           {settings.spectrogramEnabled ? (
             <div className="h-full">
               <VisualizerCanvas ref={spectrogramCanvasRef} className="bg-black" />
@@ -183,31 +182,9 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
             </div>
           )}
         </div>
-        
-        {/* Particle Visualizer - New */}
-        <div className="w-[23%] rounded-md overflow-hidden border border-gray-800 bg-black">
-          {settings.particleEnabled ? (
-            <div className="h-full">
-              <ParticleVisualizer 
-                audioRef={audioRef} 
-                isPlaying={isPlaying} 
-                options={{
-                  particleCount: isMobile ? 500 : (settings.particleCount || 1000),
-                  particleSize: settings.particleSize || 2.0,
-                  baseColor: settings.particleColor || settings.fftBarColor,
-                  sensitivity: settings.particleSensitivity || settings.sensitivity
-                }}
-              />
-            </div>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
-              Particles disabled
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
-}
+};
 
 export default React.memo(MultiVisualizer);

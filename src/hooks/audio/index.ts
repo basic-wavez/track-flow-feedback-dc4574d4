@@ -10,4 +10,3 @@ export * from './useAudioVisualizer';
 export * from './useVisualizerSettings';
 export * from './useOscilloscopeVisualizer';
 export * from './useSpectrogramVisualizer';
-export * from './useParticleVisualizer';

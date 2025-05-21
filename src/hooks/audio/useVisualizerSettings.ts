@@ -6,7 +6,6 @@ export interface VisualizerSettings {
   fftEnabled: boolean;
   oscilloscopeEnabled: boolean;
   spectrogramEnabled: boolean;
-  particleEnabled: boolean; // New setting for particle visualizer
   stereoMeterEnabled: boolean;
   lufsEnabled: boolean;
   
@@ -37,12 +36,6 @@ export interface VisualizerSettings {
   spectrogramColorMid?: string;
   spectrogramTimeScale?: number;
   spectrogramMaxFrequency?: number;
-  
-  // Particle visualizer settings
-  particleCount?: number;
-  particleColor?: string;
-  particleSize?: number;
-  particleSensitivity?: number;
 }
 
 const defaultSettings: VisualizerSettings = {
@@ -50,7 +43,6 @@ const defaultSettings: VisualizerSettings = {
   fftEnabled: true,
   oscilloscopeEnabled: true,
   spectrogramEnabled: true,
-  particleEnabled: true, // Enable the new particle visualizer by default
   stereoMeterEnabled: false,
   lufsEnabled: false,
   
@@ -81,12 +73,6 @@ const defaultSettings: VisualizerSettings = {
   spectrogramColorMid: '#8ADEFD', // Light blue color from screenshot
   spectrogramTimeScale: 10, // 10s from screenshot
   spectrogramMaxFrequency: 15000, // Match FFT max frequency
-  
-  // Particle visualizer settings
-  particleCount: 1000,
-  particleColor: '#8ADEFD',
-  particleSize: 2.0,
-  particleSensitivity: 1.0
 };
 
 export function useVisualizerSettings() {
