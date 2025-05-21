@@ -15,9 +15,19 @@ export interface VisualizerSettings {
   // Layout settings
   gridLayout: '2x2' | '2x3' | '3x2' | 'row'; // Added 'row' option for new layout
   
-  // Appearance settings
+  // FFT appearance settings
   fftBarColor: string;
+  
+  // Oscilloscope settings
   oscilloscopeColor: string;
+  oscilloscopeSensitivity?: number;
+  oscilloscopeLineWidth?: number;
+  oscilloscopeBackgroundColor?: string;
+  oscilloscopeDrawMode?: 'line' | 'dots' | 'bars';
+  oscilloscopeDashPattern?: number[];
+  oscilloscopeFillColor?: string;
+  oscilloscopeFillOpacity?: number;
+  oscilloscopeInvertY?: boolean;
 }
 
 const defaultSettings: VisualizerSettings = {
@@ -34,9 +44,19 @@ const defaultSettings: VisualizerSettings = {
   // Layout settings
   gridLayout: 'row', // Default to row layout
   
-  // Appearance settings
+  // FFT appearance settings
   fftBarColor: '#9b87f5',
+  
+  // Oscilloscope settings
   oscilloscopeColor: '#34c759',
+  oscilloscopeSensitivity: 1.0,
+  oscilloscopeLineWidth: 2,
+  oscilloscopeBackgroundColor: '#000000',
+  oscilloscopeDrawMode: 'line',
+  oscilloscopeDashPattern: [],
+  oscilloscopeFillColor: '#34c759',
+  oscilloscopeFillOpacity: 0.2,
+  oscilloscopeInvertY: false,
 };
 
 export function useVisualizerSettings() {

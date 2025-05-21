@@ -1,7 +1,8 @@
+
 import React, { useRef, useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
-import { useOscilloscopeVisualizer } from '@/hooks/audio/useOscilloscopeVisualizer';
+import { useOscilloscopeVisualizer, OscilloscopeOptions } from '@/hooks/audio/useOscilloscopeVisualizer';
 import { useSpectrogramVisualizer } from '@/hooks/audio/useSpectrogramVisualizer';
 import { useVisualizerSettings } from '@/hooks/audio/useVisualizerSettings';
 import VisualizerCanvas from './VisualizerCanvas';
@@ -50,16 +51,26 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
       maxFrequency: maxFrequency, // Pass max frequency to visualizer
     }
   );
+
+  // Create oscilloscope options from settings
+  const oscilloscopeOptions: OscilloscopeOptions = {
+    lineColor: settings.oscilloscopeColor,
+    sensitivity: settings.oscilloscopeSensitivity || settings.sensitivity,
+    lineWidth: settings.oscilloscopeLineWidth,
+    backgroundColor: settings.oscilloscopeBackgroundColor || 'transparent',
+    drawMode: settings.oscilloscopeDrawMode,
+    dashPattern: settings.oscilloscopeDashPattern,
+    fillColor: settings.oscilloscopeFillColor,
+    fillOpacity: settings.oscilloscopeFillOpacity,
+    invertY: settings.oscilloscopeInvertY
+  };
   
-  // Initialize Oscilloscope visualizer
+  // Initialize Oscilloscope visualizer with extended options
   useOscilloscopeVisualizer(
     oscilloscopeCanvasRef,
     audioContext,
     isPlaying && settings.oscilloscopeEnabled,
-    {
-      lineColor: settings.oscilloscopeColor,
-      sensitivity: settings.sensitivity,
-    }
+    oscilloscopeOptions
   );
   
   // Initialize Spectrogram visualizer

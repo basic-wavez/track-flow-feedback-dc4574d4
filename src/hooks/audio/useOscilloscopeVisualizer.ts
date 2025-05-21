@@ -2,11 +2,16 @@
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
 
-interface OscilloscopeOptions {
+export interface OscilloscopeOptions {
   lineColor?: string;
   lineWidth?: number;
   backgroundColor?: string;
   sensitivity?: number;
+  drawMode?: 'line' | 'dots' | 'bars';
+  dashPattern?: number[]; // For dashed line [dash length, gap length]
+  fillColor?: string; // For filled mode
+  fillOpacity?: number; // For filled mode transparency
+  invertY?: boolean; // Invert the Y axis
 }
 
 export function useOscilloscopeVisualizer(
@@ -25,7 +30,12 @@ export function useOscilloscopeVisualizer(
     lineColor = '#34c759',
     lineWidth = 2,
     backgroundColor = 'transparent',
-    sensitivity = 1.0
+    sensitivity = 1.0,
+    drawMode = 'line',
+    dashPattern = [],
+    fillColor = 'rgba(52, 199, 89, 0.1)',
+    fillOpacity = 0.2,
+    invertY = false
   } = options;
 
   // Initialize the time domain data array
@@ -59,7 +69,6 @@ export function useOscilloscopeVisualizer(
     const height = parent ? parent.clientHeight : canvas.height;
     
     // Only update canvas dimensions if they've changed
-    // This prevents continuous resizing that causes the growing issue
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
@@ -77,28 +86,87 @@ export function useOscilloscopeVisualizer(
     const analyser = audioContext.analyserNode;
     analyser.getFloatTimeDomainData(dataArray.current);
     
-    // Set up line style
-    ctx.lineWidth = lineWidth;
-    ctx.strokeStyle = lineColor;
-    ctx.beginPath();
-    
     // Calculate vertical scaling based on sensitivity
     const verticalScale = height * 0.4 * sensitivity;
     const sliceWidth = width / dataArray.current.length;
     
-    // Draw the waveform
-    for (let i = 0; i < dataArray.current.length; i++) {
-      const x = i * sliceWidth;
-      const y = (0.5 + dataArray.current[i] * -0.5) * verticalScale + height / 2;
-      
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
+    // Set up dash pattern if specified
+    if (dashPattern && dashPattern.length > 0) {
+      ctx.setLineDash(dashPattern);
+    } else {
+      ctx.setLineDash([]);
     }
     
-    ctx.stroke();
+    // Draw the waveform based on draw mode
+    if (drawMode === 'line') {
+      // Standard line drawing
+      ctx.lineWidth = lineWidth;
+      ctx.strokeStyle = lineColor;
+      ctx.beginPath();
+      
+      for (let i = 0; i < dataArray.current.length; i++) {
+        const x = i * sliceWidth;
+        const yNormalized = invertY 
+          ? (0.5 - dataArray.current[i] * -0.5) 
+          : (0.5 + dataArray.current[i] * -0.5);
+        const y = yNormalized * verticalScale + height / 2;
+        
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      
+      ctx.stroke();
+      
+      // Fill below the line if fillColor is provided
+      if (fillColor !== 'transparent') {
+        ctx.lineTo(width, height);
+        ctx.lineTo(0, height);
+        ctx.closePath();
+        ctx.fillStyle = fillColor;
+        ctx.globalAlpha = fillOpacity;
+        ctx.fill();
+        ctx.globalAlpha = 1.0; // Reset alpha
+      }
+      
+    } else if (drawMode === 'dots') {
+      // Draw dots for each sample
+      ctx.fillStyle = lineColor;
+      
+      for (let i = 0; i < dataArray.current.length; i += 2) {
+        const x = i * sliceWidth;
+        const yNormalized = invertY 
+          ? (0.5 - dataArray.current[i] * -0.5) 
+          : (0.5 + dataArray.current[i] * -0.5);
+        const y = yNormalized * verticalScale + height / 2;
+        
+        ctx.beginPath();
+        ctx.arc(x, y, lineWidth, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+      
+    } else if (drawMode === 'bars') {
+      // Draw vertical bars
+      ctx.fillStyle = lineColor;
+      
+      for (let i = 0; i < dataArray.current.length; i += 4) {
+        const x = i * sliceWidth;
+        const yNormalized = invertY 
+          ? (0.5 - dataArray.current[i] * -0.5) 
+          : (0.5 + dataArray.current[i] * -0.5);
+        const y = yNormalized * verticalScale + height / 2;
+        const barHeight = Math.abs(y - height / 2);
+        
+        ctx.fillRect(
+          x - lineWidth / 2, 
+          Math.min(y, height / 2), 
+          lineWidth, 
+          barHeight
+        );
+      }
+    }
     
     animationFrameId.current = requestAnimationFrame(draw);
   };
@@ -123,7 +191,7 @@ export function useOscilloscopeVisualizer(
         animationFrameId.current = null;
       }
     };
-  }, [isPlaying, audioContext.isInitialized]);
+  }, [isPlaying, audioContext.isInitialized, options]);
 
   return { draw };
 }
