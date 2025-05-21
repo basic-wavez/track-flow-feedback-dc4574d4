@@ -9,8 +9,46 @@ interface VisualizerOptions {
   capColor?: string;
   capHeight?: number;
   capFallSpeed?: number;
-  maxFrequency?: number; // New option to set the max frequency to display
+  maxFrequency?: number;
+  targetFPS?: number; // New option to control frame rate
 }
+
+// Shared frame rate controller across all visualizer instances
+const sharedFrameController = {
+  lastFrameTime: 0,
+  requestId: null as number | null,
+  activeVisualizers: new Set<() => void>(),
+  
+  // Register a visualizer's draw function
+  register(drawFn: () => void) {
+    this.activeVisualizers.add(drawFn);
+    if (this.activeVisualizers.size === 1) {
+      this.startLoop();
+    }
+  },
+  
+  // Unregister a visualizer's draw function
+  unregister(drawFn: () => void) {
+    this.activeVisualizers.delete(drawFn);
+    if (this.activeVisualizers.size === 0 && this.requestId !== null) {
+      cancelAnimationFrame(this.requestId);
+      this.requestId = null;
+    }
+  },
+  
+  // Main animation loop that controls all visualizers
+  startLoop() {
+    const loop = () => {
+      const now = performance.now();
+      // Run all active visualizer draw functions
+      this.activeVisualizers.forEach(drawFn => drawFn());
+      this.lastFrameTime = now;
+      this.requestId = requestAnimationFrame(loop);
+    };
+    
+    this.requestId = requestAnimationFrame(loop);
+  }
+};
 
 export function useAudioVisualizer(
   canvasRef: React.RefObject<HTMLCanvasElement>,
@@ -19,9 +57,10 @@ export function useAudioVisualizer(
   options: VisualizerOptions = {}
 ) {
   const [isActive, setIsActive] = useState(false);
-  const animationFrameId = useRef<number | null>(null);
   const dataArray = useRef<Uint8Array | null>(null);
   const caps = useRef<number[]>([]);
+  const canvasDimensions = useRef({ width: 0, height: 0 });
+  const lastDrawTime = useRef(0);
 
   // Default options
   const {
@@ -31,24 +70,27 @@ export function useAudioVisualizer(
     capColor = '#D946EF',
     capHeight = 2,
     capFallSpeed = 0.8,
-    maxFrequency = 15000, // Default to 15kHz instead of showing the full range
+    maxFrequency = 15000,
+    targetFPS = 30, // Default target of 30fps for better performance
   } = options;
 
-  // Initialize the frequency data array
+  // Initialize the frequency data array with reduced size for better performance
   useEffect(() => {
     if (!audioContext.analyserNode) return;
+    
+    // Reduce FFT size for better performance
+    const fftSize = 1024; // Reduced from 2048
+    audioContext.analyserNode.fftSize = fftSize;
+    audioContext.analyserNode.smoothingTimeConstant = 0.7; // Slightly reduced for better performance
     
     const bufferLength = audioContext.analyserNode.frequencyBinCount;
     dataArray.current = new Uint8Array(bufferLength);
     
     // Initialize caps array
-    const initialCaps = Array(barCount).fill(0);
-    caps.current = initialCaps;
+    caps.current = Array(barCount).fill(0);
     
     return () => {
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
+      sharedFrameController.unregister(draw);
     };
   }, [audioContext.analyserNode, barCount]);
 
@@ -68,20 +110,31 @@ export function useAudioVisualizer(
       return;
     }
 
+    const now = performance.now();
+    const frameInterval = 1000 / targetFPS;
+    
+    // Skip frame if not enough time has elapsed
+    if (now - lastDrawTime.current < frameInterval) {
+      return;
+    }
+    
+    lastDrawTime.current = now;
+    
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Disable alpha for better performance
     
     if (!ctx) return;
     
-    // Get current dimensions from the parent element, not from getBoundingClientRect
+    // Get current dimensions from the parent element
     const parent = canvas.parentElement;
     const width = parent ? parent.clientWidth : canvas.clientWidth;
     const height = parent ? parent.clientHeight : canvas.clientHeight;
     
     // Only update canvas dimensions if they've changed
-    if (canvas.width !== width || canvas.height !== height) {
+    if (canvasDimensions.current.width !== width || canvasDimensions.current.height !== height) {
       canvas.width = width;
       canvas.height = height;
+      canvasDimensions.current = { width, height };
     }
     
     // Clear the canvas
@@ -93,7 +146,7 @@ export function useAudioVisualizer(
     // Calculate the width of each bar based on canvas width and desired bar count
     const barWidth = Math.floor(width / barCount) - barSpacing;
     
-    // Calculate the frequency range we want to display (0 to maxFrequency)
+    // Calculate the frequency range we want to display
     const sampleRate = audioContext.audioContext?.sampleRate || 44100;
     const nyquist = sampleRate / 2;
     const maxBinIndex = Math.floor((maxFrequency / nyquist) * dataArray.current.length);
@@ -141,27 +194,28 @@ export function useAudioVisualizer(
       );
     }
     
-    // Draw frequency labels
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-    ctx.font = '9px sans-serif';
-    
-    // Only show frequency labels on bars at specific positions
-    const frequencyLabels = [
-      { freq: '0', position: 0 },
-      { freq: '5k', position: Math.floor(barCount * (5000 / maxFrequency)) },
-      { freq: '10k', position: Math.floor(barCount * (10000 / maxFrequency)) },
-      { freq: '15k', position: barCount - 1 }
-    ];
-    
-    frequencyLabels.forEach(label => {
-      if (label.position >= 0 && label.position < barCount) {
-        const x = label.position * (barWidth + barSpacing) + barWidth/2;
-        ctx.textAlign = 'center';
-        ctx.fillText(label.freq, x, height - 5);
-      }
-    });
-    
-    animationFrameId.current = requestAnimationFrame(draw);
+    // Only draw labels at a lower frequency to save performance
+    if (now % 500 < frameInterval) {
+      // Draw frequency labels
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.font = '9px sans-serif';
+      
+      // Only show frequency labels on bars at specific positions
+      const frequencyLabels = [
+        { freq: '0', position: 0 },
+        { freq: '5k', position: Math.floor(barCount * (5000 / maxFrequency)) },
+        { freq: '10k', position: Math.floor(barCount * (10000 / maxFrequency)) },
+        { freq: '15k', position: barCount - 1 }
+      ];
+      
+      frequencyLabels.forEach(label => {
+        if (label.position >= 0 && label.position < barCount) {
+          const x = label.position * (barWidth + barSpacing) + barWidth/2;
+          ctx.textAlign = 'center';
+          ctx.fillText(label.freq, x, height - 5);
+        }
+      });
+    }
   };
 
   // Start/stop animation based on playing state and active state
@@ -172,17 +226,13 @@ export function useAudioVisualizer(
         audioContext.audioContext.resume().catch(console.error);
       }
       
-      animationFrameId.current = requestAnimationFrame(draw);
-    } else if (animationFrameId.current) {
-      cancelAnimationFrame(animationFrameId.current);
-      animationFrameId.current = null;
+      sharedFrameController.register(draw);
+    } else {
+      sharedFrameController.unregister(draw);
     }
     
     return () => {
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-        animationFrameId.current = null;
-      }
+      sharedFrameController.unregister(draw);
     };
   }, [isPlaying, isActive, audioContext.isInitialized]);
 

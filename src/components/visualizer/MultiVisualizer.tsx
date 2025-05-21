@@ -28,26 +28,30 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   // Check if on mobile
   const isMobile = useIsMobile();
   
-  // Settings for all visualizers - now only using the settings, no update methods
+  // Settings for all visualizers
   const { settings } = useVisualizerSettings();
   
   // Audio context initialization
   const audioContext = useAudioContext(audioRef);
   
-  // Initialize FFT visualizer
+  // Set adjusted target FPS based on mobile status
+  const targetFPS = isMobile ? 20 : 30;
+  
+  // Initialize FFT visualizer with reduced settings for better performance
   const { isActive: fftActive } = useAudioVisualizer(
     fftCanvasRef,
     audioContext,
     isPlaying && settings.fftEnabled,
     {
-      barCount: settings.fftBarCount || 32,
+      barCount: isMobile ? 32 : (settings.fftBarCount || 32), // Reduce bars on mobile
       barColor: settings.fftBarColor,
       capColor: settings.fftCapColor || '#000000',
       maxFrequency: settings.fftMaxFrequency || 15000,
+      targetFPS: targetFPS,
     }
   );
 
-  // Create oscilloscope options from settings
+  // Create oscilloscope options from settings with performance optimizations
   const oscilloscopeOptions = {
     lineColor: settings.oscilloscopeColor,
     sensitivity: settings.oscilloscopeSensitivity || settings.sensitivity,
@@ -57,7 +61,8 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
     dashPattern: settings.oscilloscopeDashPattern,
     fillColor: settings.oscilloscopeFillColor,
     fillOpacity: settings.oscilloscopeFillOpacity,
-    invertY: settings.oscilloscopeInvertY
+    invertY: settings.oscilloscopeInvertY,
+    targetFPS: targetFPS,
   };
   
   // Initialize Oscilloscope visualizer with extended options
@@ -68,15 +73,17 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
     oscilloscopeOptions
   );
   
-  // Initialize Spectrogram visualizer
+  // Initialize Spectrogram visualizer with reduced settings on mobile
   useSpectrogramVisualizer(
     spectrogramCanvasRef,
     audioContext,
     isPlaying && settings.spectrogramEnabled,
     {
       colorMid: settings.spectrogramColorMid || settings.fftBarColor,
-      timeScale: settings.spectrogramTimeScale || 10,
+      timeScale: isMobile ? (settings.spectrogramTimeScale || 10) * 0.5 : settings.spectrogramTimeScale || 10,
       maxFrequency: settings.spectrogramMaxFrequency || 15000,
+      targetFPS: isMobile ? 15 : 20, // Even lower FPS for spectrogram
+      bufferSize: isMobile ? 100 : 200, // Smaller buffer on mobile
     }
   );
   

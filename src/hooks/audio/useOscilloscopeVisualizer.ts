@@ -2,16 +2,23 @@
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
 
+// Use the shared frame controller from useAudioVisualizer.ts
+declare const sharedFrameController: {
+  register: (drawFn: () => void) => void;
+  unregister: (drawFn: () => void) => void;
+};
+
 export interface OscilloscopeOptions {
   lineColor?: string;
   lineWidth?: number;
   backgroundColor?: string;
   sensitivity?: number;
   drawMode?: 'line' | 'dots' | 'bars';
-  dashPattern?: number[]; // For dashed line [dash length, gap length]
-  fillColor?: string; // For filled mode
-  fillOpacity?: number; // For filled mode transparency
-  invertY?: boolean; // Invert the Y axis
+  dashPattern?: number[];
+  fillColor?: string;
+  fillOpacity?: number;
+  invertY?: boolean;
+  targetFPS?: number; // New option for frame rate control
 }
 
 export function useOscilloscopeVisualizer(
@@ -20,10 +27,9 @@ export function useOscilloscopeVisualizer(
   isPlaying: boolean,
   options: OscilloscopeOptions = {}
 ) {
-  const animationFrameId = useRef<number | null>(null);
   const dataArray = useRef<Float32Array | null>(null);
-  const lastWidth = useRef<number>(0);
-  const lastHeight = useRef<number>(0);
+  const canvasDimensions = useRef({ width: 0, height: 0 });
+  const lastDrawTime = useRef(0);
 
   // Default options
   const {
@@ -35,20 +41,22 @@ export function useOscilloscopeVisualizer(
     dashPattern = [],
     fillColor = 'rgba(52, 199, 89, 0.1)',
     fillOpacity = 0.2,
-    invertY = false
+    invertY = false,
+    targetFPS = 30 // Default target of 30fps for better performance
   } = options;
 
-  // Initialize the time domain data array
+  // Initialize the time domain data array with smaller fftSize
   useEffect(() => {
     if (!audioContext.analyserNode) return;
     
     const analyser = audioContext.analyserNode;
-    dataArray.current = new Float32Array(analyser.fftSize);
+    // Reduce fftSize for better performance
+    const fftSize = 1024; // Reduced from 2048
+    analyser.fftSize = fftSize;
+    dataArray.current = new Float32Array(fftSize);
     
     return () => {
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
+      sharedFrameController.unregister(draw);
     };
   }, [audioContext.analyserNode]);
 
@@ -58,8 +66,18 @@ export function useOscilloscopeVisualizer(
       return;
     }
 
+    const now = performance.now();
+    const frameInterval = 1000 / targetFPS;
+    
+    // Skip frame if not enough time has elapsed
+    if (now - lastDrawTime.current < frameInterval) {
+      return;
+    }
+    
+    lastDrawTime.current = now;
+    
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Disable alpha for better performance
     
     if (!ctx) return;
     
@@ -69,13 +87,10 @@ export function useOscilloscopeVisualizer(
     const height = parent ? parent.clientHeight : canvas.height;
     
     // Only update canvas dimensions if they've changed
-    if (canvas.width !== width || canvas.height !== height) {
+    if (canvasDimensions.current.width !== width || canvasDimensions.current.height !== height) {
       canvas.width = width;
       canvas.height = height;
-      
-      // Store the last dimensions we set
-      lastWidth.current = width;
-      lastHeight.current = height;
+      canvasDimensions.current = { width, height };
     }
     
     // Clear the canvas
@@ -87,7 +102,6 @@ export function useOscilloscopeVisualizer(
     analyser.getFloatTimeDomainData(dataArray.current);
     
     // Calculate vertical scaling based on sensitivity
-    // We're modifying how the vertical scale is applied to maintain proper centering
     const verticalScale = height * 0.4 * sensitivity;
     const sliceWidth = width / dataArray.current.length;
     
@@ -100,24 +114,19 @@ export function useOscilloscopeVisualizer(
     
     // Draw the waveform based on draw mode
     if (drawMode === 'line') {
-      // Standard line drawing
+      // Standard line drawing - optimized
       ctx.lineWidth = lineWidth;
       ctx.strokeStyle = lineColor;
       ctx.beginPath();
       
-      for (let i = 0; i < dataArray.current.length; i++) {
+      // Reduce the number of points we draw for better performance
+      const skipPoints = Math.max(1, Math.floor(dataArray.current.length / 300));
+      
+      for (let i = 0; i < dataArray.current.length; i += skipPoints) {
         const x = i * sliceWidth;
         
-        // FIX: Modify how y is calculated to maintain centering
-        // Original: const y = yNormalized * verticalScale + height / 2;
-        // New approach: Apply the scaling to the offset from center (0.5)
         const yValue = dataArray.current[i];
-        // Apply inversion if needed
         const yValueWithInversion = invertY ? -yValue : yValue;
-        // Calculate Y position by:
-        // 1. Starting at center of canvas (height/2)
-        // 2. Apply the deviation from zero (-yValueWithInversion) 
-        // 3. Scale the deviation by sensitivity
         const y = height / 2 - (yValueWithInversion * verticalScale);
         
         if (i === 0) {
@@ -141,13 +150,15 @@ export function useOscilloscopeVisualizer(
       }
       
     } else if (drawMode === 'dots') {
-      // Draw dots for each sample
+      // Draw dots for each sample - optimized to draw fewer points
       ctx.fillStyle = lineColor;
       
-      for (let i = 0; i < dataArray.current.length; i += 2) {
+      // Draw fewer dots for better performance
+      const skipPoints = Math.max(2, Math.floor(dataArray.current.length / 100));
+      
+      for (let i = 0; i < dataArray.current.length; i += skipPoints) {
         const x = i * sliceWidth;
         
-        // FIX: Use same centering approach for dots
         const yValue = dataArray.current[i];
         const yValueWithInversion = invertY ? -yValue : yValue;
         const y = height / 2 - (yValueWithInversion * verticalScale);
@@ -158,13 +169,15 @@ export function useOscilloscopeVisualizer(
       }
       
     } else if (drawMode === 'bars') {
-      // Draw vertical bars
+      // Draw vertical bars - optimized
       ctx.fillStyle = lineColor;
       
-      for (let i = 0; i < dataArray.current.length; i += 4) {
+      // Draw fewer bars for better performance
+      const skipPoints = Math.max(4, Math.floor(dataArray.current.length / 75));
+      
+      for (let i = 0; i < dataArray.current.length; i += skipPoints) {
         const x = i * sliceWidth;
         
-        // FIX: Use same centering approach for bars
         const yValue = dataArray.current[i];
         const yValueWithInversion = invertY ? -yValue : yValue;
         const y = height / 2 - (yValueWithInversion * verticalScale);
@@ -180,29 +193,23 @@ export function useOscilloscopeVisualizer(
         );
       }
     }
-    
-    animationFrameId.current = requestAnimationFrame(draw);
   };
 
   // Start/stop animation based on playing state
   useEffect(() => {
     if (isPlaying && audioContext.isInitialized) {
-      // Resume the audio context if it's suspended (browser autoplay policy)
+      // Resume the audio context if it's suspended
       if (audioContext.audioContext?.state === 'suspended') {
         audioContext.audioContext.resume().catch(console.error);
       }
       
-      animationFrameId.current = requestAnimationFrame(draw);
-    } else if (animationFrameId.current) {
-      cancelAnimationFrame(animationFrameId.current);
-      animationFrameId.current = null;
+      sharedFrameController.register(draw);
+    } else {
+      sharedFrameController.unregister(draw);
     }
     
     return () => {
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-        animationFrameId.current = null;
-      }
+      sharedFrameController.unregister(draw);
     };
   }, [isPlaying, audioContext.isInitialized, options]);
 

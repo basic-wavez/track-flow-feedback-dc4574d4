@@ -23,7 +23,11 @@ const VisualizerCanvas = forwardRef<HTMLCanvasElement, VisualizerCanvasProps>(
       <canvas 
         ref={canvasRef}
         className={`w-full h-full rounded-md ${className}`}
-        style={{ maxHeight: '100%', objectFit: 'contain' }}
+        style={{ 
+          maxHeight: '100%', 
+          objectFit: 'contain',
+          imageRendering: 'pixelated' // Improve performance for canvas scaling
+        }}
         role="img"
         aria-label="Audio frequency visualizer"
       />
