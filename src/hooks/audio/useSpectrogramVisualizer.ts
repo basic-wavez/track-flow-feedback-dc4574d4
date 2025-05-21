@@ -50,15 +50,12 @@ export function useSpectrogramVisualizer(
     
     dataArray.current = new Uint8Array(analyser.frequencyBinCount);
     
-    // Initialize the spectrogramData buffer with the correct size
-    spectrogramData.current = Array(bufferSize)
-      .fill(null)
-      .map(() => new Uint8Array(analyser.frequencyBinCount).fill(0));
+    // Don't initialize spectrogramData here - we'll do it once we know the canvas dimensions
     
     return () => {
       sharedFrameController.unregister(draw);
     };
-  }, [audioContext.analyserNode, bufferSize]);
+  }, [audioContext.analyserNode]);
 
   // Pre-compute color cache on mount or when colors change
   useEffect(() => {
@@ -113,6 +110,21 @@ export function useSpectrogramVisualizer(
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
   };
 
+  // Function to initialize or resize the spectrogram buffer based on canvas dimensions
+  const initializeSpectrogramBuffer = (width: number) => {
+    if (!dataArray.current) return;
+    
+    // Use the actual canvas width as the buffer size to ensure full width coverage
+    // This is key to fixing the filling issue - dynamic buffer size based on canvas width
+    const actualBufferSize = Math.max(width, bufferSize);
+    
+    spectrogramData.current = Array(actualBufferSize)
+      .fill(null)
+      .map(() => new Uint8Array(dataArray.current?.length || 0).fill(0));
+    
+    console.log(`Spectrogram buffer resized: ${actualBufferSize} columns (canvas width: ${width}px)`);
+  };
+
   // Draw the spectrogram frame
   const draw = () => {
     if (!canvasRef.current || !audioContext.analyserNode || !dataArray.current) {
@@ -147,6 +159,9 @@ export function useSpectrogramVisualizer(
       // Reset the imageData when dimensions change
       imageData.current = null;
       
+      // Initialize or resize spectrogram buffer when dimensions change
+      initializeSpectrogramBuffer(width);
+      
       // Clear the canvas completely
       ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, width, height);
@@ -161,6 +176,7 @@ export function useSpectrogramVisualizer(
     }
     
     // Update audio data at a rate based on timeScale
+    // Lower timeScale = slower movement, higher timeScale = faster movement
     const updateInterval = 1000 / 30 / timeScale;
     if (now - lastDrawTime.current >= updateInterval) {
       // Get frequency data
@@ -197,8 +213,6 @@ export function useSpectrogramVisualizer(
     const maxBinIndex = Math.floor((maxFrequency / nyquist) * binCount);
     
     // Fill the image data
-    // FIX: Don't use renderStep to avoid black horizontal lines
-    // Instead, scale the bin values to fit the height
     const heightScale = height / maxBinIndex;
     
     // Clear the image data with black background
@@ -209,7 +223,7 @@ export function useSpectrogramVisualizer(
       data[i + 3] = 255; // A
     }
     
-    // FIX: Ensure we're filling the entire width of the canvas
+    // Ensure we're filling the entire width of the canvas
     // Use all available spectrogramData columns
     const columnsToDraw = Math.min(spectrogramData.current.length, width);
     
@@ -217,6 +231,13 @@ export function useSpectrogramVisualizer(
     for (let x = 0; x < columnsToDraw; x++) {
       const column = spectrogramData.current[x];
       if (!column) continue;
+      
+      // Calculate the exact position on canvas (right-aligned)
+      // This ensures we start from the right edge and fill toward the left
+      const xPos = width - x - 1;
+      
+      // Skip if outside the canvas
+      if (xPos < 0 || xPos >= width) continue;
       
       // Draw each frequency bin
       for (let binIndex = 0; binIndex < maxBinIndex; binIndex++) {
@@ -230,12 +251,6 @@ export function useSpectrogramVisualizer(
         
         // Skip if outside the canvas
         if (yPos < 0 || yPos >= height) continue;
-        
-        // FIX: Calculate the correct x position for full width coverage
-        const xPos = width - x - 1;
-        
-        // Skip if outside the canvas
-        if (xPos < 0 || xPos >= width) continue;
         
         // Calculate the position in the image data array
         const pos = (yPos * width + xPos) * 4;
@@ -253,8 +268,7 @@ export function useSpectrogramVisualizer(
     // Put the image data to the canvas in one operation
     ctx.putImageData(imgData, 0, 0);
     
-    // Every 30 frames, redraw the frequency labels to ensure they're visible
-    // FIX: Instead of conditional drawing that causes flashing, just redraw labels on top
+    // Redraw the frequency labels on top to ensure they're visible
     if (frameCount.current % 30 === 0) {
       drawFrequencyLabels(ctx, height);
     }
@@ -288,11 +302,10 @@ export function useSpectrogramVisualizer(
         audioContext.audioContext.resume().catch(console.error);
       }
       
-      // Initialize the data array when starting to play
-      if (dataArray.current) {
-        spectrogramData.current = Array(bufferSize)
-          .fill(null)
-          .map(() => new Uint8Array(dataArray.current?.length || 0).fill(0));
+      // Initialize the spectrogram buffer when starting to play
+      // But only if we already have canvas dimensions
+      if (canvasDimensions.current.width > 0 && dataArray.current) {
+        initializeSpectrogramBuffer(canvasDimensions.current.width);
       }
       
       frameCount.current = 0;
