@@ -93,6 +93,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
       minDecibels: -100,
       maxDecibels: -30,
       useLogScale: true, // Enable logarithmic frequency scale
+      useDevicePixelRatio: true, // Enable device pixel ratio scaling for sharp rendering
     }
   );
   

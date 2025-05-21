@@ -1,4 +1,3 @@
-
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
 import { sharedFrameController } from './useAudioVisualizer';
@@ -16,7 +15,8 @@ interface SpectrogramOptions {
   smoothingTimeConstant?: number;
   minDecibels?: number;
   maxDecibels?: number;
-  useLogScale?: boolean; // New option to toggle log scale
+  useLogScale?: boolean;
+  useDevicePixelRatio?: boolean; // New option to toggle DPR scaling
 }
 
 export function useSpectrogramVisualizer(
@@ -34,6 +34,7 @@ export function useSpectrogramVisualizer(
   const colorCache = useRef<string[]>(Array(256).fill(''));
   const rgbColorCache = useRef<{r: number, g: number, b: number}[]>(Array(256).fill(null));
   const logPositionCache = useRef<number[]>([]);
+  const devicePixelRatio = useRef<number>(window.devicePixelRatio || 1);
 
   // Default options
   const {
@@ -50,6 +51,7 @@ export function useSpectrogramVisualizer(
     minDecibels = -100,
     maxDecibels = -30,
     useLogScale = true, // Default to using log scale
+    useDevicePixelRatio = true, // Default to using DPR scaling
   } = options;
 
   // Initialize the frequency data array
@@ -197,8 +199,26 @@ export function useSpectrogramVisualizer(
     
     // Handle canvas dimension changes
     if (canvasDimensions.current.width !== width || canvasDimensions.current.height !== height) {
-      canvas.width = width;
-      canvas.height = height;
+      // Apply device pixel ratio scaling for sharper rendering
+      if (useDevicePixelRatio) {
+        const dpr = devicePixelRatio.current;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        
+        // Scale the context to counter the DPR scaling of the canvas
+        ctx.scale(dpr, dpr);
+        
+        // Set style dimensions to maintain layout size
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        
+        console.log(`Spectrogram: Applied DPR scaling ${dpr}x to canvas`);
+      } else {
+        // Standard sizing without DPR scaling
+        canvas.width = width;
+        canvas.height = height;
+      }
+      
       canvasDimensions.current = { width, height };
       
       // Reset the imageData when dimensions change
@@ -221,8 +241,13 @@ export function useSpectrogramVisualizer(
     }
     
     // Create or update the ImageData object if needed
-    if (!imageData.current || imageData.current.width !== width || imageData.current.height !== height) {
-      imageData.current = ctx.createImageData(width, height);
+    if (!imageData.current || imageData.current.width !== (useDevicePixelRatio ? width * devicePixelRatio.current : width) || 
+        imageData.current.height !== (useDevicePixelRatio ? height * devicePixelRatio.current : height)) {
+      if (useDevicePixelRatio) {
+        imageData.current = ctx.createImageData(width * devicePixelRatio.current, height * devicePixelRatio.current);
+      } else {
+        imageData.current = ctx.createImageData(width, height);
+      }
     }
     
     // Update audio data at a rate based on timeScale

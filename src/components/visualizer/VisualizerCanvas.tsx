@@ -26,7 +26,8 @@ const VisualizerCanvas = forwardRef<HTMLCanvasElement, VisualizerCanvasProps>(
         style={{ 
           maxHeight: '100%', 
           objectFit: 'contain',
-          imageRendering: 'pixelated' // Improve performance for canvas scaling
+          // Change from pixelated to crisp for better high-DPI rendering
+          imageRendering: 'crisp-edges',
         }}
         role="img"
         aria-label="Audio frequency visualizer"
