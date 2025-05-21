@@ -39,68 +39,48 @@ export interface VisualizerSettings {
 }
 
 const defaultSettings: VisualizerSettings = {
-  // Default display settings - enable just the 3 we need
+  // Default display settings - all enabled by default
   fftEnabled: true,
   oscilloscopeEnabled: true,
   spectrogramEnabled: true,
   stereoMeterEnabled: false,
   lufsEnabled: false,
   
-  // General settings
-  sensitivity: 1.0,
+  // General settings - updated to match screenshot
+  sensitivity: 1.0, // From screenshot - 1.0×
   
   // Layout settings
   gridLayout: 'row', // Default to row layout
   
-  // FFT appearance settings - Updated to match the light blue from screenshot 2
-  fftBarColor: '#8ADEFD', // Updated to match the color in the second screenshot
-  fftMaxFrequency: 15000, // Default to 15kHz
-  fftBarCount: 64, // Default to 64 bars
-  fftCapColor: '#D946EF', // Default to magenta cap color
+  // FFT appearance settings - Updated to match screenshot
+  fftBarColor: '#8ADEFD', // Light blue color from screenshot
+  fftMaxFrequency: 15000, // 15 kHz from screenshot
+  fftBarCount: 32, // 32 bars from screenshot
+  fftCapColor: '#000000', // Black color from screenshot
   
-  // Oscilloscope settings - Updated to match screenshot 1 but with solid lines
-  oscilloscopeColor: '#7DE3FF', // Updated to match the blue from first screenshot
-  oscilloscopeSensitivity: 1.5, // Default to 1.5x as shown in screenshot 1
-  oscilloscopeLineWidth: 2, // Default to 2px as shown in screenshot 1
+  // Oscilloscope settings
+  oscilloscopeColor: '#7DE3FF', // Light blue 
+  oscilloscopeSensitivity: 1.5, 
+  oscilloscopeLineWidth: 2,
   oscilloscopeBackgroundColor: '#000000',
   oscilloscopeDrawMode: 'line',
-  oscilloscopeDashPattern: [], // Changed to empty array for solid lines
-  oscilloscopeFillColor: '#00FF00', // Green fill color from screenshot 1
-  oscilloscopeFillOpacity: 0.0, // Default to 0 as shown in screenshot 1
+  oscilloscopeDashPattern: [], // Empty array for solid lines
+  oscilloscopeFillColor: '#00FF00',
+  oscilloscopeFillOpacity: 0.0,
   oscilloscopeInvertY: false,
   
-  // Spectrogram settings
-  spectrogramColorMid: '#8ADEFD', // Match FFT color
-  spectrogramTimeScale: 3, // Default time scale
-  spectrogramMaxFrequency: 15000, // Default to 15kHz
+  // Spectrogram settings - updated to match screenshot
+  spectrogramColorMid: '#8ADEFD', // Light blue color from screenshot
+  spectrogramTimeScale: 10, // 10s from screenshot
+  spectrogramMaxFrequency: 15000, // Match FFT max frequency
 };
 
 export function useVisualizerSettings() {
   // Initialize state with default settings
-  const [settings, setSettings] = useState<VisualizerSettings>(defaultSettings);
+  const [settings] = useState<VisualizerSettings>(defaultSettings);
   
-  // Toggle a boolean setting
-  const toggleSetting = useCallback((key: keyof Pick<VisualizerSettings, 'fftEnabled' | 'oscilloscopeEnabled' | 'spectrogramEnabled' | 'stereoMeterEnabled' | 'lufsEnabled'>) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  }, []);
-  
-  // Update any setting
-  const updateSetting = useCallback(<K extends keyof VisualizerSettings>(
-    key: K,
-    value: VisualizerSettings[K]
-  ) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  }, []);
-  
+  // Return only the settings - no methods to modify them since controls are removed
   return {
-    settings,
-    toggleSetting,
-    updateSetting
+    settings
   };
 }

@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
@@ -6,10 +5,7 @@ import { useOscilloscopeVisualizer } from '@/hooks/audio/useOscilloscopeVisualiz
 import { useSpectrogramVisualizer } from '@/hooks/audio/useSpectrogramVisualizer';
 import { useVisualizerSettings } from '@/hooks/audio/useVisualizerSettings';
 import VisualizerCanvas from './VisualizerCanvas';
-import { Button } from '@/components/ui/button';
-import { Settings2 } from 'lucide-react';
 import { toast } from "@/components/ui/use-toast";
-import VisualizerControls from './VisualizerControls';
 
 interface MultiVisualizerProps {
   audioRef: React.RefObject<HTMLAudioElement>;
@@ -27,11 +23,8 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   const oscilloscopeCanvasRef = useRef<HTMLCanvasElement>(null);
   const spectrogramCanvasRef = useRef<HTMLCanvasElement>(null);
   
-  // Settings for all visualizers
-  const { settings, updateSetting, toggleSetting } = useVisualizerSettings();
-  
-  // Controls state
-  const [showControls, setShowControls] = React.useState(false);
+  // Settings for all visualizers - now only using the settings, no update methods
+  const { settings } = useVisualizerSettings();
   
   // Audio context initialization
   const audioContext = useAudioContext(audioRef);
@@ -42,9 +35,9 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
     audioContext,
     isPlaying && settings.fftEnabled,
     {
-      barCount: settings.fftBarCount || 64,
+      barCount: settings.fftBarCount || 32,
       barColor: settings.fftBarColor,
-      capColor: settings.fftCapColor || '#D946EF',
+      capColor: settings.fftCapColor || '#000000',
       maxFrequency: settings.fftMaxFrequency || 15000,
     }
   );
@@ -77,7 +70,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
     isPlaying && settings.spectrogramEnabled,
     {
       colorMid: settings.spectrogramColorMid || settings.fftBarColor,
-      timeScale: (settings.spectrogramTimeScale || 3) / settings.sensitivity,
+      timeScale: settings.spectrogramTimeScale || 10,
       maxFrequency: settings.spectrogramMaxFrequency || 15000,
     }
   );
@@ -132,32 +125,8 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
     }
   }, [audioContext.error, audioContext.isInitialized]);
 
-  // Toggle controls panel
-  const toggleControls = () => {
-    setShowControls(prev => !prev);
-  };
-
   return (
     <div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-wip-darker ${className}`} id="visualizer-container">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={toggleControls}
-        className="absolute top-2 right-2 z-10 opacity-70 hover:opacity-100 text-gray-400"
-        title="Visualizer settings"
-      >
-        <Settings2 size={18} />
-      </Button>
-      
-      {showControls && (
-        <VisualizerControls 
-          settings={settings}
-          onToggleSetting={toggleSetting}
-          onUpdateSetting={updateSetting}
-          onClose={() => setShowControls(false)}
-        />
-      )}
-      
       {/* Visualizer containers */}
       <div className="flex gap-2 p-2 h-[150px]">
         {/* FFT Visualizer - Takes more space (40%) */}
