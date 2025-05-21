@@ -36,7 +36,8 @@ export interface VisualizerSettings {
   spectrogramColorMid?: string;
   spectrogramTimeScale?: number;
   spectrogramMaxFrequency?: number;
-  spectrogramUseLogScale?: boolean; // New setting for log scale
+  spectrogramUseLogScale?: boolean;
+  spectrogramColorMap?: 'default' | 'inferno' | 'magma' | 'turbo'; // New setting for perceptual color maps
 }
 
 const defaultSettings: VisualizerSettings = {
@@ -75,6 +76,7 @@ const defaultSettings: VisualizerSettings = {
   spectrogramTimeScale: 10, // 10s from screenshot
   spectrogramMaxFrequency: 15000, // Match FFT max frequency
   spectrogramUseLogScale: true, // Enable logarithmic frequency scale by default
+  spectrogramColorMap: 'magma', // Use magma as the default perceptual color map
 };
 
 export function useVisualizerSettings() {

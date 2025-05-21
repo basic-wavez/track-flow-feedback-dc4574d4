@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
@@ -94,6 +95,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
       maxDecibels: -30,
       useLogScale: true, // Enable logarithmic frequency scale
       useDevicePixelRatio: true, // Enable device pixel ratio scaling for sharp rendering
+      colorMap: settings.spectrogramColorMap || 'magma', // Use perceptual color map
     }
   );
   

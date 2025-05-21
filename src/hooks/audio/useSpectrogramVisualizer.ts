@@ -1,3 +1,4 @@
+
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
 import { sharedFrameController } from './useAudioVisualizer';
@@ -16,8 +17,27 @@ interface SpectrogramOptions {
   minDecibels?: number;
   maxDecibels?: number;
   useLogScale?: boolean;
-  useDevicePixelRatio?: boolean; // New option to toggle DPR scaling
+  useDevicePixelRatio?: boolean;
+  colorMap?: 'default' | 'inferno' | 'magma' | 'turbo'; // New option for color map selection
 }
+
+// Color palettes for the different perceptual color maps
+// These are simplified versions - in production you'd want more granular color stops
+const INFERNO_PALETTE = [
+  [0, 0, 4], [31, 12, 72], [85, 15, 109], [136, 34, 106], 
+  [186, 54, 85], [227, 89, 51], [249, 140, 10], [249, 201, 50], [252, 255, 164]
+];
+
+const MAGMA_PALETTE = [
+  [0, 0, 4], [28, 16, 68], [79, 18, 123], [129, 37, 129], 
+  [181, 54, 122], [229, 80, 100], [251, 135, 97], [254, 194, 135], [252, 253, 191]
+];
+
+const TURBO_PALETTE = [
+  [48, 18, 59], [70, 45, 129], [63, 81, 181], [43, 116, 202], 
+  [32, 149, 218], [34, 181, 229], [68, 209, 209], [121, 231, 155], 
+  [174, 240, 98], [222, 238, 35], [249, 189, 0], [249, 140, 0], [227, 69, 14], [180, 0, 0]
+];
 
 export function useSpectrogramVisualizer(
   canvasRef: React.RefObject<HTMLCanvasElement>,
@@ -31,8 +51,7 @@ export function useSpectrogramVisualizer(
   const canvasDimensions = useRef({ width: 0, height: 0 });
   const frameCount = useRef(0);
   const imageData = useRef<ImageData | null>(null);
-  const colorCache = useRef<string[]>(Array(256).fill(''));
-  const rgbColorCache = useRef<{r: number, g: number, b: number}[]>(Array(256).fill(null));
+  const colorCache = useRef<{r: number, g: number, b: number}[]>(Array(256).fill({r: 0, g: 0, b: 0}));
   const logPositionCache = useRef<number[]>([]);
   const devicePixelRatio = useRef<number>(window.devicePixelRatio || 1);
 
@@ -50,8 +69,9 @@ export function useSpectrogramVisualizer(
     smoothingTimeConstant = 0,
     minDecibels = -100,
     maxDecibels = -30,
-    useLogScale = true, // Default to using log scale
-    useDevicePixelRatio = true, // Default to using DPR scaling
+    useLogScale = true,
+    useDevicePixelRatio = true,
+    colorMap = 'default', // Default to the standard color map
   } = options;
 
   // Initialize the frequency data array
@@ -80,30 +100,36 @@ export function useSpectrogramVisualizer(
     };
   }, [audioContext.analyserNode, fftSize, smoothingTimeConstant, minDecibels, maxDecibels]);
 
-  // Pre-compute color cache on mount or when colors change
+  // Generate the color map based on the selected palette
   useEffect(() => {
     // Generate all 256 possible colors and cache them
     for (let i = 0; i < 256; i++) {
       const normalizedValue = i / 255;
-      let hexColor;
-      let rgb;
       
-      if (normalizedValue < 0.5) {
-        // Interpolate between colorStart and colorMid
-        const t = normalizedValue * 2;
-        hexColor = interpolateColor(colorStart, colorMid, t);
-        rgb = hexToRgb(hexColor);
+      if (colorMap === 'inferno') {
+        colorCache.current[i] = interpolateColorArray(INFERNO_PALETTE, normalizedValue);
+      } else if (colorMap === 'magma') {
+        colorCache.current[i] = interpolateColorArray(MAGMA_PALETTE, normalizedValue);
+      } else if (colorMap === 'turbo') {
+        colorCache.current[i] = interpolateColorArray(TURBO_PALETTE, normalizedValue);
       } else {
-        // Interpolate between colorMid and colorEnd
-        const t = (normalizedValue - 0.5) * 2;
-        hexColor = interpolateColor(colorMid, colorEnd, t);
-        rgb = hexToRgb(hexColor);
+        // Default color map (original three-color gradient)
+        let rgb;
+        if (normalizedValue < 0.5) {
+          // Interpolate between colorStart and colorMid
+          const t = normalizedValue * 2;
+          rgb = interpolateHexColors(colorStart, colorMid, t);
+        } else {
+          // Interpolate between colorMid and colorEnd
+          const t = (normalizedValue - 0.5) * 2;
+          rgb = interpolateHexColors(colorMid, colorEnd, t);
+        }
+        colorCache.current[i] = rgb;
       }
-      
-      colorCache.current[i] = hexColor;
-      rgbColorCache.current[i] = rgb;
     }
-  }, [colorStart, colorMid, colorEnd]);
+    
+    console.log(`Generated color map: ${colorMap}`);
+  }, [colorMap, colorStart, colorMid, colorEnd]);
   
   // Pre-compute log scale positions cache when canvas height changes
   const updateLogPositionCache = (height: number, binCount: number) => {
@@ -128,17 +154,9 @@ export function useSpectrogramVisualizer(
     
     console.log(`Log position cache updated for ${maxBinIndex} bins, height: ${height}`);
   };
-  
-  // Helper function to convert hex to RGB without parsing each time
-  const hexToRgb = (hex: string) => {
-    const r = parseInt(hex.substring(1, 3), 16);
-    const g = parseInt(hex.substring(3, 5), 16);
-    const b = parseInt(hex.substring(5, 7), 16);
-    return { r, g, b };
-  };
 
-  // Helper to interpolate between two colors
-  const interpolateColor = (color1: string, color2: string, factor: number): string => {
+  // Helper to interpolate between two hex colors
+  const interpolateHexColors = (color1: string, color2: string, factor: number): {r: number, g: number, b: number} => {
     // Parse hex colors to RGB
     const r1 = parseInt(color1.substring(1, 3), 16);
     const g1 = parseInt(color1.substring(3, 5), 16);
@@ -153,8 +171,30 @@ export function useSpectrogramVisualizer(
     const g = Math.round(g1 + factor * (g2 - g1));
     const b = Math.round(b1 + factor * (b2 - b1));
     
-    // Convert back to hex
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    return { r, g, b };
+  };
+  
+  // Helper to interpolate within a color palette array
+  const interpolateColorArray = (palette: number[][], value: number): {r: number, g: number, b: number} => {
+    if (value <= 0) return { r: palette[0][0], g: palette[0][1], b: palette[0][2] };
+    if (value >= 1) return { r: palette[palette.length-1][0], g: palette[palette.length-1][1], b: palette[palette.length-1][2] };
+    
+    // Map value to the palette segments
+    const segment = value * (palette.length - 1);
+    const index = Math.floor(segment);
+    const fraction = segment - index;
+    
+    // If exact match or at the end
+    if (fraction === 0 || index >= palette.length - 1) {
+      return { r: palette[index][0], g: palette[index][1], b: palette[index][2] };
+    }
+    
+    // Interpolate between two palette entries
+    const r = Math.round(palette[index][0] + fraction * (palette[index+1][0] - palette[index][0]));
+    const g = Math.round(palette[index][1] + fraction * (palette[index+1][1] - palette[index][1]));
+    const b = Math.round(palette[index][2] + fraction * (palette[index+1][2] - palette[index][2]));
+    
+    return { r, g, b };
   };
 
   // Function to initialize or resize the spectrogram buffer based on canvas dimensions
@@ -162,7 +202,6 @@ export function useSpectrogramVisualizer(
     if (!dataArray.current) return;
     
     // Use the actual canvas width as the buffer size to ensure full width coverage
-    // This is key to fixing the filling issue - dynamic buffer size based on canvas width
     const actualBufferSize = Math.max(width, bufferSize);
     
     spectrogramData.current = Array(actualBufferSize)
@@ -337,13 +376,13 @@ export function useSpectrogramVisualizer(
         // Calculate the position in the image data array
         const pos = (yPos * width + xPos) * 4;
         
-        // Use pre-calculated RGB values from cache for better performance
-        const rgbColor = rgbColorCache.current[value];
+        // Use pre-calculated RGB values from perceptual color maps for better visualization
+        const color = colorCache.current[value];
         
-        data[pos] = rgbColor.r;     // R
-        data[pos + 1] = rgbColor.g; // G
-        data[pos + 2] = rgbColor.b; // B
-        data[pos + 3] = 255;        // A
+        data[pos] = color.r;     // R
+        data[pos + 1] = color.g; // G
+        data[pos + 2] = color.b; // B
+        data[pos + 3] = 255;     // A
       }
     }
     
