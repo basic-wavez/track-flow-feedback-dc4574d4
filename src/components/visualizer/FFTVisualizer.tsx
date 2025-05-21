@@ -1,10 +1,7 @@
-
 import React, { useRef, useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
 import VisualizerCanvas from './VisualizerCanvas';
-import { Button } from '@/components/ui/button';
-import { AudioWaveform } from 'lucide-react';
 import { toast } from "@/components/ui/use-toast";
 
 interface FFTVisualizerProps {
@@ -20,7 +17,7 @@ const FFTVisualizer: React.FC<FFTVisualizerProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContext = useAudioContext(audioRef);
-  const { isActive, toggleVisualizer } = useAudioVisualizer(
+  const { isActive } = useAudioVisualizer(
     canvasRef,
     audioContext,
     isPlaying,
@@ -83,18 +80,6 @@ const FFTVisualizer: React.FC<FFTVisualizerProps> = ({
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={toggleVisualizer}
-        className={`absolute top-2 right-2 z-10 opacity-70 hover:opacity-100 ${
-          isActive ? 'text-wip-pink' : 'text-gray-400'
-        }`}
-        title={isActive ? "Disable visualizer" : "Enable visualizer"}
-      >
-        <AudioWaveform size={18} />
-      </Button>
-      
       {isActive ? (
         <VisualizerCanvas ref={canvasRef} className="bg-wip-darker" />
       ) : (

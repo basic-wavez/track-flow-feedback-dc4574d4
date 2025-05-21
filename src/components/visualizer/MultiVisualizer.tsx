@@ -131,15 +131,12 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
       <div className="flex gap-2 p-2 h-[150px]">
         {/* FFT Visualizer - Takes more space (40%) */}
         <div className="w-[40%] rounded-md overflow-hidden border border-gray-800 bg-black">
-          <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">
-            FFT Spectrum ({settings.fftMaxFrequency ? (settings.fftMaxFrequency / 1000) : 15}kHz)
-          </div>
           {settings.fftEnabled ? (
-            <div className="h-[calc(100%-24px)]">
+            <div className="h-full">
               <VisualizerCanvas ref={fftCanvasRef} className="bg-black" />
             </div>
           ) : (
-            <div className="w-full h-[calc(100%-24px)] flex items-center justify-center text-xs text-gray-500">
+            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
               FFT disabled
             </div>
           )}
@@ -147,13 +144,12 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         
         {/* Oscilloscope Visualizer - Square in the middle (20%) */}
         <div className="w-[20%] aspect-square rounded-md overflow-hidden border border-gray-800 bg-black">
-          <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Oscilloscope</div>
           {settings.oscilloscopeEnabled ? (
-            <div className="h-[calc(100%-24px)]">
+            <div className="h-full">
               <VisualizerCanvas ref={oscilloscopeCanvasRef} className="bg-black" />
             </div>
           ) : (
-            <div className="w-full h-[calc(100%-24px)] flex items-center justify-center text-xs text-gray-500">
+            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
               Oscilloscope disabled
             </div>
           )}
@@ -161,15 +157,12 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         
         {/* Spectrogram Visualizer - Takes more space (40%) */}
         <div className="w-[40%] rounded-md overflow-hidden border border-gray-800 bg-black">
-          <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">
-            Spectrogram ({settings.spectrogramMaxFrequency ? (settings.spectrogramMaxFrequency / 1000) : 15}kHz)
-          </div>
           {settings.spectrogramEnabled ? (
-            <div className="h-[calc(100%-24px)]">
+            <div className="h-full">
               <VisualizerCanvas ref={spectrogramCanvasRef} className="bg-black" />
             </div>
           ) : (
-            <div className="w-full h-[calc(100%-24px)] flex items-center justify-center text-xs text-gray-500">
+            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
               Spectrogram disabled
             </div>
           )}
