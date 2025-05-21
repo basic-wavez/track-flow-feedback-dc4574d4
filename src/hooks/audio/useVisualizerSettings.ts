@@ -75,7 +75,7 @@ const defaultSettings: VisualizerSettings = {
   
   // Spectrogram settings - updated to match screenshot
   spectrogramColorMid: '#8ADEFD', // Light blue color from screenshot
-  spectrogramTimeScale: 10, // 10s from screenshot
+  spectrogramTimeScale: 5, // Changed from 10s to 5s to increase the speed and space between transients
   spectrogramMaxFrequency: 15000, // Match FFT max frequency
   spectrogramUseLogScale: true, // Enable logarithmic frequency scale by default
   spectrogramColorMap: 'magma', // Use magma as the default perceptual color map
