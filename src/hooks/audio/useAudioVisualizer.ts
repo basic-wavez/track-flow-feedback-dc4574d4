@@ -9,6 +9,7 @@ interface VisualizerOptions {
   capColor?: string;
   capHeight?: number;
   capFallSpeed?: number;
+  maxFrequency?: number; // New option to set the max frequency to display
 }
 
 export function useAudioVisualizer(
@@ -30,6 +31,7 @@ export function useAudioVisualizer(
     capColor = '#D946EF',
     capHeight = 2,
     capFallSpeed = 0.8,
+    maxFrequency = 15000, // Default to 15kHz instead of showing the full range
   } = options;
 
   // Initialize the frequency data array
@@ -91,18 +93,24 @@ export function useAudioVisualizer(
     // Calculate the width of each bar based on canvas width and desired bar count
     const barWidth = Math.floor(width / barCount) - barSpacing;
     
+    // Calculate the frequency range we want to display (0 to maxFrequency)
+    const sampleRate = audioContext.audioContext?.sampleRate || 44100;
+    const nyquist = sampleRate / 2;
+    const maxBinIndex = Math.floor((maxFrequency / nyquist) * dataArray.current.length);
+    
     // Draw bars and caps
     for (let i = 0; i < barCount; i++) {
-      // Get the average value for this bar's frequency range
-      const startIndex = Math.floor(i * audioContext.analyserNode.frequencyBinCount / barCount);
-      const endIndex = Math.floor((i + 1) * audioContext.analyserNode.frequencyBinCount / barCount);
+      // Map the bar index to a frequency bin index up to maxBinIndex
+      const startBin = Math.floor(i * maxBinIndex / barCount);
+      const endBin = Math.floor((i + 1) * maxBinIndex / barCount);
       
+      // Get the average value for this bar's frequency range
       let sum = 0;
-      for (let j = startIndex; j < endIndex; j++) {
+      for (let j = startBin; j < endBin; j++) {
         sum += dataArray.current[j];
       }
       
-      const average = sum / (endIndex - startIndex);
+      const average = sum / (endBin - startBin) || 0;
       
       // Calculate bar height based on frequency value (0-255)
       const barHeight = (average / 255) * height * 0.8; // 80% of canvas height max
@@ -132,6 +140,26 @@ export function useAudioVisualizer(
         capHeight
       );
     }
+    
+    // Draw frequency labels
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = '9px sans-serif';
+    
+    // Only show frequency labels on bars at specific positions
+    const frequencyLabels = [
+      { freq: '0', position: 0 },
+      { freq: '5k', position: Math.floor(barCount * (5000 / maxFrequency)) },
+      { freq: '10k', position: Math.floor(barCount * (10000 / maxFrequency)) },
+      { freq: '15k', position: barCount - 1 }
+    ];
+    
+    frequencyLabels.forEach(label => {
+      if (label.position >= 0 && label.position < barCount) {
+        const x = label.position * (barWidth + barSpacing) + barWidth/2;
+        ctx.textAlign = 'center';
+        ctx.fillText(label.freq, x, height - 5);
+      }
+    });
     
     animationFrameId.current = requestAnimationFrame(draw);
   };

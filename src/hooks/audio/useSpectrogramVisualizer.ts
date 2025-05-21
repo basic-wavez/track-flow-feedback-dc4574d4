@@ -8,6 +8,7 @@ interface SpectrogramOptions {
   colorMid?: string;
   timeScale?: number;
   backgroundColor?: string;
+  maxFrequency?: number; // New option to set the max frequency to display
 }
 
 export function useSpectrogramVisualizer(
@@ -27,7 +28,8 @@ export function useSpectrogramVisualizer(
     colorMid = '#9b87f5',
     colorEnd = '#ff0000',
     timeScale = 2.0,
-    backgroundColor = '#000000'
+    backgroundColor = '#000000',
+    maxFrequency = 15000 // Default to 15kHz instead of showing the full range
   } = options;
 
   // Initialize the frequency data array
@@ -133,17 +135,26 @@ export function useSpectrogramVisualizer(
       const frequencyBins = dataArray.current.length;
       const binHeight = height / frequencyBins;
       
+      // Calculate the index corresponding to our maxFrequency
+      // assuming standard 44.1kHz sample rate, Nyquist frequency is 22050Hz
+      // so the bin for 15kHz would be at approximately 15000/22050 * frequencyBins
+      const sampleRate = audioContext.audioContext?.sampleRate || 44100;
+      const nyquist = sampleRate / 2;
+      const maxBinIndex = Math.floor((maxFrequency / nyquist) * frequencyBins);
+      
       // Draw from right to left (newest data on the right)
       for (let x = 0; x < spectrogramData.current.length; x++) {
         const column = spectrogramData.current[spectrogramData.current.length - 1 - x];
         
-        // Draw column from bottom to top (low frequencies at the bottom)
-        for (let y = 0; y < frequencyBins; y++) {
+        // Only draw up to the maxBinIndex (scaled for the display height)
+        for (let y = 0; y < maxBinIndex; y++) {
           const value = column[y];
           if (value > 0) { // Only draw visible frequencies
             ctx.fillStyle = getColorForValue(value);
-            // Draw from bottom to top (low frequencies at bottom)
-            const yPos = height - (y * binHeight) - binHeight;
+            
+            // Scale y position to the new max frequency range
+            const yPos = height - ((y * height) / maxBinIndex) - binHeight;
+            
             ctx.fillRect(
               width - x - 1, // Right to left
               yPos,
@@ -154,17 +165,18 @@ export function useSpectrogramVisualizer(
         }
       }
       
-      // Draw frequency labels
+      // Draw frequency labels with updated scale to 15kHz
       ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
       
+      // Updated labels to focus on 0-15kHz range
       const labels = [
-        { freq: '20 kHz', pos: 0.1 },
+        { freq: '15 kHz', pos: 0.1 },
         { freq: '10 kHz', pos: 0.3 },
         { freq: '5 kHz', pos: 0.5 },
-        { freq: '1 kHz', pos: 0.7 },
-        { freq: '100 Hz', pos: 0.9 }
+        { freq: '2 kHz', pos: 0.7 },
+        { freq: '500 Hz', pos: 0.9 }
       ];
       
       labels.forEach(label => {

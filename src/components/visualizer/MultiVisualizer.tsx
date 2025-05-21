@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
@@ -36,6 +35,9 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   // Audio context initialization
   const audioContext = useAudioContext(audioRef);
   
+  // Define max frequency - focusing on up to 15kHz instead of full range
+  const maxFrequency = 15000; // 15kHz
+  
   // Initialize FFT visualizer
   const { isActive: fftActive } = useAudioVisualizer(
     fftCanvasRef,
@@ -45,6 +47,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
       barCount: 64,
       barColor: settings.fftBarColor,
       capColor: '#D946EF',
+      maxFrequency: maxFrequency, // Pass max frequency to visualizer
     }
   );
   
@@ -67,6 +70,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
     {
       colorMid: settings.fftBarColor,
       timeScale: 3 / settings.sensitivity,
+      maxFrequency: maxFrequency, // Pass max frequency to visualizer
     }
   );
   
@@ -150,7 +154,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
       <div className="flex gap-2 p-2 h-[150px]">
         {/* FFT Visualizer - Takes more space (40%) */}
         <div className="w-[40%] rounded-md overflow-hidden border border-gray-800 bg-black">
-          <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">FFT Spectrum</div>
+          <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">FFT Spectrum (0-15kHz)</div>
           {settings.fftEnabled ? (
             <div className="h-[calc(100%-24px)]">
               <VisualizerCanvas ref={fftCanvasRef} className="bg-black" />
@@ -178,7 +182,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         
         {/* Spectrogram Visualizer - Takes more space (40%) */}
         <div className="w-[40%] rounded-md overflow-hidden border border-gray-800 bg-black">
-          <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Spectrogram</div>
+          <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Spectrogram (0-15kHz)</div>
           {settings.spectrogramEnabled ? (
             <div className="h-[calc(100%-24px)]">
               <VisualizerCanvas ref={spectrogramCanvasRef} className="bg-black" />
