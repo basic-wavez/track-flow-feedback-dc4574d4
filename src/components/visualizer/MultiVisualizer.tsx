@@ -1,9 +1,11 @@
+
 import React, { useRef, useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
 import { useOscilloscopeVisualizer } from '@/hooks/audio/useOscilloscopeVisualizer';
 import { useSpectrogramVisualizer } from '@/hooks/audio/useSpectrogramVisualizer';
 import { useVisualizerSettings } from '@/hooks/audio/useVisualizerSettings';
+import { useIsMobile } from '@/hooks/use-mobile';
 import VisualizerCanvas from './VisualizerCanvas';
 import { toast } from "@/components/ui/use-toast";
 
@@ -22,6 +24,9 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   const fftCanvasRef = useRef<HTMLCanvasElement>(null);
   const oscilloscopeCanvasRef = useRef<HTMLCanvasElement>(null);
   const spectrogramCanvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Check if on mobile
+  const isMobile = useIsMobile();
   
   // Settings for all visualizers - now only using the settings, no update methods
   const { settings } = useVisualizerSettings();
@@ -125,10 +130,13 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
     }
   }, [audioContext.error, audioContext.isInitialized]);
 
+  // Define the height based on mobile status
+  const visualizerHeight = isMobile ? 'h-[75px]' : 'h-[150px]';
+
   return (
     <div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-wip-darker ${className}`} id="visualizer-container">
-      {/* Visualizer containers */}
-      <div className="flex gap-2 p-2 h-[150px]">
+      {/* Visualizer containers with dynamic height */}
+      <div className={`flex gap-2 p-2 ${visualizerHeight}`}>
         {/* FFT Visualizer - Takes more space (40%) */}
         <div className="w-[40%] rounded-md overflow-hidden border border-gray-800 bg-black">
           {settings.fftEnabled ? (

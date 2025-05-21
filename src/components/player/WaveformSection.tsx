@@ -3,6 +3,7 @@ import React from 'react';
 import Waveform from "../Waveform";
 import MultiVisualizer from '../visualizer/MultiVisualizer';
 import TrackActions from './TrackActions';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface WaveformSectionProps {
   playbackUrl: string | undefined;
@@ -57,6 +58,9 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   trackTitle = "",
   isPlaylistMode = false
 }) => {
+  // Check if we're on mobile
+  const isMobile = useIsMobile();
+  
   return (
     <div className="flex flex-col space-y-4">
       {/* Waveform comes first */}
@@ -92,13 +96,13 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
         </div>
       )}
       
-      {/* Updated visualizer with reduced height (150px instead of 300px) */}
+      {/* Updated visualizer with dynamic height based on device */}
       {showFFTVisualizer && (
         <div className="mt-2 mb-6">
           <MultiVisualizer 
             audioRef={audioRef}
             isPlaying={isPlaying}
-            className="h-[150px] w-full"
+            className={isMobile ? "w-full" : "h-[150px] w-full"}
           />
         </div>
       )}

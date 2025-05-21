@@ -1,6 +1,8 @@
+
 import React, { useRef, useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
+import { useIsMobile } from '@/hooks/use-mobile';
 import VisualizerCanvas from './VisualizerCanvas';
 import { toast } from "@/components/ui/use-toast";
 
@@ -17,6 +19,8 @@ const FFTVisualizer: React.FC<FFTVisualizerProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContext = useAudioContext(audioRef);
+  const isMobile = useIsMobile();
+  
   const { isActive } = useAudioVisualizer(
     canvasRef,
     audioContext,
@@ -78,12 +82,15 @@ const FFTVisualizer: React.FC<FFTVisualizerProps> = ({
     }
   }, [isActive, audioContext.error, audioContext.isInitialized]);
 
+  // Set the height based on whether we're on mobile or not
+  const visualizerHeight = isMobile ? 'h-12' : 'h-24';
+
   return (
     <div className={`relative overflow-hidden ${className}`}>
       {isActive ? (
-        <VisualizerCanvas ref={canvasRef} className="bg-wip-darker" />
+        <VisualizerCanvas ref={canvasRef} className={`bg-wip-darker ${visualizerHeight}`} />
       ) : (
-        <div className="w-full h-24 bg-wip-darker rounded-md flex items-center justify-center">
+        <div className={`w-full ${visualizerHeight} bg-wip-darker rounded-md flex items-center justify-center`}>
           <p className="text-sm text-gray-400">Visualizer disabled</p>
         </div>
       )}
