@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
@@ -141,7 +140,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   };
 
   return (
-    <div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-wip-darker ${className}`}>
+    <div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-wip-darker ${className}`} id="visualizer-container">
       <Button
         variant="ghost"
         size="sm"

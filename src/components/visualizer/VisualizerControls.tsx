@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { VisualizerSettings } from '@/hooks/audio/useVisualizerSettings';
 import { Button } from '@/components/ui/button';
@@ -95,7 +94,7 @@ const VisualizerControls: React.FC<VisualizerControlsProps> = ({
   };
 
   return (
-    <div className="absolute top-10 right-2 z-20 bg-wip-darker border border-gray-700 rounded-md shadow-lg p-4 w-72 max-h-[calc(100vh-150px)] overflow-y-auto">
+    <div className="fixed top-0 right-2 z-50 bg-wip-darker border border-gray-700 rounded-md shadow-lg p-4 w-72 max-h-[80vh] overflow-y-auto mt-2">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-wip-pink">Visualizer Settings</h3>
         <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0">
