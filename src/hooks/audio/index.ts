@@ -7,3 +7,6 @@ export * from './useAudioControls';
 export * from './useAudioEffects';
 export * from './useAudioContext';
 export * from './useAudioVisualizer';
+export * from './useVisualizerSettings';
+export * from './useOscilloscopeVisualizer';
+export * from './useSpectrogramVisualizer';
