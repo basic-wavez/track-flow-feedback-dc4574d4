@@ -44,11 +44,22 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement>) {
         console.log('Set crossOrigin="anonymous" on audio element');
       }
       
-      // Create main analyser node for FFT
+      // Try to use the maximum FFT size allowed by the browser
+      const maxPossibleFftSize = 32768;
+      
+      // Create main analyser node for FFT with enhanced settings
       const analyser = context.createAnalyser();
-      analyser.fftSize = 2048;
-      analyser.smoothingTimeConstant = 0.8;
-      console.log('Main analyser node created');
+      try {
+        analyser.fftSize = maxPossibleFftSize; // Try to set to maximum
+        console.log(`Main analyser fftSize set to: ${analyser.fftSize}`);
+      } catch (e) {
+        console.warn(`Browser limited fftSize to: ${analyser.fftSize}`, e);
+      }
+      
+      analyser.smoothingTimeConstant = 0.0; // No smoothing for maximum detail
+      analyser.minDecibels = -100; // Wider dynamic range
+      analyser.maxDecibels = -30;
+      console.log('Main analyser node created with enhanced settings');
       
       // Create a source node from the audio element
       const source = context.createMediaElementSource(audioRef.current);
@@ -60,13 +71,23 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement>) {
       
       // Create separate analysers for left and right channels
       const leftAnalyser = context.createAnalyser();
-      leftAnalyser.fftSize = 1024;
-      leftAnalyser.smoothingTimeConstant = 0.8;
+      try {
+        // Use a slightly smaller FFT size for the channel analysers to save resources
+        leftAnalyser.fftSize = Math.min(maxPossibleFftSize / 2, 16384);
+      } catch (e) {
+        console.warn(`Browser limited left channel fftSize to: ${leftAnalyser.fftSize}`, e);
+      }
+      leftAnalyser.smoothingTimeConstant = 0.0;
       
       const rightAnalyser = context.createAnalyser();
-      rightAnalyser.fftSize = 1024;
-      rightAnalyser.smoothingTimeConstant = 0.8;
-      console.log('Left and right channel analysers created');
+      try {
+        rightAnalyser.fftSize = Math.min(maxPossibleFftSize / 2, 16384);
+      } catch (e) {
+        console.warn(`Browser limited right channel fftSize to: ${rightAnalyser.fftSize}`, e);
+      }
+      rightAnalyser.smoothingTimeConstant = 0.0;
+      
+      console.log('Left and right channel analysers created with enhanced settings');
       
       // Connect the nodes:
       // source -> analyser -> destination (main path)
@@ -91,7 +112,7 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement>) {
       });
       
       isInitializedRef.current = true;
-      console.log('Audio context initialized successfully with stereo analysis');
+      console.log('Audio context initialized successfully with enhanced FFT settings');
     } catch (err) {
       console.error('Failed to initialize audio context:', err);
       setState(prev => ({ ...prev, error: err as Error }));

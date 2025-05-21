@@ -12,6 +12,10 @@ interface SpectrogramOptions {
   maxFrequency?: number;
   targetFPS?: number;
   bufferSize?: number;
+  fftSize?: number;
+  smoothingTimeConstant?: number;
+  minDecibels?: number;
+  maxDecibels?: number;
 }
 
 export function useSpectrogramVisualizer(
@@ -38,7 +42,11 @@ export function useSpectrogramVisualizer(
     backgroundColor = '#000000',
     maxFrequency = 15000,
     targetFPS = 20,
-    bufferSize = 200
+    bufferSize = 200,
+    fftSize = 32768, // Increased from default 1024 to 32768 for higher resolution
+    smoothingTimeConstant = 0, // Changed from 0.8 to 0 for punchier transients
+    minDecibels = -100, // Changed from default -100 to widen dynamic range
+    maxDecibels = -30, // Changed from default -30 to widen dynamic range
   } = options;
 
   // Initialize the frequency data array
@@ -46,7 +54,19 @@ export function useSpectrogramVisualizer(
     if (!audioContext.analyserNode) return;
     
     const analyser = audioContext.analyserNode;
-    analyser.fftSize = 1024;
+    
+    // Apply the new FFT settings
+    try {
+      analyser.fftSize = fftSize;
+      analyser.smoothingTimeConstant = smoothingTimeConstant;
+      analyser.minDecibels = minDecibels;
+      analyser.maxDecibels = maxDecibels;
+      
+      console.log(`Spectrogram: Applied FFT settings - fftSize: ${fftSize}, smoothing: ${smoothingTimeConstant}, dB range: ${minDecibels} to ${maxDecibels}`);
+    } catch (e) {
+      console.warn(`Spectrogram: Could not set requested fftSize ${fftSize}, using maximum allowed by browser:`, e);
+      // Some browsers limit fftSize, so we handle the error gracefully
+    }
     
     dataArray.current = new Uint8Array(analyser.frequencyBinCount);
     
@@ -55,7 +75,7 @@ export function useSpectrogramVisualizer(
     return () => {
       sharedFrameController.unregister(draw);
     };
-  }, [audioContext.analyserNode]);
+  }, [audioContext.analyserNode, fftSize, smoothingTimeConstant, minDecibels, maxDecibels]);
 
   // Pre-compute color cache on mount or when colors change
   useEffect(() => {
@@ -280,9 +300,10 @@ export function useSpectrogramVisualizer(
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'left';
     
-    // Fixed frequencies for more consistent appearance
+    // Update frequency labels to account for higher FFT resolution
     const labels = [
-      { freq: '15 kHz', pos: 0.1 },
+      { freq: '20 kHz', pos: 0.05 },
+      { freq: '15 kHz', pos: 0.15 },
       { freq: '10 kHz', pos: 0.3 },
       { freq: '5 kHz', pos: 0.5 },
       { freq: '2 kHz', pos: 0.7 },

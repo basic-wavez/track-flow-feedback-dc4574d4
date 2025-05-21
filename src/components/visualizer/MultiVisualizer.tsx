@@ -36,6 +36,10 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   
   // Set adjusted target FPS based on mobile status
   const targetFPS = isMobile ? 20 : 30;
+
+  // Calculate appropriate FFT size based on device capability
+  // Mobile devices may struggle with very large FFT sizes
+  const spectrogramFftSize = isMobile ? 8192 : 32768;
   
   // Initialize FFT visualizer with reduced settings for better performance
   const { isActive: fftActive } = useAudioVisualizer(
@@ -73,7 +77,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
     oscilloscopeOptions
   );
   
-  // Initialize Spectrogram visualizer with reduced settings on mobile
+  // Initialize Spectrogram visualizer with enhanced FFT settings
   useSpectrogramVisualizer(
     spectrogramCanvasRef,
     audioContext,
@@ -84,6 +88,11 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
       maxFrequency: settings.spectrogramMaxFrequency || 15000,
       targetFPS: isMobile ? 15 : 20, // Even lower FPS for spectrogram
       bufferSize: isMobile ? 100 : 200, // Smaller buffer on mobile
+      // New enhanced FFT settings for better resolution
+      fftSize: spectrogramFftSize,
+      smoothingTimeConstant: 0,
+      minDecibels: -100,
+      maxDecibels: -30,
     }
   );
   
