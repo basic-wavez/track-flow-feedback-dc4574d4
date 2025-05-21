@@ -87,6 +87,7 @@ export function useOscilloscopeVisualizer(
     analyser.getFloatTimeDomainData(dataArray.current);
     
     // Calculate vertical scaling based on sensitivity
+    // We're modifying how the vertical scale is applied to maintain proper centering
     const verticalScale = height * 0.4 * sensitivity;
     const sliceWidth = width / dataArray.current.length;
     
@@ -106,10 +107,18 @@ export function useOscilloscopeVisualizer(
       
       for (let i = 0; i < dataArray.current.length; i++) {
         const x = i * sliceWidth;
-        const yNormalized = invertY 
-          ? (0.5 - dataArray.current[i] * -0.5) 
-          : (0.5 + dataArray.current[i] * -0.5);
-        const y = yNormalized * verticalScale + height / 2;
+        
+        // FIX: Modify how y is calculated to maintain centering
+        // Original: const y = yNormalized * verticalScale + height / 2;
+        // New approach: Apply the scaling to the offset from center (0.5)
+        const yValue = dataArray.current[i];
+        // Apply inversion if needed
+        const yValueWithInversion = invertY ? -yValue : yValue;
+        // Calculate Y position by:
+        // 1. Starting at center of canvas (height/2)
+        // 2. Apply the deviation from zero (-yValueWithInversion) 
+        // 3. Scale the deviation by sensitivity
+        const y = height / 2 - (yValueWithInversion * verticalScale);
         
         if (i === 0) {
           ctx.moveTo(x, y);
@@ -137,10 +146,11 @@ export function useOscilloscopeVisualizer(
       
       for (let i = 0; i < dataArray.current.length; i += 2) {
         const x = i * sliceWidth;
-        const yNormalized = invertY 
-          ? (0.5 - dataArray.current[i] * -0.5) 
-          : (0.5 + dataArray.current[i] * -0.5);
-        const y = yNormalized * verticalScale + height / 2;
+        
+        // FIX: Use same centering approach for dots
+        const yValue = dataArray.current[i];
+        const yValueWithInversion = invertY ? -yValue : yValue;
+        const y = height / 2 - (yValueWithInversion * verticalScale);
         
         ctx.beginPath();
         ctx.arc(x, y, lineWidth, 0, 2 * Math.PI);
@@ -153,10 +163,13 @@ export function useOscilloscopeVisualizer(
       
       for (let i = 0; i < dataArray.current.length; i += 4) {
         const x = i * sliceWidth;
-        const yNormalized = invertY 
-          ? (0.5 - dataArray.current[i] * -0.5) 
-          : (0.5 + dataArray.current[i] * -0.5);
-        const y = yNormalized * verticalScale + height / 2;
+        
+        // FIX: Use same centering approach for bars
+        const yValue = dataArray.current[i];
+        const yValueWithInversion = invertY ? -yValue : yValue;
+        const y = height / 2 - (yValueWithInversion * verticalScale);
+        
+        // Draw bar from center line to signal point
         const barHeight = Math.abs(y - height / 2);
         
         ctx.fillRect(
