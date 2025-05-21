@@ -1,12 +1,6 @@
-
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
-
-// Use the shared frame controller from useAudioVisualizer.ts
-declare const sharedFrameController: {
-  register: (drawFn: () => void) => void;
-  unregister: (drawFn: () => void) => void;
-};
+import { sharedFrameController } from './useAudioVisualizer';
 
 interface SpectrogramOptions {
   colorStart?: string;

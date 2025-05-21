@@ -10,11 +10,12 @@ interface VisualizerOptions {
   capHeight?: number;
   capFallSpeed?: number;
   maxFrequency?: number;
-  targetFPS?: number; // New option to control frame rate
+  targetFPS?: number;
 }
 
 // Shared frame rate controller across all visualizer instances
-const sharedFrameController = {
+// Explicitly export for use in other visualizers
+export const sharedFrameController = {
   lastFrameTime: 0,
   requestId: null as number | null,
   activeVisualizers: new Set<() => void>(),

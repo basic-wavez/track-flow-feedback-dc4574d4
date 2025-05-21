@@ -1,12 +1,6 @@
-
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
-
-// Use the shared frame controller from useAudioVisualizer.ts
-declare const sharedFrameController: {
-  register: (drawFn: () => void) => void;
-  unregister: (drawFn: () => void) => void;
-};
+import { sharedFrameController } from './useAudioVisualizer';
 
 export interface OscilloscopeOptions {
   lineColor?: string;
@@ -18,7 +12,7 @@ export interface OscilloscopeOptions {
   fillColor?: string;
   fillOpacity?: number;
   invertY?: boolean;
-  targetFPS?: number; // New option for frame rate control
+  targetFPS?: number;
 }
 
 export function useOscilloscopeVisualizer(
@@ -42,7 +36,7 @@ export function useOscilloscopeVisualizer(
     fillColor = 'rgba(52, 199, 89, 0.1)',
     fillOpacity = 0.2,
     invertY = false,
-    targetFPS = 30 // Default target of 30fps for better performance
+    targetFPS = 30
   } = options;
 
   // Initialize the time domain data array with smaller fftSize
