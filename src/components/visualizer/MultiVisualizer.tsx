@@ -146,8 +146,8 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         />
       )}
       
-      {/* New layout with wider FFT and Spectrogram, square Oscilloscope */}
-      <div className="flex gap-2 p-2 h-[300px]">
+      {/* Reduced height by half (from 300px to 150px) */}
+      <div className="flex gap-2 p-2 h-[150px]">
         {/* FFT Visualizer - Takes more space (40%) */}
         <div className="w-[40%] rounded-md overflow-hidden border border-gray-800 bg-black">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">FFT Spectrum</div>
