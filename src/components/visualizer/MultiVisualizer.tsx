@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
@@ -21,7 +22,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   isPlaying,
   className = ''
 }) => {
-  // Individual canvas references - keep only the three we need
+  // Individual canvas references
   const fftCanvasRef = useRef<HTMLCanvasElement>(null);
   const oscilloscopeCanvasRef = useRef<HTMLCanvasElement>(null);
   const spectrogramCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -65,7 +66,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
     isPlaying && settings.spectrogramEnabled,
     {
       colorMid: settings.fftBarColor,
-      timeScale: 3 / settings.sensitivity, // Adjust time scale based on sensitivity
+      timeScale: 3 / settings.sensitivity,
     }
   );
   
@@ -145,10 +146,10 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         />
       )}
       
-      {/* New single row layout with 3 visualizers */}
+      {/* New layout with wider FFT and Spectrogram, square Oscilloscope */}
       <div className="flex gap-2 p-2 h-[300px]">
-        {/* FFT Visualizer - Takes more space */}
-        <div className="flex-1 rounded-md overflow-hidden border border-gray-800 bg-black">
+        {/* FFT Visualizer - Takes more space (40%) */}
+        <div className="w-[40%] rounded-md overflow-hidden border border-gray-800 bg-black">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">FFT Spectrum</div>
           {settings.fftEnabled ? (
             <div className="h-[calc(100%-24px)]">
@@ -161,8 +162,8 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
           )}
         </div>
         
-        {/* Oscilloscope Visualizer - Square in the middle */}
-        <div className="w-[300px] rounded-md overflow-hidden border border-gray-800 bg-black">
+        {/* Oscilloscope Visualizer - Square in the middle (20%) */}
+        <div className="w-[20%] aspect-square rounded-md overflow-hidden border border-gray-800 bg-black">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Oscilloscope</div>
           {settings.oscilloscopeEnabled ? (
             <div className="h-[calc(100%-24px)]">
@@ -175,8 +176,8 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
           )}
         </div>
         
-        {/* Spectrogram Visualizer - Takes more space */}
-        <div className="flex-1 rounded-md overflow-hidden border border-gray-800 bg-black">
+        {/* Spectrogram Visualizer - Takes more space (40%) */}
+        <div className="w-[40%] rounded-md overflow-hidden border border-gray-800 bg-black">
           <div className="text-xs font-semibold p-1 bg-gray-800 text-gray-200">Spectrogram</div>
           {settings.spectrogramEnabled ? (
             <div className="h-[calc(100%-24px)]">
