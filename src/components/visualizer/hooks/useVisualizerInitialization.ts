@@ -1,10 +1,16 @@
+
 import { useEffect } from 'react';
 import { AudioContextState } from '@/hooks/audio/useAudioContext';
 import { toast } from "@/components/ui/use-toast";
 
+// Updated the type to include the initializeContext function
+interface AudioContextWithInitialize extends AudioContextState {
+  initializeContext: () => void;
+}
+
 export const useVisualizerInitialization = (
   audioRef: React.RefObject<HTMLAudioElement>,
-  audioContext: AudioContextState
+  audioContext: AudioContextWithInitialize
 ) => {
   // Initialize audio context on first user interaction (required by browsers)
   useEffect(() => {
