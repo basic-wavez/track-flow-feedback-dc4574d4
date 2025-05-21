@@ -142,17 +142,22 @@ export function useSpectrogramVisualizer(
     
     logPositionCache.current = new Array(maxBinIndex);
     
+    // Significantly increase the logarithmic scaling factor from 9 to 30
+    // This will distribute the frequencies much more evenly across the full height
+    const logScalingFactor = 30;
+    
     for (let i = 0; i < maxBinIndex; i++) {
-      // This formula maps frequency bin indices to logarithmically-spaced Y positions
-      // The multiplier 9 controls how "logarithmic" the scale is
+      // Modified formula to ensure better distribution across the full canvas height
+      // The higher logScalingFactor makes the distribution more aggressive
       const logY = Math.floor(
-        Math.log10(1 + 9 * i / maxBinIndex) / Math.log10(10) * height
+        Math.log10(1 + logScalingFactor * i / maxBinIndex) / Math.log10(1 + logScalingFactor) * height
       );
       
+      // Ensure we're using the full height of the canvas by inverting from the top
       logPositionCache.current[i] = height - logY - 1;
     }
     
-    console.log(`Log position cache updated for ${maxBinIndex} bins, height: ${height}`);
+    console.log(`Log position cache updated for ${maxBinIndex} bins, height: ${height}, using scaling factor: ${logScalingFactor}`);
   };
 
   // Helper to interpolate between two hex colors
@@ -401,17 +406,17 @@ export function useSpectrogramVisualizer(
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'left';
     
-    // Update frequency labels to account for logarithmic scale
-    // Use positions that look good with a log scale
+    // Update frequency labels to better reflect the adjusted logarithmic scale distribution
+    // Use positions that match our new logarithmic scale implementation
     const labels = useLogScale 
       ? [
-          { freq: '20 kHz', pos: 0.05 },
-          { freq: '10 kHz', pos: 0.15 },
-          { freq: '5 kHz', pos: 0.25 },
-          { freq: '2 kHz', pos: 0.4 },
-          { freq: '1 kHz', pos: 0.55 },
-          { freq: '500 Hz', pos: 0.7 },
-          { freq: '200 Hz', pos: 0.85 },
+          { freq: '20 kHz', pos: 0.02 },
+          { freq: '10 kHz', pos: 0.1 },
+          { freq: '5 kHz', pos: 0.2 },
+          { freq: '2 kHz', pos: 0.35 },
+          { freq: '1 kHz', pos: 0.5 },
+          { freq: '500 Hz', pos: 0.65 },
+          { freq: '200 Hz', pos: 0.8 },
           { freq: '50 Hz', pos: 0.95 }
         ]
       : [
