@@ -10,3 +10,5 @@ export * from './useAudioVisualizer';
 export * from './useVisualizerSettings';
 export * from './useOscilloscopeVisualizer';
 export * from './useSpectrogramVisualizer';
+export * from './types/spectrogramTypes';
+export * from './utils/colorMapUtils';
