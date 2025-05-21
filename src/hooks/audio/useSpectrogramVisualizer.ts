@@ -1,3 +1,4 @@
+
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
 import { sharedFrameController } from './useAudioVisualizer';
@@ -51,7 +52,7 @@ export function useSpectrogramVisualizer(
   const frameCount = useRef(0);
   const imageData = useRef<ImageData | null>(null);
   const colorCache = useRef<{r: number, g: number, b: number}[]>(Array(256).fill({r: 0, g: 0, b: 0}));
-  const binIndexCache = useRef<number[]>([]);
+  const logPositionCache = useRef<number[]>([]);
   const devicePixelRatio = useRef<number>(window.devicePixelRatio || 1);
 
   // Default options
@@ -130,9 +131,8 @@ export function useSpectrogramVisualizer(
     console.log(`Generated color map: ${colorMap}`);
   }, [colorMap, colorStart, colorMid, colorEnd]);
   
-  // Calculate bin indices for each pixel row of the canvas
-  // This ensures we map the entire frequency range to the available canvas height
-  const updateBinIndexCache = (height: number, binCount: number) => {
+  // Pre-compute log scale positions cache when canvas height changes
+  const updateLogPositionCache = (height: number, binCount: number) => {
     if (!dataArray.current) return;
     
     // Calculate the maximum bin index based on the max frequency
@@ -140,28 +140,24 @@ export function useSpectrogramVisualizer(
     const nyquist = sampleRate / 2;
     const maxBinIndex = Math.floor((maxFrequency / nyquist) * binCount);
     
-    binIndexCache.current = new Array(height);
+    logPositionCache.current = new Array(maxBinIndex);
     
-    // For each pixel row in the canvas, calculate the corresponding frequency bin
-    for (let y = 0; y < height; y++) {
-      if (useLogScale) {
-        // Logarithmic mapping from pixel rows to frequency bins
-        // This creates a more perceptually accurate frequency distribution
-        // Math.pow(a, b) is equivalent to a^b
-        const normalized = y / height;  // 0.0 to 1.0
-        const logValue = Math.log(normalized * 19 + 1) / Math.log(20); // log base 20 of (19*y/h + 1)
-        const bin = Math.floor(logValue * maxBinIndex);
-        
-        // Store the bin index - NOTE: we invert the y-axis here (height-1-y)
-        binIndexCache.current[height - 1 - y] = bin;
-      } else {
-        // Linear mapping from pixel rows to frequency bins
-        const bin = Math.floor((y / height) * maxBinIndex);
-        binIndexCache.current[height - 1 - y] = bin;
-      }
+    // Significantly increase the logarithmic scaling factor from 9 to 30
+    // This will distribute the frequencies much more evenly across the full height
+    const logScalingFactor = 30;
+    
+    for (let i = 0; i < maxBinIndex; i++) {
+      // Modified formula to ensure better distribution across the full canvas height
+      // The higher logScalingFactor makes the distribution more aggressive
+      const logY = Math.floor(
+        Math.log10(1 + logScalingFactor * i / maxBinIndex) / Math.log10(1 + logScalingFactor) * height
+      );
+      
+      // Ensure we're using the full height of the canvas by inverting from the top
+      logPositionCache.current[i] = height - logY - 1;
     }
     
-    console.log(`Bin index cache updated for ${height} pixel rows mapping to ${maxBinIndex} frequency bins`);
+    console.log(`Log position cache updated for ${maxBinIndex} bins, height: ${height}, using scaling factor: ${logScalingFactor}`);
   };
 
   // Helper to interpolate between two hex colors
@@ -275,9 +271,9 @@ export function useSpectrogramVisualizer(
       // Initialize or resize spectrogram buffer when dimensions change
       initializeSpectrogramBuffer(width);
       
-      // Update the bin index cache when dimensions change
-      if (dataArray.current) {
-        updateBinIndexCache(height, dataArray.current.length);
+      // Update the log position cache when dimensions change
+      if (useLogScale && dataArray.current) {
+        updateLogPositionCache(height, dataArray.current.length);
       }
       
       // Clear the canvas completely
@@ -305,14 +301,13 @@ export function useSpectrogramVisualizer(
       // Get frequency data
       audioContext.analyserNode.getByteFrequencyData(dataArray.current);
       
-      // Shift the spectrogram data by scrolling the canvas
-      // Important: scroll first, then clear the rightmost column
-      if (frameCount.current % 2 === 0) { // Only scroll every other frame for performance
-        ctx.drawImage(canvas, -1, 0);
-        ctx.clearRect(width - 1, 0, 1, height);
+      // Shift the spectrogram data buffer to make space for new data
+      // Only shift when we actually have new data to add
+      for (let i = spectrogramData.current.length - 1; i > 0; i--) {
+        spectrogramData.current[i] = spectrogramData.current[i - 1];
       }
       
-      // Add the new data at the rightmost column
+      // Add the new data at index 0 (newest data)
       spectrogramData.current[0] = new Uint8Array(dataArray.current);
       
       lastDrawTime.current = now;
@@ -324,36 +319,80 @@ export function useSpectrogramVisualizer(
   
   // Separate function for rendering the spectrogram to improve code organization
   const renderSpectrogram = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
-    if (!dataArray.current || !imageData.current || binIndexCache.current.length === 0) return;
+    if (!dataArray.current || !imageData.current) return;
     
-    // Create a single column of image data to draw on the right edge
-    const columnData = ctx.createImageData(1, height);
-    const data = columnData.data;
+    // Get image data for faster pixel manipulation
+    const imgData = imageData.current;
+    const data = imgData.data;
     
-    // Fill the column data by iterating through each pixel row
-    for (let y = 0; y < height; y++) {
-      // Get the precalculated bin index for this pixel row
-      const binIndex = binIndexCache.current[y];
-      
-      if (binIndex === undefined || binIndex >= dataArray.current.length) continue;
-      
-      // Get the audio data value for this frequency bin
-      const value = spectrogramData.current[0][binIndex] || 0;
-      
-      // Calculate position in the image data array
-      const pos = y * 4;
-      
-      // Use pre-calculated RGB values for better visualization
-      const color = colorCache.current[value];
-      
-      data[pos] = color.r;     // R
-      data[pos + 1] = color.g; // G
-      data[pos + 2] = color.b; // B
-      data[pos + 3] = 255;     // A
+    // Calculate the frequency scaling
+    const sampleRate = audioContext.audioContext?.sampleRate || 44100;
+    const nyquist = sampleRate / 2;
+    const binCount = dataArray.current.length;
+    const maxBinIndex = Math.floor((maxFrequency / nyquist) * binCount);
+    
+    // Fill the image data
+    const heightScale = height / maxBinIndex;
+    
+    // Clear the image data with black background
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 0;     // R
+      data[i + 1] = 0; // G
+      data[i + 2] = 0; // B
+      data[i + 3] = 255; // A
     }
     
-    // Draw the new column on the right edge of the canvas
-    ctx.putImageData(columnData, width - 1, 0);
+    // Ensure we're filling the entire width of the canvas
+    // Use all available spectrogramData columns
+    const columnsToDraw = Math.min(spectrogramData.current.length, width);
+    
+    // Draw from right to left (newest data on the right)
+    for (let x = 0; x < columnsToDraw; x++) {
+      const column = spectrogramData.current[x];
+      if (!column) continue;
+      
+      // Calculate the exact position on canvas (right-aligned)
+      // This ensures we start from the right edge and fill toward the left
+      const xPos = width - x - 1;
+      
+      // Skip if outside the canvas
+      if (xPos < 0 || xPos >= width) continue;
+      
+      // Draw each frequency bin
+      for (let binIndex = 0; binIndex < maxBinIndex; binIndex++) {
+        const value = column[binIndex];
+        
+        // Skip processing if value is 0
+        if (value === 0) continue;
+        
+        // Calculate y position - use logarithmic or linear scale based on useLogScale option
+        let yPos;
+        if (useLogScale && logPositionCache.current.length > 0) {
+          // Use pre-computed log position
+          yPos = logPositionCache.current[binIndex];
+        } else {
+          // Fallback to linear scale if log scale not available or not enabled
+          yPos = Math.floor(height - (binIndex * heightScale) - 1);
+        }
+        
+        // Skip if outside the canvas
+        if (yPos < 0 || yPos >= height) continue;
+        
+        // Calculate the position in the image data array
+        const pos = (yPos * width + xPos) * 4;
+        
+        // Use pre-calculated RGB values from perceptual color maps for better visualization
+        const color = colorCache.current[value];
+        
+        data[pos] = color.r;     // R
+        data[pos + 1] = color.g; // G
+        data[pos + 2] = color.b; // B
+        data[pos + 3] = 255;     // A
+      }
+    }
+    
+    // Put the image data to the canvas in one operation
+    ctx.putImageData(imgData, 0, 0);
     
     // Redraw the frequency labels on top to ensure they're visible
     if (frameCount.current % 30 === 0) {
@@ -367,25 +406,26 @@ export function useSpectrogramVisualizer(
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'left';
     
-    // Update frequency labels with positions adjusted for full canvas height
+    // Update frequency labels to better reflect the adjusted logarithmic scale distribution
+    // Use positions that match our new logarithmic scale implementation
     const labels = useLogScale 
       ? [
-          { freq: '20 kHz', pos: 0.05 },
-          { freq: '10 kHz', pos: 0.20 },
-          { freq: '5 kHz', pos: 0.35 },
-          { freq: '2 kHz', pos: 0.50 },
-          { freq: '1 kHz', pos: 0.65 },
-          { freq: '500 Hz', pos: 0.80 },
-          { freq: '200 Hz', pos: 0.90 },
+          { freq: '20 kHz', pos: 0.02 },
+          { freq: '10 kHz', pos: 0.1 },
+          { freq: '5 kHz', pos: 0.2 },
+          { freq: '2 kHz', pos: 0.35 },
+          { freq: '1 kHz', pos: 0.5 },
+          { freq: '500 Hz', pos: 0.65 },
+          { freq: '200 Hz', pos: 0.8 },
           { freq: '50 Hz', pos: 0.95 }
         ]
       : [
           { freq: '20 kHz', pos: 0.05 },
-          { freq: '15 kHz', pos: 0.20 },
-          { freq: '10 kHz', pos: 0.35 },
-          { freq: '5 kHz', pos: 0.50 },
-          { freq: '2 kHz', pos: 0.70 },
-          { freq: '500 Hz', pos: 0.90 }
+          { freq: '15 kHz', pos: 0.15 },
+          { freq: '10 kHz', pos: 0.3 },
+          { freq: '5 kHz', pos: 0.5 },
+          { freq: '2 kHz', pos: 0.7 },
+          { freq: '500 Hz', pos: 0.9 }
         ];
     
     labels.forEach(label => {
@@ -406,8 +446,10 @@ export function useSpectrogramVisualizer(
       if (canvasDimensions.current.width > 0 && dataArray.current) {
         initializeSpectrogramBuffer(canvasDimensions.current.width);
         
-        // Initialize bin index cache
-        updateBinIndexCache(canvasDimensions.current.height, dataArray.current.length);
+        // Initialize log position cache if using log scale
+        if (useLogScale) {
+          updateLogPositionCache(canvasDimensions.current.height, dataArray.current.length);
+        }
       }
       
       frameCount.current = 0;
