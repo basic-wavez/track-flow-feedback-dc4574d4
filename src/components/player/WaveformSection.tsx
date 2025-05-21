@@ -92,13 +92,13 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
         </div>
       )}
       
-      {/* Visualizers moved below waveform and action buttons with more height */}
+      {/* Updated visualizer with better height and simplified layout */}
       {showFFTVisualizer && (
-        <div className="h-[360px] mt-6">
+        <div className="mt-2 mb-6">
           <MultiVisualizer 
             audioRef={audioRef}
             isPlaying={isPlaying}
-            className="h-full w-full"
+            className="h-[300px] w-full"
           />
         </div>
       )}

@@ -1,87 +1,70 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 export interface VisualizerSettings {
+  // Display toggles
   fftEnabled: boolean;
   oscilloscopeEnabled: boolean;
   spectrogramEnabled: boolean;
   stereoMeterEnabled: boolean;
   lufsEnabled: boolean;
+  
+  // General settings
   sensitivity: number;
+  
+  // Layout settings
+  gridLayout: '2x2' | '2x3' | '3x2' | 'row'; // Added 'row' option for new layout
+  
+  // Appearance settings
   fftBarColor: string;
   oscilloscopeColor: string;
-  gridLayout: '2x2' | '2x3' | '3x2';
 }
 
-const DEFAULT_SETTINGS: VisualizerSettings = {
+const defaultSettings: VisualizerSettings = {
+  // Default display settings - enable just the 3 we need
   fftEnabled: true,
   oscilloscopeEnabled: true,
   spectrogramEnabled: true,
-  stereoMeterEnabled: true,
-  lufsEnabled: true,
+  stereoMeterEnabled: false,
+  lufsEnabled: false,
+  
+  // General settings
   sensitivity: 1.0,
+  
+  // Layout settings
+  gridLayout: 'row', // Default to row layout
+  
+  // Appearance settings
   fftBarColor: '#9b87f5',
   oscilloscopeColor: '#34c759',
-  gridLayout: '2x3',
 };
 
-// LocalStorage key
-const STORAGE_KEY = 'audio-visualizer-settings';
-
 export function useVisualizerSettings() {
-  const [settings, setSettings] = useState<VisualizerSettings>(DEFAULT_SETTINGS);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // Load settings from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
-      }
-      setIsLoaded(true);
-    } catch (error) {
-      console.error('Failed to load visualizer settings:', error);
-      setIsLoaded(true);
-    }
+  // Initialize state with default settings
+  const [settings, setSettings] = useState<VisualizerSettings>(defaultSettings);
+  
+  // Toggle a boolean setting
+  const toggleSetting = useCallback((key: keyof Pick<VisualizerSettings, 'fftEnabled' | 'oscilloscopeEnabled' | 'spectrogramEnabled' | 'stereoMeterEnabled' | 'lufsEnabled'>) => {
+    setSettings(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
   }, []);
-
-  // Save settings to localStorage when they change
-  useEffect(() => {
-    if (!isLoaded) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    } catch (error) {
-      console.error('Failed to save visualizer settings:', error);
-    }
-  }, [settings, isLoaded]);
-
-  // Method to update a single setting
-  const updateSetting = <K extends keyof VisualizerSettings>(
+  
+  // Update any setting
+  const updateSetting = useCallback(<K extends keyof VisualizerSettings>(
     key: K,
     value: VisualizerSettings[K]
   ) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-  };
-
-  // Method to toggle a boolean setting
-  const toggleSetting = (key: keyof Pick<VisualizerSettings, 
-    'fftEnabled' | 'oscilloscopeEnabled' | 'spectrogramEnabled' | 'stereoMeterEnabled' | 'lufsEnabled'
-  >) => {
-    setSettings(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  // Reset settings to defaults
-  const resetSettings = () => {
-    setSettings(DEFAULT_SETTINGS);
-  };
-
+    setSettings(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  }, []);
+  
   return {
     settings,
-    updateSetting,
     toggleSetting,
-    resetSettings,
-    isLoaded
+    updateSetting
   };
 }

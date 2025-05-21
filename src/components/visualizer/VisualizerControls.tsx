@@ -5,11 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { X } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface VisualizerControlsProps {
   settings: VisualizerSettings;
-  onToggleSetting: (key: keyof Pick<VisualizerSettings, 'fftEnabled' | 'oscilloscopeEnabled' | 'spectrogramEnabled' | 'stereoMeterEnabled' | 'lufsEnabled'>) => void;
+  onToggleSetting: (key: keyof Pick<VisualizerSettings, 'fftEnabled' | 'oscilloscopeEnabled' | 'spectrogramEnabled'>) => void;
   onUpdateSetting: <K extends keyof VisualizerSettings>(key: K, value: VisualizerSettings[K]) => void;
   onClose: () => void;
 }
@@ -23,11 +22,6 @@ const VisualizerControls: React.FC<VisualizerControlsProps> = ({
   // Handler for sensitivity slider
   const handleSensitivityChange = (value: number[]) => {
     onUpdateSetting('sensitivity', value[0]);
-  };
-  
-  // Handler for grid layout selection
-  const handleGridLayoutChange = (layout: '2x2' | '2x3' | '3x2') => {
-    onUpdateSetting('gridLayout', layout);
   };
   
   // Handler for FFT color picker
@@ -79,56 +73,6 @@ const VisualizerControls: React.FC<VisualizerControlsProps> = ({
               checked={settings.spectrogramEnabled}
               onCheckedChange={() => onToggleSetting('spectrogramEnabled')}
             />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <label htmlFor="stereo-meter-toggle" className="text-xs">Stereo Meter</label>
-            <Switch 
-              id="stereo-meter-toggle"
-              checked={settings.stereoMeterEnabled}
-              onCheckedChange={() => onToggleSetting('stereoMeterEnabled')}
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <label htmlFor="lufs-toggle" className="text-xs">LUFS Meter</label>
-            <Switch 
-              id="lufs-toggle"
-              checked={settings.lufsEnabled}
-              onCheckedChange={() => onToggleSetting('lufsEnabled')}
-            />
-          </div>
-        </div>
-        
-        {/* Layout Selection */}
-        <div className="space-y-2">
-          <h4 className="text-xs font-semibold text-gray-400">Grid Layout</h4>
-          
-          <div className="flex space-x-2">
-            <Button 
-              variant={settings.gridLayout === '2x2' ? "default" : "outline"} 
-              size="sm"
-              className="flex-1 text-xs h-8"
-              onClick={() => handleGridLayoutChange('2x2')}
-            >
-              2×2
-            </Button>
-            <Button 
-              variant={settings.gridLayout === '2x3' ? "default" : "outline"} 
-              size="sm"
-              className="flex-1 text-xs h-8"
-              onClick={() => handleGridLayoutChange('2x3')}
-            >
-              2×3
-            </Button>
-            <Button 
-              variant={settings.gridLayout === '3x2' ? "default" : "outline"} 
-              size="sm"
-              className="flex-1 text-xs h-8"
-              onClick={() => handleGridLayoutChange('3x2')}
-            >
-              3×2
-            </Button>
           </div>
         </div>
         
