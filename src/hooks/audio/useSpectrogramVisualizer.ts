@@ -1,3 +1,4 @@
+
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
 import { sharedFrameController } from './useAudioVisualizer';
@@ -9,8 +10,8 @@ interface SpectrogramOptions {
   timeScale?: number;
   backgroundColor?: string;
   maxFrequency?: number;
-  targetFPS?: number; // New option for frame rate control
-  bufferSize?: number; // Control how much history we keep
+  targetFPS?: number;
+  bufferSize?: number;
 }
 
 export function useSpectrogramVisualizer(
@@ -24,6 +25,9 @@ export function useSpectrogramVisualizer(
   const lastDrawTime = useRef<number>(0);
   const canvasDimensions = useRef({ width: 0, height: 0 });
   const frameCount = useRef(0);
+  const imageData = useRef<ImageData | null>(null);
+  const colorCache = useRef<string[]>(Array(256).fill(''));
+  const rgbColorCache = useRef<{r: number, g: number, b: number}[]>(Array(256).fill(null));
 
   // Default options
   const {
@@ -33,8 +37,8 @@ export function useSpectrogramVisualizer(
     timeScale = 2.0,
     backgroundColor = '#000000',
     maxFrequency = 15000,
-    targetFPS = 20, // Lower target FPS for spectrogram which is performance heavy
-    bufferSize = 200 // Limit the history size to 200 columns
+    targetFPS = 20,
+    bufferSize = 200
   } = options;
 
   // Initialize the frequency data array
@@ -42,12 +46,11 @@ export function useSpectrogramVisualizer(
     if (!audioContext.analyserNode) return;
     
     const analyser = audioContext.analyserNode;
-    // Reduce FFT size for better performance
-    analyser.fftSize = 1024; // Reduced from 2048
+    analyser.fftSize = 1024;
     
     dataArray.current = new Uint8Array(analyser.frequencyBinCount);
     
-    // Pre-allocate a fixed size buffer for the spectrogram
+    // Initialize the spectrogramData buffer with the correct size
     spectrogramData.current = Array(bufferSize)
       .fill(null)
       .map(() => new Uint8Array(analyser.frequencyBinCount).fill(0));
@@ -57,30 +60,37 @@ export function useSpectrogramVisualizer(
     };
   }, [audioContext.analyserNode, bufferSize]);
 
-  // Generate a color based on the signal intensity (0-255)
-  // Create a cached color map for better performance
-  const colorCache = useRef<string[]>(Array(256).fill(''));
-  
-  // Initialize color cache on mount
+  // Pre-compute color cache on mount or when colors change
   useEffect(() => {
     // Generate all 256 possible colors and cache them
     for (let i = 0; i < 256; i++) {
       const normalizedValue = i / 255;
+      let hexColor;
+      let rgb;
+      
       if (normalizedValue < 0.5) {
         // Interpolate between colorStart and colorMid
         const t = normalizedValue * 2;
-        colorCache.current[i] = interpolateColor(colorStart, colorMid, t);
+        hexColor = interpolateColor(colorStart, colorMid, t);
+        rgb = hexToRgb(hexColor);
       } else {
         // Interpolate between colorMid and colorEnd
         const t = (normalizedValue - 0.5) * 2;
-        colorCache.current[i] = interpolateColor(colorMid, colorEnd, t);
+        hexColor = interpolateColor(colorMid, colorEnd, t);
+        rgb = hexToRgb(hexColor);
       }
+      
+      colorCache.current[i] = hexColor;
+      rgbColorCache.current[i] = rgb;
     }
   }, [colorStart, colorMid, colorEnd]);
   
-  const getColorForValue = (value: number): string => {
-    const index = Math.min(255, Math.max(0, Math.floor(value)));
-    return colorCache.current[index];
+  // Helper function to convert hex to RGB without parsing each time
+  const hexToRgb = (hex: string) => {
+    const r = parseInt(hex.substring(1, 3), 16);
+    const g = parseInt(hex.substring(3, 5), 16);
+    const b = parseInt(hex.substring(5, 7), 16);
+    return { r, g, b };
   };
 
   // Helper to interpolate between two colors
@@ -119,7 +129,7 @@ export function useSpectrogramVisualizer(
     
     frameCount.current += 1;
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d', { alpha: false }); // Disable alpha for better performance
+    const ctx = canvas.getContext('2d', { alpha: false });
     
     if (!ctx) return;
     
@@ -128,106 +138,146 @@ export function useSpectrogramVisualizer(
     const width = parent ? parent.clientWidth : canvas.width;
     const height = parent ? parent.clientHeight : canvas.height;
     
-    // Only update canvas dimensions if they've changed
+    // Handle canvas dimension changes
     if (canvasDimensions.current.width !== width || canvasDimensions.current.height !== height) {
       canvas.width = width;
       canvas.height = height;
       canvasDimensions.current = { width, height };
       
-      // Clear the canvas completely when dimensions change
+      // Reset the imageData when dimensions change
+      imageData.current = null;
+      
+      // Clear the canvas completely
       ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, width, height);
+      
+      // Draw frequency labels once
+      drawFrequencyLabels(ctx, height);
     }
     
-    // Throttle updates based on timeScale
-    const updateInterval = 1000 / 30 / timeScale; // 30fps divided by timeScale
-    let needsFullRedraw = false;
+    // Create or update the ImageData object if needed
+    if (!imageData.current || imageData.current.width !== width || imageData.current.height !== height) {
+      imageData.current = ctx.createImageData(width, height);
+    }
     
+    // Update audio data at a rate based on timeScale
+    const updateInterval = 1000 / 30 / timeScale;
     if (now - lastDrawTime.current >= updateInterval) {
       // Get frequency data
       audioContext.analyserNode.getByteFrequencyData(dataArray.current);
       
-      // Shift the spectrogram data buffer (circular buffer approach)
+      // Shift the spectrogram data buffer to make space for new data
+      // Only shift when we actually have new data to add
       for (let i = spectrogramData.current.length - 1; i > 0; i--) {
         spectrogramData.current[i] = spectrogramData.current[i - 1];
       }
       
-      // Add the new data at the beginning
-      if (dataArray.current) {
-        spectrogramData.current[0] = new Uint8Array(dataArray.current);
-      }
+      // Add the new data at index 0 (newest data)
+      spectrogramData.current[0] = new Uint8Array(dataArray.current);
       
       lastDrawTime.current = now;
-      needsFullRedraw = true;
+      
+      // Render the spectrogram
+      renderSpectrogram(ctx, width, height);
+    }
+  };
+  
+  // Separate function for rendering the spectrogram to improve code organization
+  const renderSpectrogram = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    if (!dataArray.current || !imageData.current) return;
+    
+    // Get image data for faster pixel manipulation
+    const imgData = imageData.current;
+    const data = imgData.data;
+    
+    // Calculate the frequency scaling
+    const sampleRate = audioContext.audioContext?.sampleRate || 44100;
+    const nyquist = sampleRate / 2;
+    const binCount = dataArray.current.length;
+    const maxBinIndex = Math.floor((maxFrequency / nyquist) * binCount);
+    
+    // Fill the image data
+    // FIX: Don't use renderStep to avoid black horizontal lines
+    // Instead, scale the bin values to fit the height
+    const heightScale = height / maxBinIndex;
+    
+    // Clear the image data with black background
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 0;     // R
+      data[i + 1] = 0; // G
+      data[i + 2] = 0; // B
+      data[i + 3] = 255; // A
     }
     
-    if (needsFullRedraw) {
-      // Use a more efficient drawing approach
-      // 1. Create an ImageData object for the whole canvas
-      const imageData = ctx.createImageData(width, height);
-      const data = imageData.data;
+    // FIX: Ensure we're filling the entire width of the canvas
+    // Use all available spectrogramData columns
+    const columnsToDraw = Math.min(spectrogramData.current.length, width);
+    
+    // Draw from right to left (newest data on the right)
+    for (let x = 0; x < columnsToDraw; x++) {
+      const column = spectrogramData.current[x];
+      if (!column) continue;
       
-      // Calculate the index corresponding to our maxFrequency
-      const sampleRate = audioContext.audioContext?.sampleRate || 44100;
-      const nyquist = sampleRate / 2;
-      const binCount = dataArray.current.length;
-      const maxBinIndex = Math.floor((maxFrequency / nyquist) * binCount);
-      
-      // Render fewer bins on mobile or for performance reasons
-      const renderStep = Math.max(1, Math.floor(maxBinIndex / 100));
-      
-      // Draw from right to left (newest data on the right)
-      const columnsToDraw = Math.min(spectrogramData.current.length, width);
-      
-      for (let x = 0; x < columnsToDraw; x++) {
-        const column = spectrogramData.current[x];
-        if (!column) continue;
+      // Draw each frequency bin
+      for (let binIndex = 0; binIndex < maxBinIndex; binIndex++) {
+        const value = column[binIndex];
         
-        // Only draw a subset of the frequency bins for better performance
-        for (let y = 0; y < maxBinIndex; y += renderStep) {
-          const value = column[y];
-          if (value > 0) {
-            // Calculate position in the frequency range (bottom to top)
-            const yPos = height - Math.floor((y * height) / maxBinIndex) - 1;
-            
-            // Calculate position in the imageData
-            const pos = (yPos * width + (width - x - 1)) * 4; // RGBA = 4 bytes
-            
-            // Get color from cache
-            const hexColor = getColorForValue(value);
-            
-            // Set RGB values from the hex color
-            data[pos] = parseInt(hexColor.substring(1, 3), 16); // R
-            data[pos + 1] = parseInt(hexColor.substring(3, 5), 16); // G
-            data[pos + 2] = parseInt(hexColor.substring(5, 7), 16); // B
-            data[pos + 3] = 255; // Alpha (fully opaque)
-          }
-        }
-      }
-      
-      // Put the image data to the canvas in one operation
-      ctx.putImageData(imageData, 0, 0);
-      
-      // Draw frequency labels (only every 10 frames to reduce overhead)
-      if (frameCount.current % 10 === 0) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.font = '10px sans-serif';
-        ctx.textAlign = 'left';
+        // Skip processing if value is 0
+        if (value === 0) continue;
         
-        // Updated labels to focus on 0-15kHz range
-        const labels = [
-          { freq: '15 kHz', pos: 0.1 },
-          { freq: '10 kHz', pos: 0.3 },
-          { freq: '5 kHz', pos: 0.5 },
-          { freq: '2 kHz', pos: 0.7 },
-          { freq: '500 Hz', pos: 0.9 }
-        ];
+        // Calculate y position (scale the bin index to the canvas height)
+        const yPos = Math.floor(height - (binIndex * heightScale) - 1);
         
-        labels.forEach(label => {
-          ctx.fillText(label.freq, 5, height * label.pos);
-        });
+        // Skip if outside the canvas
+        if (yPos < 0 || yPos >= height) continue;
+        
+        // FIX: Calculate the correct x position for full width coverage
+        const xPos = width - x - 1;
+        
+        // Skip if outside the canvas
+        if (xPos < 0 || xPos >= width) continue;
+        
+        // Calculate the position in the image data array
+        const pos = (yPos * width + xPos) * 4;
+        
+        // Use pre-calculated RGB values from cache for better performance
+        const rgbColor = rgbColorCache.current[value];
+        
+        data[pos] = rgbColor.r;     // R
+        data[pos + 1] = rgbColor.g; // G
+        data[pos + 2] = rgbColor.b; // B
+        data[pos + 3] = 255;        // A
       }
     }
+    
+    // Put the image data to the canvas in one operation
+    ctx.putImageData(imgData, 0, 0);
+    
+    // Every 30 frames, redraw the frequency labels to ensure they're visible
+    // FIX: Instead of conditional drawing that causes flashing, just redraw labels on top
+    if (frameCount.current % 30 === 0) {
+      drawFrequencyLabels(ctx, height);
+    }
+  };
+  
+  // Separate function for drawing frequency labels
+  const drawFrequencyLabels = (ctx: CanvasRenderingContext2D, height: number) => {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'left';
+    
+    // Fixed frequencies for more consistent appearance
+    const labels = [
+      { freq: '15 kHz', pos: 0.1 },
+      { freq: '10 kHz', pos: 0.3 },
+      { freq: '5 kHz', pos: 0.5 },
+      { freq: '2 kHz', pos: 0.7 },
+      { freq: '500 Hz', pos: 0.9 }
+    ];
+    
+    labels.forEach(label => {
+      ctx.fillText(label.freq, 5, height * label.pos);
+    });
   };
 
   // Start/stop animation based on playing state
@@ -239,9 +289,11 @@ export function useSpectrogramVisualizer(
       }
       
       // Initialize the data array when starting to play
-      spectrogramData.current = Array(bufferSize)
-        .fill(null)
-        .map(() => new Uint8Array(dataArray.current?.length || 0).fill(0));
+      if (dataArray.current) {
+        spectrogramData.current = Array(bufferSize)
+          .fill(null)
+          .map(() => new Uint8Array(dataArray.current?.length || 0).fill(0));
+      }
       
       frameCount.current = 0;
       sharedFrameController.register(draw);
