@@ -44,18 +44,18 @@ const defaultSettings: VisualizerSettings = {
   // Layout settings
   gridLayout: 'row', // Default to row layout
   
-  // FFT appearance settings
-  fftBarColor: '#9b87f5',
+  // FFT appearance settings - Updated to match the light blue from screenshot 2
+  fftBarColor: '#8ADEFD', // Updated to match the color in the second screenshot
   
-  // Oscilloscope settings
-  oscilloscopeColor: '#34c759',
-  oscilloscopeSensitivity: 1.0,
-  oscilloscopeLineWidth: 2,
+  // Oscilloscope settings - Updated to match screenshot 1
+  oscilloscopeColor: '#7DE3FF', // Updated to match the blue from first screenshot
+  oscilloscopeSensitivity: 1.5, // Default to 1.5x as shown in screenshot 1
+  oscilloscopeLineWidth: 2, // Default to 2px as shown in screenshot 1
   oscilloscopeBackgroundColor: '#000000',
   oscilloscopeDrawMode: 'line',
-  oscilloscopeDashPattern: [],
-  oscilloscopeFillColor: '#34c759',
-  oscilloscopeFillOpacity: 0.2,
+  oscilloscopeDashPattern: [2, 2], // Dotted line pattern as shown in screenshot 1
+  oscilloscopeFillColor: '#00FF00', // Updated to the green fill color from screenshot 1
+  oscilloscopeFillOpacity: 0.0, // Default to 0 as shown in screenshot 1
   oscilloscopeInvertY: false,
 };
 
