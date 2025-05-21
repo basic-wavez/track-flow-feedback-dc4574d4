@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
@@ -93,6 +92,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
       smoothingTimeConstant: 0,
       minDecibels: -100,
       maxDecibels: -30,
+      useLogScale: true, // Enable logarithmic frequency scale
     }
   );
   

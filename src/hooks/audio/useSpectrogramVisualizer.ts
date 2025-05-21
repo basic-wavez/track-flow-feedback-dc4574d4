@@ -16,6 +16,7 @@ interface SpectrogramOptions {
   smoothingTimeConstant?: number;
   minDecibels?: number;
   maxDecibels?: number;
+  useLogScale?: boolean; // New option to toggle log scale
 }
 
 export function useSpectrogramVisualizer(
@@ -32,6 +33,7 @@ export function useSpectrogramVisualizer(
   const imageData = useRef<ImageData | null>(null);
   const colorCache = useRef<string[]>(Array(256).fill(''));
   const rgbColorCache = useRef<{r: number, g: number, b: number}[]>(Array(256).fill(null));
+  const logPositionCache = useRef<number[]>([]);
 
   // Default options
   const {
@@ -43,10 +45,11 @@ export function useSpectrogramVisualizer(
     maxFrequency = 15000,
     targetFPS = 20,
     bufferSize = 200,
-    fftSize = 32768, // Increased from default 1024 to 32768 for higher resolution
-    smoothingTimeConstant = 0, // Changed from 0.8 to 0 for punchier transients
-    minDecibels = -100, // Changed from default -100 to widen dynamic range
-    maxDecibels = -30, // Changed from default -30 to widen dynamic range
+    fftSize = 32768,
+    smoothingTimeConstant = 0,
+    minDecibels = -100,
+    maxDecibels = -30,
+    useLogScale = true, // Default to using log scale
   } = options;
 
   // Initialize the frequency data array
@@ -69,8 +72,6 @@ export function useSpectrogramVisualizer(
     }
     
     dataArray.current = new Uint8Array(analyser.frequencyBinCount);
-    
-    // Don't initialize spectrogramData here - we'll do it once we know the canvas dimensions
     
     return () => {
       sharedFrameController.unregister(draw);
@@ -101,6 +102,30 @@ export function useSpectrogramVisualizer(
       rgbColorCache.current[i] = rgb;
     }
   }, [colorStart, colorMid, colorEnd]);
+  
+  // Pre-compute log scale positions cache when canvas height changes
+  const updateLogPositionCache = (height: number, binCount: number) => {
+    if (!dataArray.current) return;
+    
+    // Calculate the maximum bin index based on the max frequency
+    const sampleRate = audioContext.audioContext?.sampleRate || 44100;
+    const nyquist = sampleRate / 2;
+    const maxBinIndex = Math.floor((maxFrequency / nyquist) * binCount);
+    
+    logPositionCache.current = new Array(maxBinIndex);
+    
+    for (let i = 0; i < maxBinIndex; i++) {
+      // This formula maps frequency bin indices to logarithmically-spaced Y positions
+      // The multiplier 9 controls how "logarithmic" the scale is
+      const logY = Math.floor(
+        Math.log10(1 + 9 * i / maxBinIndex) / Math.log10(10) * height
+      );
+      
+      logPositionCache.current[i] = height - logY - 1;
+    }
+    
+    console.log(`Log position cache updated for ${maxBinIndex} bins, height: ${height}`);
+  };
   
   // Helper function to convert hex to RGB without parsing each time
   const hexToRgb = (hex: string) => {
@@ -181,6 +206,11 @@ export function useSpectrogramVisualizer(
       
       // Initialize or resize spectrogram buffer when dimensions change
       initializeSpectrogramBuffer(width);
+      
+      // Update the log position cache when dimensions change
+      if (useLogScale && dataArray.current) {
+        updateLogPositionCache(height, dataArray.current.length);
+      }
       
       // Clear the canvas completely
       ctx.fillStyle = backgroundColor;
@@ -266,8 +296,15 @@ export function useSpectrogramVisualizer(
         // Skip processing if value is 0
         if (value === 0) continue;
         
-        // Calculate y position (scale the bin index to the canvas height)
-        const yPos = Math.floor(height - (binIndex * heightScale) - 1);
+        // Calculate y position - use logarithmic or linear scale based on useLogScale option
+        let yPos;
+        if (useLogScale && logPositionCache.current.length > 0) {
+          // Use pre-computed log position
+          yPos = logPositionCache.current[binIndex];
+        } else {
+          // Fallback to linear scale if log scale not available or not enabled
+          yPos = Math.floor(height - (binIndex * heightScale) - 1);
+        }
         
         // Skip if outside the canvas
         if (yPos < 0 || yPos >= height) continue;
@@ -300,15 +337,27 @@ export function useSpectrogramVisualizer(
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'left';
     
-    // Update frequency labels to account for higher FFT resolution
-    const labels = [
-      { freq: '20 kHz', pos: 0.05 },
-      { freq: '15 kHz', pos: 0.15 },
-      { freq: '10 kHz', pos: 0.3 },
-      { freq: '5 kHz', pos: 0.5 },
-      { freq: '2 kHz', pos: 0.7 },
-      { freq: '500 Hz', pos: 0.9 }
-    ];
+    // Update frequency labels to account for logarithmic scale
+    // Use positions that look good with a log scale
+    const labels = useLogScale 
+      ? [
+          { freq: '20 kHz', pos: 0.05 },
+          { freq: '10 kHz', pos: 0.15 },
+          { freq: '5 kHz', pos: 0.25 },
+          { freq: '2 kHz', pos: 0.4 },
+          { freq: '1 kHz', pos: 0.55 },
+          { freq: '500 Hz', pos: 0.7 },
+          { freq: '200 Hz', pos: 0.85 },
+          { freq: '50 Hz', pos: 0.95 }
+        ]
+      : [
+          { freq: '20 kHz', pos: 0.05 },
+          { freq: '15 kHz', pos: 0.15 },
+          { freq: '10 kHz', pos: 0.3 },
+          { freq: '5 kHz', pos: 0.5 },
+          { freq: '2 kHz', pos: 0.7 },
+          { freq: '500 Hz', pos: 0.9 }
+        ];
     
     labels.forEach(label => {
       ctx.fillText(label.freq, 5, height * label.pos);
@@ -327,6 +376,11 @@ export function useSpectrogramVisualizer(
       // But only if we already have canvas dimensions
       if (canvasDimensions.current.width > 0 && dataArray.current) {
         initializeSpectrogramBuffer(canvasDimensions.current.width);
+        
+        // Initialize log position cache if using log scale
+        if (useLogScale) {
+          updateLogPositionCache(canvasDimensions.current.height, dataArray.current.length);
+        }
       }
       
       frameCount.current = 0;
@@ -338,7 +392,7 @@ export function useSpectrogramVisualizer(
     return () => {
       sharedFrameController.unregister(draw);
     };
-  }, [isPlaying, audioContext.isInitialized, bufferSize]);
+  }, [isPlaying, audioContext.isInitialized, bufferSize, useLogScale]);
 
   return { draw };
 }

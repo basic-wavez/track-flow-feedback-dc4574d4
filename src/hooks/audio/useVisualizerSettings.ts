@@ -36,6 +36,7 @@ export interface VisualizerSettings {
   spectrogramColorMid?: string;
   spectrogramTimeScale?: number;
   spectrogramMaxFrequency?: number;
+  spectrogramUseLogScale?: boolean; // New setting for log scale
 }
 
 const defaultSettings: VisualizerSettings = {
@@ -73,6 +74,7 @@ const defaultSettings: VisualizerSettings = {
   spectrogramColorMid: '#8ADEFD', // Light blue color from screenshot
   spectrogramTimeScale: 10, // 10s from screenshot
   spectrogramMaxFrequency: 15000, // Match FFT max frequency
+  spectrogramUseLogScale: true, // Enable logarithmic frequency scale by default
 };
 
 export function useVisualizerSettings() {
