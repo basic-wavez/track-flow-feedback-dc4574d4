@@ -26,9 +26,11 @@ const FFTVisualizer: React.FC<FFTVisualizerProps> = ({
     audioContext,
     isPlaying,
     {
-      barCount: 64,
+      barCount: isMobile ? 32 : 64, // Use fewer bars on mobile
       barColor: '#9b87f5', // Purple color from design system
       capColor: '#D946EF', // Magenta pink from design system
+      smoothingFactor: 0.7, // Add smoothing for LED-meter like effect
+      maxFrequency: 15000, // Limit to 15kHz
     }
   );
   

@@ -1,4 +1,3 @@
-
 import { useRef, useEffect, useState } from 'react';
 import { AudioContextState } from './useAudioContext';
 
@@ -11,6 +10,7 @@ interface VisualizerOptions {
   capFallSpeed?: number;
   maxFrequency?: number;
   targetFPS?: number;
+  smoothingFactor?: number; // New option for EMA smoothing
 }
 
 // Shared frame rate controller across all visualizer instances
@@ -59,9 +59,11 @@ export function useAudioVisualizer(
 ) {
   const [isActive, setIsActive] = useState(false);
   const dataArray = useRef<Uint8Array | null>(null);
+  const smoothedDataArray = useRef<Float32Array | null>(null); // New ref for smoothed data
   const caps = useRef<number[]>([]);
   const canvasDimensions = useRef({ width: 0, height: 0 });
   const lastDrawTime = useRef(0);
+  const melBands = useRef<number[][]>([]); // New ref for mel bands (logarithmic frequency bins)
 
   // Default options
   const {
@@ -73,27 +75,68 @@ export function useAudioVisualizer(
     capFallSpeed = 0.8,
     maxFrequency = 15000,
     targetFPS = 30, // Default target of 30fps for better performance
+    smoothingFactor = 0.7, // Default smoothing factor for EMA
   } = options;
 
-  // Initialize the frequency data array with reduced size for better performance
+  // Initialize the frequency data arrays and mel bands
   useEffect(() => {
     if (!audioContext.analyserNode) return;
     
-    // Reduce FFT size for better performance
-    const fftSize = 1024; // Reduced from 2048
-    audioContext.analyserNode.fftSize = fftSize;
-    audioContext.analyserNode.smoothingTimeConstant = 0.7; // Slightly reduced for better performance
+    // Use enhanced FFT settings as in the spectrogram
+    try {
+      // Larger FFT size for better frequency resolution
+      audioContext.analyserNode.fftSize = 8192;
+      // Keep smoothingTimeConstant at 0 to preserve transients
+      audioContext.analyserNode.smoothingTimeConstant = 0;
+      // Wider dynamic range
+      audioContext.analyserNode.minDecibels = -90;
+      audioContext.analyserNode.maxDecibels = -30;
+      
+      console.log("FFT Visualizer: Enhanced FFT settings applied");
+    } catch (e) {
+      console.warn("FFT Visualizer: Could not set requested fftSize, using browser default:", e);
+    }
     
     const bufferLength = audioContext.analyserNode.frequencyBinCount;
     dataArray.current = new Uint8Array(bufferLength);
+    smoothedDataArray.current = new Float32Array(barCount);
     
     // Initialize caps array
     caps.current = Array(barCount).fill(0);
+    
+    // Calculate mel bands (logarithmic frequency bins)
+    calculateMelBands(bufferLength, barCount);
     
     return () => {
       sharedFrameController.unregister(draw);
     };
   }, [audioContext.analyserNode, barCount]);
+
+  // Calculate logarithmic frequency bins (mel bands)
+  const calculateMelBands = (bufferLength: number, bandCount: number) => {
+    const sampleRate = audioContext.audioContext?.sampleRate || 44100;
+    const nyquist = sampleRate / 2;
+    const maxBinIndex = Math.floor((maxFrequency / nyquist) * bufferLength);
+    
+    // Clear existing bands
+    melBands.current = [];
+    
+    // Create logarithmically spaced bands
+    for (let i = 0; i < bandCount; i++) {
+      // Use a logarithmic scale to determine band edges
+      const startFreq = Math.exp(Math.log(20) + (Math.log(maxFrequency) - Math.log(20)) * (i / bandCount));
+      const endFreq = Math.exp(Math.log(20) + (Math.log(maxFrequency) - Math.log(20)) * ((i + 1) / bandCount));
+      
+      // Convert frequencies to bin indices
+      const startBin = Math.floor((startFreq / nyquist) * bufferLength);
+      const endBin = Math.min(Math.floor((endFreq / nyquist) * bufferLength), maxBinIndex);
+      
+      // Store bin range for this mel band
+      melBands.current.push([Math.max(startBin, 0), endBin]);
+    }
+    
+    console.log(`FFT Visualizer: Created ${bandCount} logarithmic frequency bands (mel bands)`);
+  };
 
   // Toggle visualizer active state
   const toggleVisualizer = () => {
@@ -144,30 +187,39 @@ export function useAudioVisualizer(
     // Get frequency data
     audioContext.analyserNode.getByteFrequencyData(dataArray.current);
     
-    // Calculate the width of each bar based on canvas width and desired bar count
+    // Calculate bar width with spacing
     const barWidth = Math.floor(width / barCount) - barSpacing;
     
-    // Calculate the frequency range we want to display
-    const sampleRate = audioContext.audioContext?.sampleRate || 44100;
-    const nyquist = sampleRate / 2;
-    const maxBinIndex = Math.floor((maxFrequency / nyquist) * dataArray.current.length);
-    
-    // Draw bars and caps
+    // Process data through mel bands and apply exponential moving average
     for (let i = 0; i < barCount; i++) {
-      // Map the bar index to a frequency bin index up to maxBinIndex
-      const startBin = Math.floor(i * maxBinIndex / barCount);
-      const endBin = Math.floor((i + 1) * maxBinIndex / barCount);
-      
-      // Get the average value for this bar's frequency range
-      let sum = 0;
-      for (let j = startBin; j < endBin; j++) {
-        sum += dataArray.current[j];
+      if (melBands.current[i]) {
+        const [startBin, endBin] = melBands.current[i];
+        
+        // Calculate average value for this mel band
+        let sum = 0;
+        let count = 0;
+        for (let j = startBin; j <= endBin; j++) {
+          sum += dataArray.current[j];
+          count++;
+        }
+        
+        const average = count > 0 ? sum / count : 0;
+        
+        // Apply exponential moving average for smoothing
+        if (smoothedDataArray.current) {
+          smoothedDataArray.current[i] = smoothingFactor * smoothedDataArray.current[i] + 
+                                     (1 - smoothingFactor) * average;
+        }
       }
-      
-      const average = sum / (endBin - startBin) || 0;
+    }
+    
+    // Draw bars and caps based on smoothed data
+    for (let i = 0; i < barCount; i++) {
+      // Get smoothed value for this bar
+      const value = smoothedDataArray.current ? smoothedDataArray.current[i] : 0;
       
       // Calculate bar height based on frequency value (0-255)
-      const barHeight = (average / 255) * height * 0.8; // 80% of canvas height max
+      const barHeight = (value / 255) * height * 0.8; // 80% of canvas height max
       
       // Draw the bar
       ctx.fillStyle = barColor;

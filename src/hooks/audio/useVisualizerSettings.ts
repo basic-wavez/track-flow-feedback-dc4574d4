@@ -20,6 +20,7 @@ export interface VisualizerSettings {
   fftMaxFrequency?: number;
   fftBarCount?: number;
   fftCapColor?: string;
+  fftSmoothingFactor?: number; // New setting for EMA smoothing
   
   // Oscilloscope settings
   oscilloscopeColor: string;
@@ -37,7 +38,7 @@ export interface VisualizerSettings {
   spectrogramTimeScale?: number;
   spectrogramMaxFrequency?: number;
   spectrogramUseLogScale?: boolean;
-  spectrogramColorMap?: 'default' | 'inferno' | 'magma' | 'turbo'; // New setting for perceptual color maps
+  spectrogramColorMap?: 'default' | 'inferno' | 'magma' | 'turbo'; // Color map options
 }
 
 const defaultSettings: VisualizerSettings = {
@@ -57,8 +58,9 @@ const defaultSettings: VisualizerSettings = {
   // FFT appearance settings - Updated to match screenshot
   fftBarColor: '#8ADEFD', // Light blue color from screenshot
   fftMaxFrequency: 15000, // 15 kHz from screenshot
-  fftBarCount: 32, // 32 bars from screenshot
+  fftBarCount: 64, // Increased from 32 to 64 for better resolution with mel bands
   fftCapColor: '#000000', // Black color from screenshot
+  fftSmoothingFactor: 0.7, // New default smoothing factor for EMA
   
   // Oscilloscope settings
   oscilloscopeColor: '#7DE3FF', // Light blue 

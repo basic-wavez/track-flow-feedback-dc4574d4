@@ -41,17 +41,18 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   // Mobile devices may struggle with very large FFT sizes
   const spectrogramFftSize = isMobile ? 8192 : 32768;
   
-  // Initialize FFT visualizer with reduced settings for better performance
+  // Initialize FFT visualizer with enhanced settings for better performance
   const { isActive: fftActive } = useAudioVisualizer(
     fftCanvasRef,
     audioContext,
     isPlaying && settings.fftEnabled,
     {
-      barCount: isMobile ? 32 : (settings.fftBarCount || 32), // Reduce bars on mobile
+      barCount: isMobile ? 32 : (settings.fftBarCount || 64), // Use more bars on desktop for better resolution
       barColor: settings.fftBarColor,
       capColor: settings.fftCapColor || '#000000',
       maxFrequency: settings.fftMaxFrequency || 15000,
       targetFPS: targetFPS,
+      smoothingFactor: 0.7, // Add smoothing factor for EMA smoothing
     }
   );
 
@@ -88,13 +89,13 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
       maxFrequency: settings.spectrogramMaxFrequency || 15000,
       targetFPS: isMobile ? 15 : 20, // Even lower FPS for spectrogram
       bufferSize: isMobile ? 100 : 200, // Smaller buffer on mobile
-      // New enhanced FFT settings for better resolution
+      // Enhanced FFT settings for better resolution
       fftSize: spectrogramFftSize,
       smoothingTimeConstant: 0,
       minDecibels: -100,
       maxDecibels: -30,
       useLogScale: true, // Enable logarithmic frequency scale
-      useDevicePixelRatio: true, // Enable device pixel ratio scaling for sharp rendering
+      useDevicePixelRatio: true, // Enable device pixel ratio scaling
       colorMap: settings.spectrogramColorMap || 'magma', // Use perceptual color map
     }
   );
