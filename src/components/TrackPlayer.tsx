@@ -3,7 +3,6 @@ import { useState, useRef, useEffect } from "react";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import TrackHeader from "./player/TrackHeader";
 import PlaybackControls from "./player/PlaybackControls";
-import TrackActions from "./player/TrackActions";
 import { isInServerCooldown } from "@/services/trackShareService";
 import { isWavFormat, getFileTypeFromUrl } from "@/lib/audioUtils";
 import { TrackVersion } from "@/types/track";
@@ -11,6 +10,8 @@ import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
 import AudioStatusIndicator from "./player/AudioStatusIndicator";
 import WaveformSection from "./player/WaveformSection";
 import PlaylistModeIndicator from "./player/PlaylistModeIndicator";
+import AudioElement from "./player/AudioElement";
+import TrackPlayerProvider from "./player/TrackPlayerProvider";
 
 interface TrackPlayerProps {
   trackId: string;
@@ -18,7 +19,7 @@ interface TrackPlayerProps {
   audioUrl?: string;
   originalUrl?: string;
   waveformAnalysisUrl?: string;
-  waveformPeaksUrl?: string; // Add this prop for pre-computed peaks data
+  waveformPeaksUrl?: string;
   originalFilename?: string;
   isOwner?: boolean;
   processingStatus?: string;
@@ -78,21 +79,10 @@ const TrackPlayer = ({
     isPlaying: false
   };
   
-  // Console logging for debugging
-  useEffect(() => {
-    if (isPlaylistMode) {
-      console.log("Playlist mode states:", { 
-        contextIsPlaying, 
-        isLoading,
-        "audio element exists": !!audioRef.current
-      });
-    }
-  }, [contextIsPlaying, isLoading, isPlaylistMode]);
-  
-  // Determine which URL to use for playback - prefer Opus if available, then MP3, then audioUrl
+  // Determine which URL to use for playback
   const playbackUrl = opusUrl || mp3Url || audioUrl;
 
-  // Determine which URL to use for waveform analysis - ALWAYS prefer MP3 if available
+  // Determine which URL to use for waveform analysis
   const waveformUrl = mp3Url || waveformAnalysisUrl;
   
   // Check server cooldown on load
@@ -130,19 +120,15 @@ const TrackPlayer = ({
     shareKey 
   });
   
-  // Sync with playlist context when in playlist mode - fixed implementation
+  // Sync with playlist context when in playlist mode
   useEffect(() => {
     if (!isPlaylistMode || !audioRef.current) return;
     
-    console.log("Sync effect triggered:", { contextIsPlaying, isPlaying });
-    
     if (contextIsPlaying && !isPlaying) {
-      console.log("Context is playing but local is not - starting playback");
       audioRef.current.play().catch(err => {
         console.error("Error playing from context sync:", err);
       });
     } else if (!contextIsPlaying && isPlaying) {
-      console.log("Context is paused but local is playing - pausing playback");
       audioRef.current.pause();
     }
   }, [contextIsPlaying, isPlaying, isPlaylistMode]);
@@ -163,20 +149,12 @@ const TrackPlayer = ({
     };
   }, [contextPlayNext, isPlaylistMode]);
   
-  // Combined toggle play function - updated to ensure both states update
+  // Combined toggle play function
   const handleTogglePlayPause = () => {
-    console.log("Toggle play/pause clicked", { isPlaylistMode, isPlaying, contextIsPlaying });
-    
     if (isPlaylistMode) {
-      // Update the context state first
       contextTogglePlayPause();
-      
-      // Also update the local audio state
-      // The sync effect will handle the actual audio element changes
-      // But we still call localTogglePlayPause to update local state in sync
       localTogglePlayPause();
     } else {
-      // Just use local toggle when not in playlist mode
       localTogglePlayPause();
     }
   };
@@ -186,7 +164,6 @@ const TrackPlayer = ({
     if (playbackState === 'paused' && currentTime > 0 && currentTime >= duration * 0.9) {
       setPlayedRecently(true);
       
-      // Check if we're now in server cooldown
       if (shareKey) {
         const checkServerCooldown = async () => {
           const inCooldown = await isInServerCooldown(shareKey);
@@ -211,85 +188,88 @@ const TrackPlayer = ({
   // Determine combined cooldown state
   const isCooldown = inCooldownPeriod || serverCooldown;
   
+  // Player context value for potential future use
+  const playerContextValue = {
+    isPlaying: isPlaylistMode ? contextIsPlaying : isPlaying,
+    currentTime,
+    duration,
+    handleTogglePlayPause
+  };
+  
   return (
-    <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
-      {/* Main audio element - adding crossOrigin attribute */}
-      <audio 
-        ref={audioRef} 
-        src={playbackUrl}
-        preload="auto"
-        crossOrigin="anonymous"
-      />
-      
-      <TrackHeader 
-        trackId={trackId}
-        trackName={trackName}
-        playbackState={playbackState}
-        isLoading={isLoading || playbackState === 'loading'}
-        usingMp3={usingMp3}
-        processingStatus={processingStatus}
-        showProcessButton={false}
-        isRequestingProcessing={false}
-        onRequestProcessing={async () => {}}
-        isOwner={isOwner}
-        versionNumber={versionNumber}
-      />
-      
-      <PlaybackControls 
-        isPlaying={isPlaylistMode ? contextIsPlaying : isPlaying}
-        playbackState={playbackState}
-        currentTime={currentTime}
-        duration={duration}
-        volume={volume}
-        isMuted={isMuted}
-        isLoading={isLoading || playbackState === 'loading'}
-        onPlayPause={handleTogglePlayPause}
-        onVolumeChange={handleVolumeChange}
-        onToggleMute={toggleMute}
-        isPlaylistMode={isPlaylistMode}
-        onPrevious={isPlaylistMode ? contextPlayPrevious : undefined}
-        onNext={isPlaylistMode ? contextPlayNext : undefined}
-      />
-      
-      <PlaylistModeIndicator 
-        isPlaylistMode={isPlaylistMode}
-        currentIndex={currentIndex}
-        totalTracks={totalTracks}
-      />
-      
-      <AudioStatusIndicator 
-        isPlayingWav={isPlayingWav}
-        processingStatus={processingStatus}
-      />
-      
-      <WaveformSection 
-        playbackUrl={playbackUrl}
-        waveformPeaksUrl={waveformPeaksUrl}
-        // Change waveformUrl to match the interface property name
-        waveformUrl={waveformAnalysisUrl}
-        isPlaying={isPlaylistMode ? contextIsPlaying : isPlaying}
-        currentTime={currentTime}
-        duration={duration}
-        handleSeek={handleSeek}
-        isBuffering={isBuffering}
-        showBufferingUI={showBufferingUI}
-        usingMp3={usingMp3}
-        usingOpus={usingOpus}
-        isGeneratingWaveform={isGeneratingWaveform}
-        audioLoaded={audioLoaded}
-        audioRef={audioRef}
-        showFFTVisualizer={showFFTVisualizer}
-        isOwner={isOwner}
-        originalUrl={originalUrl}
-        originalFilename={originalFilename}
-        trackId={trackId}
-        downloadsEnabled={downloadsEnabled}
-        shareKey={shareKey}
-        trackVersions={trackVersions}
-        trackTitle={trackName}
-        isPlaylistMode={isPlaylistMode}
-      />
-    </div>
+    <TrackPlayerProvider value={playerContextValue}>
+      <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
+        <AudioElement audioRef={audioRef} playbackUrl={playbackUrl} />
+        
+        <TrackHeader 
+          trackId={trackId}
+          trackName={trackName}
+          playbackState={playbackState}
+          isLoading={isLoading || playbackState === 'loading'}
+          usingMp3={usingMp3}
+          processingStatus={processingStatus}
+          showProcessButton={false}
+          isRequestingProcessing={false}
+          onRequestProcessing={async () => {}}
+          isOwner={isOwner}
+          versionNumber={versionNumber}
+        />
+        
+        <PlaybackControls 
+          isPlaying={isPlaylistMode ? contextIsPlaying : isPlaying}
+          playbackState={playbackState}
+          currentTime={currentTime}
+          duration={duration}
+          volume={volume}
+          isMuted={isMuted}
+          isLoading={isLoading || playbackState === 'loading'}
+          onPlayPause={handleTogglePlayPause}
+          onVolumeChange={handleVolumeChange}
+          onToggleMute={toggleMute}
+          isPlaylistMode={isPlaylistMode}
+          onPrevious={isPlaylistMode ? contextPlayPrevious : undefined}
+          onNext={isPlaylistMode ? contextPlayNext : undefined}
+        />
+        
+        <PlaylistModeIndicator 
+          isPlaylistMode={isPlaylistMode}
+          currentIndex={currentIndex}
+          totalTracks={totalTracks}
+        />
+        
+        <AudioStatusIndicator 
+          isPlayingWav={isPlayingWav}
+          processingStatus={processingStatus}
+        />
+        
+        <WaveformSection 
+          playbackUrl={playbackUrl}
+          waveformPeaksUrl={waveformPeaksUrl}
+          waveformUrl={waveformUrl}
+          isPlaying={isPlaylistMode ? contextIsPlaying : isPlaying}
+          currentTime={currentTime}
+          duration={duration}
+          handleSeek={handleSeek}
+          isBuffering={isBuffering}
+          showBufferingUI={showBufferingUI}
+          usingMp3={usingMp3}
+          usingOpus={usingOpus}
+          isGeneratingWaveform={isGeneratingWaveform}
+          audioLoaded={audioLoaded}
+          audioRef={audioRef}
+          showFFTVisualizer={showFFTVisualizer}
+          isOwner={isOwner}
+          originalUrl={originalUrl}
+          originalFilename={originalFilename}
+          trackId={trackId}
+          downloadsEnabled={downloadsEnabled}
+          shareKey={shareKey}
+          trackVersions={trackVersions}
+          trackTitle={trackName}
+          isPlaylistMode={isPlaylistMode}
+        />
+      </div>
+    </TrackPlayerProvider>
   );
 };
 
