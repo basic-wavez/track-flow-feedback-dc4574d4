@@ -1,3 +1,4 @@
+
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
 import { sharedFrameController } from './useAudioVisualizer';
@@ -29,7 +30,7 @@ export function useOscilloscopeVisualizer(
   const {
     lineColor = '#E7A2C8',
     lineWidth = 2,
-    backgroundColor = '#121212', // Updated to match player background
+    backgroundColor = '#1A1A1A', // Updated to #1A1A1A
     sensitivity = 1.0,
     drawMode = 'line',
     dashPattern = [],
@@ -89,7 +90,7 @@ export function useOscilloscopeVisualizer(
     }
     
     // Clear the canvas with the updated background color
-    ctx.fillStyle = backgroundColor; // Now uses #121212
+    ctx.fillStyle = backgroundColor; // Now uses #1A1A1A
     ctx.fillRect(0, 0, width, height);
     
     
