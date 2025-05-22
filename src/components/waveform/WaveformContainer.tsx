@@ -7,8 +7,8 @@ import { useWaveformData } from './hooks/useWaveformData';
 
 interface WaveformContainerProps {
   audioUrl?: string;
-  waveformAnalysisUrl?: string;
   peaksDataUrl?: string;
+  waveformData?: number[] | Float32Array; // Allow direct passing of waveform data
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -24,8 +24,8 @@ interface WaveformContainerProps {
 
 const WaveformContainer: React.FC<WaveformContainerProps> = ({
   audioUrl,
-  waveformAnalysisUrl,
   peaksDataUrl,
+  waveformData: externalWaveformData, // Renamed to avoid conflict
   isPlaying,
   currentTime,
   duration,
@@ -38,25 +38,28 @@ const WaveformContainer: React.FC<WaveformContainerProps> = ({
   isGeneratingWaveform = false,
   audioLoaded = false
 }) => {
+  // Only use the hook if we don't have data passed directly
   const {
-    waveformData,
+    waveformData: internalWaveformData,
     isAnalyzing,
     isPeaksLoading,
     analysisError,
     usingPrecomputedPeaks,
     isWaveformGenerated
   } = useWaveformData({
-    waveformAnalysisUrl,
-    peaksDataUrl,
+    peaksDataUrl, // Remove waveformAnalysisUrl, just use peaksDataUrl
     isGeneratingWaveform
   });
   
+  // Use externally provided data if available, otherwise use internal data
+  const waveformData = externalWaveformData || internalWaveformData;
+  
   // Show loading states
-  if (isAnalyzing || isPeaksLoading) {
+  if ((isAnalyzing || isPeaksLoading) && !externalWaveformData) {
     return <WaveformLoader isAnalyzing={isAnalyzing} isGeneratingWaveform={isPeaksLoading} />;
   }
   
-  if (isGeneratingWaveform) {
+  if (isGeneratingWaveform && !externalWaveformData) {
     return <WaveformLoader isGeneratingWaveform={true} />;
   }
   
@@ -81,7 +84,7 @@ const WaveformContainer: React.FC<WaveformContainerProps> = ({
         analysisError={analysisError}
         isAudioLoading={!isAudioDurationValid && !analysisError}
         currentTime={currentTime}
-        usingPrecomputedPeaks={usingPrecomputedPeaks}
+        usingPrecomputedPeaks={usingPrecomputedPeaks || !!externalWaveformData}
       />
     </div>
   );

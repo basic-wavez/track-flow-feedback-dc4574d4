@@ -1,4 +1,3 @@
-
 import React from "react";
 import { getFileTypeFromUrl, needsProcessingIndicator, isWavFormat } from "@/lib/audioUtils";
 import TrackPlayer from "@/components/TrackPlayer";
@@ -39,7 +38,6 @@ const TrackPlayerSection: React.FC<TrackPlayerSectionProps> = ({
   
   // Determine which URL to prioritize for playback
   const playbackUrl = getPlaybackUrl();
-  const waveformUrl = getWaveformUrl();
   const waveformPeaksUrl = trackData.waveform_peaks_url;
 
   // Determine which URL to prioritize for playback
@@ -51,16 +49,6 @@ const TrackPlayerSection: React.FC<TrackPlayerSectionProps> = ({
     
     // Otherwise follow the normal priority: MP3 > compressed > original
     return trackData.mp3_url || trackData.compressed_url || trackData.original_url;
-  }
-  
-  // Get the best URL for waveform analysis
-  function getWaveformUrl() {
-    // For WAV files, we can use the original for waveform too
-    if (isWavFormat(originalFileType)) {
-      return trackData.original_url;
-    }
-    
-    return trackData.mp3_url || trackData.compressed_url;
   }
 
   if (showProcessingIndicator) {
@@ -82,7 +70,6 @@ const TrackPlayerSection: React.FC<TrackPlayerSectionProps> = ({
       trackName={trackData.title} 
       audioUrl={playbackUrl} 
       originalUrl={trackData.original_url}
-      waveformAnalysisUrl={waveformUrl}
       waveformPeaksUrl={waveformPeaksUrl}
       originalFilename={trackData.original_filename}
       isOwner={isOwner}

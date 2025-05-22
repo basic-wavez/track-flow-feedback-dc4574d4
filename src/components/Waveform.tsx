@@ -4,8 +4,8 @@ import WaveformContainer from './waveform/WaveformContainer';
 
 interface WaveformProps {
   audioUrl?: string;
-  waveformAnalysisUrl?: string;
   peaksDataUrl?: string;
+  waveformData?: number[] | Float32Array; // Allow direct passing of waveform data
   isPlaying: boolean;
   currentTime: number;
   duration: number;
