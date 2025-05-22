@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { generateWaveformWithVariance, isValidPeaksData } from '@/lib/waveformUtils';
+import { generateWaveformWithVariance } from '@/lib/waveformUtils';
+import { loadPeaksDataWithCaching } from '@/lib/peaksDataUtils';
 
 interface UseWaveformDataProps {
   peaksDataUrl?: string;
@@ -33,71 +34,22 @@ export const useWaveformData = ({
   
   // Function to load pre-computed peaks data
   const loadPeaksData = useCallback(async (url: string) => {
-    console.log('Attempting to load pre-computed peaks from:', url);
-    
     try {
       setIsPeaksLoading(true);
       
-      // Check browser storage cache first
-      const cacheKey = `waveform_peaks_${url}`;
-      const cachedData = localStorage.getItem(cacheKey);
+      const { data, success } = await loadPeaksDataWithCaching(url);
       
-      if (cachedData) {
-        try {
-          const parsedData = JSON.parse(cachedData);
-          if (isValidPeaksData(parsedData)) {
-            console.log('Using cached waveform peaks data - skipping analysis completely');
-            
-            // Convert to Float32Array for direct rendering
-            const typedArray = Float32Array.from(parsedData);
-            setWaveformData(typedArray);
-            setIsWaveformGenerated(true);
-            setUsingPrecomputedPeaks(true);
-            peaksLoadedRef.current = true;
-            return true;
-          } else {
-            console.warn('Cached peaks data is invalid, removing from cache');
-            localStorage.removeItem(cacheKey);
-          }
-        } catch (e) {
-          console.warn('Error parsing cached peaks data:', e);
-          localStorage.removeItem(cacheKey);
-        }
-      }
-      
-      // Fetch from server if not in cache
-      console.log('Fetching peaks data from server:', url);
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch peaks data: ${response.status} ${response.statusText}`);
-      }
-      
-      const peaksData = await response.json();
-      
-      if (isValidPeaksData(peaksData)) {
-        console.log('Successfully loaded pre-computed waveform peaks:', peaksData.length, 'points');
-        
-        // Convert to Float32Array for direct rendering
-        const typedArray = Float32Array.from(peaksData);
-        
-        // Cache the data for future use
-        try {
-          localStorage.setItem(cacheKey, JSON.stringify(peaksData));
-        } catch (e) {
-          console.warn('Failed to cache waveform peaks data:', e);
-        }
-        
-        setWaveformData(typedArray);
+      if (success && data) {
+        setWaveformData(data);
         setIsWaveformGenerated(true);
         setUsingPrecomputedPeaks(true);
         peaksLoadedRef.current = true;
         return true;
-      } else {
-        throw new Error('Invalid peaks data format');
       }
+      
+      return false;
     } catch (error) {
-      console.error('Error loading pre-computed peaks data:', error);
+      console.error('Error in loadPeaksData:', error);
       setUsingPrecomputedPeaks(false);
       return false;
     } finally {

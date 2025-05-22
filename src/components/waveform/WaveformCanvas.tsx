@@ -1,10 +1,10 @@
 
-import { useRef } from 'react';
+import React, { useRef } from 'react';
 import { useWaveformRenderer } from './hooks/useWaveformRenderer';
 import { useWaveformSeek } from './hooks/useWaveformSeek';
 
 interface WaveformCanvasProps {
-  waveformData: number[] | Float32Array; // Updated to accept Float32Array
+  waveformData: number[] | Float32Array;
   currentTime: number;
   duration: number;
   isPlaying: boolean;
@@ -13,7 +13,7 @@ interface WaveformCanvasProps {
   onSeek: (time: number) => void;
 }
 
-const WaveformCanvas = ({ 
+const WaveformCanvas: React.FC<WaveformCanvasProps> = ({ 
   waveformData, 
   currentTime, 
   duration, 
@@ -21,7 +21,7 @@ const WaveformCanvas = ({
   isBuffering,
   isMp3Available, 
   onSeek 
-}: WaveformCanvasProps) => {
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Use our custom renderer hook
