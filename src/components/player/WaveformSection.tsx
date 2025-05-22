@@ -160,7 +160,7 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
         </div>
       )}
       
-      {/* Updated visualizer with dynamic height based on device */}
+      {/* Updated visualizer with no blue borders */}
       {showFFTVisualizer && (
         <div className="mt-2 mb-6">
           <MultiVisualizer 
