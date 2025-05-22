@@ -15,7 +15,7 @@ const VisualizerContainer: React.FC<VisualizerContainerProps> = ({
   const visualizerHeight = isMobile ? 'h-[75px]' : 'h-[150px]';
   
   return (
-    <div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-wip-darker ${className}`} id="visualizer-container">
+    <div className={`relative overflow-hidden rounded-lg bg-wip-darker ${className}`} id="visualizer-container">
       <div className={`flex p-2 ${visualizerHeight}`}>
         {children}
       </div>
