@@ -1,7 +1,5 @@
-
 import { useRef, useEffect, useState } from 'react';
 import { AudioContextState } from './useAudioContext';
-import { usePeaksData } from '@/context/PeaksDataContext';
 
 interface VisualizerOptions {
   barCount?: number;
@@ -12,8 +10,7 @@ interface VisualizerOptions {
   capFallSpeed?: number;
   maxFrequency?: number;
   targetFPS?: number;
-  smoothingFactor?: number;
-  usePeaksData?: boolean; // New option to use pre-computed peaks
+  smoothingFactor?: number; // New option for EMA smoothing
 }
 
 // Shared frame rate controller across all visualizer instances
@@ -62,22 +59,11 @@ export function useAudioVisualizer(
 ) {
   const [isActive, setIsActive] = useState(false);
   const dataArray = useRef<Uint8Array | null>(null);
-  const smoothedDataArray = useRef<Float32Array | null>(null);
+  const smoothedDataArray = useRef<Float32Array | null>(null); // New ref for smoothed data
   const caps = useRef<number[]>([]);
   const canvasDimensions = useRef({ width: 0, height: 0 });
   const lastDrawTime = useRef(0);
-  const melBands = useRef<number[][]>([]);
-  
-  // Access the shared peaks data context
-  const { hasPeaksData, peaksData } = usePeaksData();
-  const usePredefinedPeaks = options.usePeaksData && hasPeaksData;
-  
-  // Log if we're using pre-computed peaks
-  useEffect(() => {
-    if (usePredefinedPeaks) {
-      console.log('AudioVisualizer: Using pre-computed peaks data for visualization');
-    }
-  }, [usePredefinedPeaks]);
+  const melBands = useRef<number[][]>([]); // New ref for mel bands (logarithmic frequency bins)
 
   // Default options
   const {
@@ -88,36 +74,12 @@ export function useAudioVisualizer(
     capHeight = 2,
     capFallSpeed = 0.8,
     maxFrequency = 15000,
-    targetFPS = 30,
-    smoothingFactor = 0.7,
+    targetFPS = 30, // Default target of 30fps for better performance
+    smoothingFactor = 0.7, // Default smoothing factor for EMA
   } = options;
 
   // Initialize the frequency data arrays and mel bands
   useEffect(() => {
-    if (usePredefinedPeaks) {
-      // If using predefined peaks, we won't need mel bands or audio context analysis
-      // so initialize directly from the peaks data
-      
-      const peaksCount = peaksData?.length || barCount;
-      smoothedDataArray.current = new Float32Array(peaksCount);
-      
-      // Initialize the smoothed data array from peaks - normalize to range 0-255
-      if (peaksData && smoothedDataArray.current) {
-        const maxPeak = Math.max(...peaksData);
-        for (let i = 0; i < peaksData.length; i++) {
-          // Scale peaks to appropriate range for FFT visualization (0-255)
-          smoothedDataArray.current[i] = (peaksData[i] / maxPeak) * 255;
-        }
-      }
-      
-      // Initialize caps array
-      caps.current = Array(peaksCount).fill(0);
-      
-      console.log('AudioVisualizer: Initialized with pre-computed peaks data');
-      return;
-    }
-    
-    // Normal initialization with audio analyzer
     if (!audioContext.analyserNode) return;
     
     // Use enhanced FFT settings as in the spectrogram
@@ -148,7 +110,7 @@ export function useAudioVisualizer(
     return () => {
       sharedFrameController.unregister(draw);
     };
-  }, [audioContext.analyserNode, barCount, usePredefinedPeaks, peaksData]);
+  }, [audioContext.analyserNode, barCount]);
 
   // Calculate logarithmic frequency bins (mel bands)
   const calculateMelBands = (bufferLength: number, bandCount: number) => {
@@ -186,105 +148,8 @@ export function useAudioVisualizer(
     setIsActive(true);
   }, []);
 
-  // Custom draw function for pre-computed peaks data
-  const drawWithPeaks = () => {
-    if (!canvasRef.current || !smoothedDataArray.current || !isActive) {
-      return;
-    }
-    
-    const now = performance.now();
-    const frameInterval = 1000 / targetFPS;
-    
-    // Skip frame if not enough time has elapsed
-    if (now - lastDrawTime.current < frameInterval) {
-      return;
-    }
-    
-    lastDrawTime.current = now;
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    
-    if (!ctx) return;
-    
-    // Get current dimensions from the parent element
-    const parent = canvas.parentElement;
-    const width = parent ? parent.clientWidth : canvas.clientWidth;
-    const height = parent ? parent.clientHeight : canvas.clientHeight;
-    
-    // Only update canvas dimensions if they've changed
-    if (canvasDimensions.current.width !== width || canvasDimensions.current.height !== height) {
-      canvas.width = width;
-      canvas.height = height;
-      canvasDimensions.current = { width, height };
-    }
-    
-    // Clear the canvas
-    ctx.clearRect(0, 0, width, height);
-    
-    // Calculate bar width with spacing
-    const peaksCount = smoothedDataArray.current.length;
-    const barWidth = Math.floor(width / peaksCount) - barSpacing;
-    
-    // For pre-computed peaks, we already have data in smoothedDataArray
-    // We just need to modulate it to create an animated effect
-    if (isPlaying) {
-      // Create "dancing bars" effect based on time
-      const timeModulation = Math.sin(now / 500) * 0.15 + 0.85; // 0.7-1.0 range
-      
-      for (let i = 0; i < smoothedDataArray.current.length; i++) {
-        // Apply different modulation to different frequency bands for interesting effect
-        const modFactor = timeModulation * (1 + Math.sin(i / 5 + now / 1000) * 0.2);
-        
-        // Add some randomness to make it more "alive" during playback
-        const randomFactor = isPlaying ? Math.random() * 0.15 : 0;
-        
-        // Modulate the value, maintaining some minimum level
-        const baseValue = smoothedDataArray.current[i];
-        const modulatedValue = Math.max(baseValue * 0.3, baseValue * modFactor + randomFactor * baseValue);
-        
-        // Store back the slightly changed value for next frame
-        smoothedDataArray.current[i] = baseValue * 0.95 + modulatedValue * 0.05;
-      }
-    }
-    
-    // Draw bars and caps based on data
-    for (let i = 0; i < peaksCount; i++) {
-      // Get value for this bar
-      const value = smoothedDataArray.current[i];
-      
-      // Calculate bar height based on frequency value (0-255)
-      const barHeight = (value / 255) * height * 0.8; // 80% of canvas height max
-      
-      // Draw the bar
-      ctx.fillStyle = barColor;
-      ctx.fillRect(
-        i * (barWidth + barSpacing), 
-        height - barHeight, 
-        barWidth, 
-        barHeight
-      );
-      
-      // Update and draw caps
-      if (barHeight > caps.current[i]) {
-        caps.current[i] = barHeight;
-      } else {
-        caps.current[i] = caps.current[i] * capFallSpeed;
-      }
-      
-      // Draw the cap
-      ctx.fillStyle = capColor;
-      ctx.fillRect(
-        i * (barWidth + barSpacing), 
-        height - caps.current[i] - capHeight, 
-        barWidth, 
-        capHeight
-      );
-    }
-  };
-
-  // Draw the visualizer frame - using audio analyzer
-  const drawWithAnalyzer = () => {
+  // Draw the visualizer frame
+  const draw = () => {
     if (!canvasRef.current || !audioContext.analyserNode || !dataArray.current || !isActive) {
       return;
     }
@@ -300,7 +165,7 @@ export function useAudioVisualizer(
     lastDrawTime.current = now;
     
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d', { alpha: false });
+    const ctx = canvas.getContext('2d', { alpha: false }); // Disable alpha for better performance
     
     if (!ctx) return;
     
@@ -406,29 +271,15 @@ export function useAudioVisualizer(
     }
   };
 
-  // Choose which draw function to use based on whether we have pre-computed peaks
-  const draw = () => {
-    if (usePredefinedPeaks) {
-      drawWithPeaks();
-    } else {
-      drawWithAnalyzer();
-    }
-  };
-
   // Start/stop animation based on playing state and active state
   useEffect(() => {
-    if (isPlaying && isActive) {
-      if (usePredefinedPeaks) {
-        // If using pre-computed peaks, we don't need the audio context to be initialized
-        sharedFrameController.register(draw);
-      } else if (audioContext.isInitialized) {
-        // Resume the audio context if it's suspended (browser autoplay policy)
-        if (audioContext.audioContext?.state === 'suspended') {
-          audioContext.audioContext.resume().catch(console.error);
-        }
-        
-        sharedFrameController.register(draw);
+    if (isPlaying && isActive && audioContext.isInitialized) {
+      // Resume the audio context if it's suspended (browser autoplay policy)
+      if (audioContext.audioContext?.state === 'suspended') {
+        audioContext.audioContext.resume().catch(console.error);
       }
+      
+      sharedFrameController.register(draw);
     } else {
       sharedFrameController.unregister(draw);
     }
@@ -436,7 +287,7 @@ export function useAudioVisualizer(
     return () => {
       sharedFrameController.unregister(draw);
     };
-  }, [isPlaying, isActive, audioContext.isInitialized, usePredefinedPeaks]);
+  }, [isPlaying, isActive, audioContext.isInitialized]);
 
   return { isActive, toggleVisualizer };
 }

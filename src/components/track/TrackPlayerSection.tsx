@@ -42,11 +42,6 @@ const TrackPlayerSection: React.FC<TrackPlayerSectionProps> = ({
   const waveformUrl = getWaveformUrl();
   const waveformPeaksUrl = trackData.waveform_peaks_url;
 
-  // Log the presence of waveform peaks URL
-  if (waveformPeaksUrl) {
-    console.log('TrackPlayerSection: Track has pre-computed waveform peaks URL:', waveformPeaksUrl);
-  }
-
   // Determine which URL to prioritize for playback
   function getPlaybackUrl() {
     // For WAV files, prioritize the original URL for immediate playback

@@ -1,55 +1,38 @@
 
-import React, { useState } from 'react';
-import { AudioContextState } from '@/hooks/audio/useAudioContext';
-import VisualizerPanel from './VisualizerPanel';
-import VisualizerCanvas from './VisualizerCanvas';
+import React, { useRef } from 'react';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
-import { BarVisConfig } from '../config/visualizerConfig';
+import { AudioContextState } from '@/hooks/audio/useAudioContext';
+import VisualizerCanvas from './VisualizerCanvas';
+import VisualizerPanel from './VisualizerPanel';
 
 interface FFTVisualizerPanelProps {
   audioContext: AudioContextState;
   isPlaying: boolean;
-  config: BarVisConfig;
-  enabled?: boolean;
-  usePeaksData?: boolean; // New prop for pre-computed peaks
+  config: any;
+  enabled: boolean;
 }
 
 const FFTVisualizerPanel: React.FC<FFTVisualizerPanelProps> = ({
   audioContext,
   isPlaying,
   config,
-  enabled = true,
-  usePeaksData = false
+  enabled
 }) => {
-  const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null);
+  const fftCanvasRef = useRef<HTMLCanvasElement>(null);
   
-  const { isActive } = useAudioVisualizer(
-    { current: canvasRef },
+  // Initialize FFT visualizer
+  useAudioVisualizer(
+    fftCanvasRef,
     audioContext,
-    isPlaying,
-    {
-      ...config,
-      usePeaksData, // Pass the flag to useAudioVisualizer
-    }
+    isPlaying && enabled,
+    config
   );
 
-  if (!enabled) return null;
-  
   return (
-    <VisualizerPanel
-      title="Spectrum Analyzer"
-      type="FFT Visualizer"
-      enabled={enabled}
-      active={isActive && audioContext.isInitialized}
-      loading={!audioContext.isInitialized}
-      error={audioContext.error}
-    >
-      <VisualizerCanvas
-        ref={setCanvasRef}
-        className={usePeaksData ? "bg-purple-950/50" : "bg-zinc-950"}
-      />
+    <VisualizerPanel width="w-[40%]" enabled={enabled} type="FFT">
+      <VisualizerCanvas ref={fftCanvasRef} className="bg-black" />
     </VisualizerPanel>
   );
 };
 
-export default React.memo(FFTVisualizerPanel);
+export default FFTVisualizerPanel;
