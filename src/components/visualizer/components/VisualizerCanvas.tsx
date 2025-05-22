@@ -10,7 +10,7 @@ const VisualizerCanvas = forwardRef<HTMLCanvasElement, VisualizerCanvasProps>(
     return (
       <canvas 
         ref={ref}
-        className={`w-full h-full ${className}`}
+        className={`w-full h-full bg-[#1A1A1A] ${className}`}
       />
     );
   }

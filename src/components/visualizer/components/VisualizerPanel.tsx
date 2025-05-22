@@ -15,7 +15,7 @@ const VisualizerPanel: React.FC<VisualizerPanelProps> = ({
   type
 }) => {
   return (
-    <div className={`${width} rounded-md overflow-hidden bg-wip-darker`}>
+    <div className={`${width} rounded-md overflow-hidden bg-[#1A1A1A]`}>
       {enabled ? (
         <div className="h-full">
           {children}
