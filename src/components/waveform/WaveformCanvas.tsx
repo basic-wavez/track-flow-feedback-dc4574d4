@@ -4,7 +4,7 @@ import { useWaveformRenderer } from './hooks/useWaveformRenderer';
 import { useWaveformSeek } from './hooks/useWaveformSeek';
 
 interface WaveformCanvasProps {
-  waveformData: number[];
+  waveformData: number[] | Float32Array; // Updated to accept Float32Array
   currentTime: number;
   duration: number;
   isPlaying: boolean;
