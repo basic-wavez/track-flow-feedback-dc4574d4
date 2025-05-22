@@ -1,4 +1,3 @@
-
 export interface TrackData {
   id: string;
   title: string;
@@ -23,6 +22,8 @@ export interface TrackData {
   audio_format?: string;
   audio_bitrate?: number;
   audio_duration?: number;
+  // Waveform data
+  waveform_json_url?: string;
 }
 
 export interface TrackUpdateDetails {

@@ -63,6 +63,7 @@ const TrackPlayerSection = ({
     duration, 
     volume, 
     isMuted,
+    playbackState,
     togglePlayPause, 
     handleSeek,
     toggleMute,
@@ -119,7 +120,16 @@ const TrackPlayerSection = ({
     <div className="bg-wip-darker border border-wip-gray rounded-lg p-4 sm:p-6">
       {/* Track header with title, version info, etc. */}
       <TrackHeader 
-        title={trackData.title}
+        trackId={trackData.id}
+        trackName={trackData.title}
+        playbackState={playbackState}
+        isLoading={isBuffering}
+        usingMp3={usingMp3}
+        processingStatus={processingStatus}
+        showProcessButton={false}
+        isRequestingProcessing={false}
+        onRequestProcessing={async () => {}}
+        isOwner={isOwner}
         versionNumber={trackData.version_number || 1}
       />
 
@@ -148,7 +158,7 @@ const TrackPlayerSection = ({
             shareKey={currentShareKey}
             trackVersions={trackVersions}
             trackTitle={trackData.title}
-            waveformJsonUrl={trackData.waveform_json_url} // Pass the pre-computed waveform JSON URL
+            waveformJsonUrl={trackData.waveform_json_url}
           />
         </div>
         
@@ -159,13 +169,14 @@ const TrackPlayerSection = ({
         <div className="mt-2">
           <PlaybackControls
             isPlaying={isPlaying}
+            playbackState={playbackState}
             currentTime={currentTime}
             duration={duration}
             volume={volume}
             isMuted={isMuted}
-            togglePlayPause={togglePlayPause}
-            toggleMute={toggleMute}
-            handleVolumeChange={handleVolumeChange}
+            onPlayPause={togglePlayPause}
+            onToggleMute={toggleMute}
+            onVolumeChange={handleVolumeChange}
           />
         </div>
         
@@ -173,8 +184,11 @@ const TrackPlayerSection = ({
         {(isProcessing || isOpusProcessing) && (
           <div className="mt-4">
             <ProcessingIndicator 
-              isProcessingMp3={isProcessing}
-              isProcessingOpus={isOpusProcessing}
+              trackId={trackData.id}
+              trackName={trackData.title}
+              status={processingStatus}
+              isOwner={isOwner}
+              onComplete={onProcessingComplete}
             />
           </div>
         )}
