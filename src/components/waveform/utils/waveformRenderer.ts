@@ -28,7 +28,7 @@ export const renderWaveform = (
   
   // Set up colors
   const backgroundColor = '#1a1a1a';
-  const barColor = '#4a5568';
+  const barColor = '#555555'; // Changed from #4a5568 (blueish grey) to #555555 (neutral grey)
   const progressColor = isMp3Available ? 
     isBuffering ? 'rgba(210, 148, 182, 0.8)' : 'rgba(210, 148, 182, 0.8)'
     : 'rgba(245, 158, 11, 0.7)';
