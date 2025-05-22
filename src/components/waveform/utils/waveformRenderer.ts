@@ -30,7 +30,7 @@ export const renderWaveform = (
   const backgroundColor = '#1a1a1a';
   const barColor = '#4a5568';
   const progressColor = isMp3Available ? 
-    isBuffering ? 'rgba(129, 140, 248, 0.8)' : 'rgba(99, 102, 241, 0.8)'
+    isBuffering ? 'rgba(210, 148, 182, 0.8)' : 'rgba(210, 148, 182, 0.8)'
     : 'rgba(245, 158, 11, 0.7)';
   const progressBarColor = progressColor;
   
