@@ -10,22 +10,27 @@ interface FFTVisualizerPanelProps {
   isPlaying: boolean;
   config: any;
   enabled: boolean;
+  preComputedWaveform?: number[] | null;
 }
 
 const FFTVisualizerPanel: React.FC<FFTVisualizerPanelProps> = ({
   audioContext,
   isPlaying,
   config,
-  enabled
+  enabled,
+  preComputedWaveform
 }) => {
   const fftCanvasRef = useRef<HTMLCanvasElement>(null);
   
-  // Initialize FFT visualizer
-  useAudioVisualizer(
+  // Initialize FFT visualizer with pre-computed waveform data
+  const { isActive } = useAudioVisualizer(
     fftCanvasRef,
     audioContext,
     isPlaying && enabled,
-    config
+    {
+      ...config,
+      preComputedWaveform: preComputedWaveform
+    }
   );
 
   return (

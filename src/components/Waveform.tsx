@@ -5,6 +5,7 @@ import { generateWaveformWithVariance } from '@/lib/waveformUtils';
 import WaveformLoader from './waveform/WaveformLoader';
 import WaveformCanvas from './waveform/WaveformCanvas';
 import WaveformStatus from './waveform/WaveformStatus';
+import { useWaveformCache } from '@/hooks/useWaveformCache';
 
 interface WaveformProps {
   audioUrl?: string;
@@ -21,6 +22,7 @@ interface WaveformProps {
   isGeneratingWaveform?: boolean;
   audioLoaded?: boolean;
   waveformJsonUrl?: string;
+  onWaveformDataLoaded?: (data: number[]) => void;
 }
 
 const Waveform = ({ 
@@ -37,7 +39,8 @@ const Waveform = ({
   isOpusAvailable = false,
   isGeneratingWaveform = false,
   audioLoaded = false,
-  waveformJsonUrl
+  waveformJsonUrl,
+  onWaveformDataLoaded
 }: WaveformProps) => {
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -83,6 +86,13 @@ const Waveform = ({
           if (waveformJson && Array.isArray(waveformJson) && waveformJson.length > 0) {
             setWaveformData(waveformJson);
             setIsWaveformGenerated(true);
+            
+            // Notify parent component about loaded waveform data
+            if (onWaveformDataLoaded) {
+              console.log('Notifying parent with cached waveform data:', waveformJson.length, 'points');
+              onWaveformDataLoaded(waveformJson);
+            }
+            
             setIsLoadingWaveformJson(false);
             return true;
           }
@@ -118,6 +128,13 @@ const Waveform = ({
       console.log('Successfully loaded pre-computed waveform data:', waveformJson.length, 'points');
       setWaveformData(waveformJson);
       setIsWaveformGenerated(true);
+      
+      // Notify parent component about loaded waveform data
+      if (onWaveformDataLoaded) {
+        console.log('Notifying parent with fetched waveform data:', waveformJson.length, 'points');
+        onWaveformDataLoaded(waveformJson);
+      }
+      
       return true;
     } catch (error) {
       console.error('Error fetching waveform JSON:', error);
@@ -125,7 +142,7 @@ const Waveform = ({
     } finally {
       setIsLoadingWaveformJson(false);
     }
-  }, [createCacheKey]);
+  }, [createCacheKey, onWaveformDataLoaded]);
   
   // FIRST PRIORITY: Try to load waveform from pre-computed JSON
   // This effect runs first and has priority over analysis
@@ -188,6 +205,12 @@ const Waveform = ({
           console.log('Successfully analyzed waveform data:', analyzedData.length, 'segments');
           setWaveformData(analyzedData);
           setIsWaveformGenerated(true);
+          
+          // Notify parent component about analyzed waveform data
+          if (onWaveformDataLoaded) {
+            console.log('Notifying parent with analyzed waveform data:', analyzedData.length, 'points');
+            onWaveformDataLoaded(analyzedData);
+          }
         } else {
           throw new Error("No waveform data generated from analysis");
         }
@@ -199,11 +222,17 @@ const Waveform = ({
         // Fall back to generated data with higher variance for more realistic appearance
         const fallbackData = generateWaveformWithVariance(segments, 0.6);
         setWaveformData(fallbackData);
+        
+        // Also notify parent about fallback data
+        if (onWaveformDataLoaded) {
+          console.log('Notifying parent with fallback waveform data');
+          onWaveformDataLoaded(fallbackData);
+        }
       })
       .finally(() => {
         setIsAnalyzing(false);
       });
-  }, [analysisUrl, analysisAttempted, isWaveformGenerated, isLoadingWaveformJson]);
+  }, [analysisUrl, analysisAttempted, isWaveformGenerated, isLoadingWaveformJson, onWaveformDataLoaded]);
   
   // Reset analysis flags when URL changes significantly
   useEffect(() => {

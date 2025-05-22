@@ -11,22 +11,27 @@ interface SpectrogramPanelProps {
   isPlaying: boolean;
   config: SpectrogramOptions;
   enabled: boolean;
+  preComputedWaveform?: number[] | null;
 }
 
 const SpectrogramPanel: React.FC<SpectrogramPanelProps> = ({
   audioContext,
   isPlaying,
   config,
-  enabled
+  enabled,
+  preComputedWaveform
 }) => {
   const spectrogramCanvasRef = useRef<HTMLCanvasElement>(null);
   
-  // Initialize Spectrogram visualizer
+  // Initialize Spectrogram visualizer with pre-computed data option
   useSpectrogramVisualizer(
     spectrogramCanvasRef,
     audioContext,
     isPlaying && enabled,
-    config
+    {
+      ...config,
+      preComputedWaveform
+    }
   );
 
   return (
