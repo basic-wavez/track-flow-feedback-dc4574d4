@@ -104,12 +104,12 @@ const TrackHeader = ({
               onClick={handleOpenRenameDialog}
               title="Rename track"
             >
-              <Pencil className="h-4 w-4 text-wip-pink" />
+              <Pencil className="h-4 w-4 text-white" />
             </Button>
           )}
           {/* Version number badge */}
           {versionNumber && (
-            <Badge variant="outline" className="ml-1 bg-wip-darker text-wip-pink border-wip-pink">
+            <Badge variant="outline" className="ml-1 bg-wip-darker text-white border-wip-pink">
               v{versionNumber}
             </Badge>
           )}
@@ -122,7 +122,7 @@ const TrackHeader = ({
         <div className="flex items-center gap-3">
           <Badge 
             variant="outline" 
-            className={`border-wip-pink text-wip-pink ${isOwner ? 'cursor-pointer hover:bg-wip-pink/10 transition-colors' : 'opacity-75'}`}
+            className={`border-wip-pink text-white ${isOwner ? 'cursor-pointer hover:bg-wip-pink/10 transition-colors' : 'opacity-75'}`}
             onClick={toggleStatus}
             title={isOwner ? `Change status to ${statusMode === "wip" ? "Demo" : "Work In Progress"}` : "Only the owner can change this status"}
           >
@@ -134,7 +134,7 @@ const TrackHeader = ({
       <Dialog open={isRenaming} onOpenChange={setIsRenaming}>
         <DialogContent className="bg-wip-darker border-wip-gray max-w-md">
           <DialogHeader>
-            <DialogTitle>Rename Track</DialogTitle>
+            <DialogTitle className="text-white">Rename Track</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <Input 
