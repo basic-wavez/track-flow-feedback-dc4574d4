@@ -1,15 +1,16 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Waveform from "../Waveform";
 import MultiVisualizer from '../visualizer/MultiVisualizer';
 import TrackActions from './TrackActions';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { isValidPeaksData } from '@/lib/waveformUtils';
+import { useAudioAnalysis } from '@/hooks/useAudioAnalysis';
+import { createPeaksCacheKey, savePeaksToCache } from '@/lib/peaksDataUtils';
 
 interface WaveformSectionProps {
   playbackUrl: string | undefined;
   waveformPeaksUrl?: string | undefined;
-  // Add waveformUrl prop to match what's being passed in TrackPlayer.tsx
   waveformUrl?: string;
   isPlaying: boolean;
   currentTime: number;
@@ -38,7 +39,7 @@ interface WaveformSectionProps {
 const WaveformSection: React.FC<WaveformSectionProps> = ({
   playbackUrl,
   waveformPeaksUrl,
-  waveformUrl, // Add this to destructuring
+  waveformUrl,
   isPlaying,
   currentTime,
   duration,
@@ -65,33 +66,54 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   // Check if we're on mobile
   const isMobile = useIsMobile();
   
-  // Load and store the waveform peaks data
+  // State for waveform data
   const [waveformData, setWaveformData] = useState<Float32Array | null>(null);
+  const [peaksLoaded, setPeaksLoaded] = useState(false);
   
-  useEffect(() => {
-    async function loadPeaksData() {
-      if (!waveformPeaksUrl || !trackId) return;
+  // Use our new audio analysis hook when no peaks URL is available
+  const { 
+    waveformData: analyzedWaveformData, 
+    isAnalyzing,
+    error: analysisError,
+    analyzeAudio
+  } = useAudioAnalysis({
+    audioRef,
+    audioUrl: playbackUrl,
+    onAnalysisComplete: (peaks) => {
+      // Save analyzed peaks to local cache
+      if (trackId) {
+        const cacheKey = createPeaksCacheKey(`analyzed_${trackId}`);
+        savePeaksToCache(cacheKey, peaks);
+      }
+    }
+  });
+  
+  // Load peaks data from URL or use analyzed data
+  const loadPeaksData = useCallback(async () => {
+    if (!trackId || peaksLoaded) return;
+    
+    try {
+      // Try to load from localStorage first (using our existing utility)
+      const cacheKey = `waveform_peaks_${trackId}`;
+      const cachedData = localStorage.getItem(cacheKey);
       
-      try {
-        // Try to load from localStorage first
-        const cacheKey = `waveform_peaks_${trackId}`;
-        const cachedData = localStorage.getItem(cacheKey);
-        
-        if (cachedData) {
-          try {
-            const parsedData = JSON.parse(cachedData);
-            if (isValidPeaksData(parsedData)) {
-              console.log('Using cached waveform peaks data from localStorage');
-              setWaveformData(Float32Array.from(parsedData));
-              return;
-            }
-          } catch (e) {
-            console.warn('Error parsing cached peaks data:', e);
-            localStorage.removeItem(cacheKey);
+      if (cachedData) {
+        try {
+          const parsedData = JSON.parse(cachedData);
+          if (isValidPeaksData(parsedData)) {
+            console.log('Using cached waveform peaks data from localStorage');
+            setWaveformData(Float32Array.from(parsedData));
+            setPeaksLoaded(true);
+            return;
           }
+        } catch (e) {
+          console.warn('Error parsing cached peaks data:', e);
+          localStorage.removeItem(cacheKey);
         }
-        
-        // Fetch from server if not in cache
+      }
+      
+      // If no cached data and we have a peaks URL, fetch it
+      if (waveformPeaksUrl) {
         console.log('Fetching peaks data from URL:', waveformPeaksUrl);
         const response = await fetch(waveformPeaksUrl);
         
@@ -107,6 +129,7 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
           // Convert to Float32Array for direct rendering
           const typedArray = Float32Array.from(peaksData);
           setWaveformData(typedArray);
+          setPeaksLoaded(true);
           
           // Cache the data for future use
           try {
@@ -114,22 +137,33 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
           } catch (e) {
             console.warn('Failed to cache waveform peaks data:', e);
           }
+          return;
         }
-      } catch (error) {
-        console.error('Error loading peaks data:', error);
       }
+      
+      // If we get here, we couldn't load peaks from URL or cache
+      // In that case we rely on the analyzed data
+    } catch (error) {
+      console.error('Error loading peaks data:', error);
     }
-    
+  }, [waveformPeaksUrl, trackId, peaksLoaded]);
+  
+  // Try to load peaks data on mount or when URLs change
+  useEffect(() => {
     loadPeaksData();
-  }, [waveformPeaksUrl, trackId]);
+  }, [loadPeaksData]);
+  
+  // Set the final waveform data to use for rendering
+  // Priority: 1. Loaded peaks from URL/cache, 2. Analyzed data, 3. None (will use placeholder)
+  const finalWaveformData = waveformData || analyzedWaveformData;
   
   return (
     <div className="flex flex-col space-y-4">
-      {/* Waveform comes first - now using direct waveformData instead of waveformAnalysisUrl */}
+      {/* Waveform component with our waveform data */}
       <Waveform 
         audioUrl={playbackUrl}
         peaksDataUrl={waveformPeaksUrl}
-        waveformData={waveformData || undefined}
+        waveformData={finalWaveformData || undefined}
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}
@@ -139,7 +173,7 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
         showBufferingUI={showBufferingUI}
         isMp3Available={usingMp3}
         isOpusAvailable={usingOpus}
-        isGeneratingWaveform={isGeneratingWaveform}
+        isGeneratingWaveform={isGeneratingWaveform || isAnalyzing}
         audioLoaded={audioLoaded}
       />
       

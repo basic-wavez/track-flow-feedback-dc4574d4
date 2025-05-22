@@ -1,46 +1,49 @@
 
-/**
- * Main entry point for waveform rendering functions
- */
-
-import { drawWaveformBars } from './waveformBars';
-import { drawPulseEffects, drawPlayhead } from './waveformEffects';
+import { drawWaveformBars, drawPlaybackPosition } from './waveformBars';
+import { applyWaveformEffects } from './waveformEffects';
 
 /**
- * Renders the complete waveform with all effects
+ * Render the waveform data to a canvas
+ * @param ctx Canvas rendering context
+ * @param waveformData Array of waveform data points
+ * @param width Canvas width
+ * @param height Canvas height
+ * @param progressPixel Pixel position of playback progress
+ * @param isPlaying Whether audio is currently playing
+ * @param isBuffering Whether audio is buffering
+ * @param isMp3Available Whether an MP3 version is available
  */
 export const renderWaveform = (
   ctx: CanvasRenderingContext2D,
-  waveformData: number[] | Float32Array, // Updated to support Float32Array
+  waveformData: number[] | Float32Array,
   width: number,
   height: number,
   progressPixel: number,
   isPlaying: boolean,
   isBuffering: boolean,
   isMp3Available: boolean
-) => {
-  // Only proceed if we have valid waveform data
-  if (!waveformData || 
-      (Array.isArray(waveformData) && waveformData.length === 0) ||
-      (waveformData instanceof Float32Array && waveformData.length === 0)) {
-    console.warn('No waveform data provided to renderer');
-    return;
-  }
-
-  // Clear the canvas
+): void => {
+  // Clear canvas
   ctx.clearRect(0, 0, width, height);
   
-  // Draw the waveform bars
-  drawWaveformBars(ctx, waveformData, width, height, progressPixel, isMp3Available);
+  // Set up colors
+  const backgroundColor = '#1a1a1a';
+  const barColor = '#4a5568';
+  const progressColor = isMp3Available ? 
+    isBuffering ? 'rgba(129, 140, 248, 0.8)' : 'rgba(99, 102, 241, 0.8)'
+    : 'rgba(245, 158, 11, 0.7)';
+  const progressBarColor = progressColor;
   
-  // Draw pulse effects
-  drawPulseEffects(ctx, waveformData, width, height, progressPixel, isPlaying, isBuffering);
+  // Fill background
+  ctx.fillStyle = backgroundColor;
+  ctx.fillRect(0, 0, width, height);
   
-  // Draw playhead and buffering indicator
-  drawPlayhead(ctx, width, height, progressPixel, isBuffering);
+  // Draw waveform bars with improved contrast and normalization
+  drawWaveformBars(ctx, waveformData, width, height, progressPixel, barColor, progressBarColor);
+  
+  // Draw playback position line
+  drawPlaybackPosition(ctx, progressPixel, height, progressColor);
+  
+  // Apply visual effects based on state
+  applyWaveformEffects(ctx, width, height, isPlaying, isBuffering);
 };
-
-// Export all drawing functions for direct usage if needed
-export { drawWaveformBars } from './waveformBars';
-export { drawRoundedBar } from './waveformBars';
-export { drawPulseEffects, drawPlayhead } from './waveformEffects';

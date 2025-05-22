@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Parse request body
-    const { trackId, format = 'all' } = await req.json();
+    const { trackId, format = 'all', originalUrl, signedUrl } = await req.json();
     
     if (!trackId) {
       throw new Error('Missing track ID');
@@ -62,28 +62,63 @@ Deno.serve(async (req) => {
       throw new Error(`Error fetching track ${trackId}: ${trackError?.message}`);
     }
     
-    // Generate a presigned URL for the original file
-    const { data: signedUrlData, error: signedUrlError } = await supabase
-      .storage
-      .from('audio')
-      .createSignedUrl(track.original_url?.split('/public/audio/')[1] || '', 3600);
+    // Generate a presigned URL for the original file if not provided
+    let audioSourceUrl = signedUrl;
     
-    if (signedUrlError || !signedUrlData?.signedUrl) {
-      throw new Error(`Error generating signed URL: ${signedUrlError?.message}`);
+    if (!audioSourceUrl) {
+      const { data: signedUrlData, error: signedUrlError } = await supabase
+        .storage
+        .from('audio')
+        .createSignedUrl(track.original_url?.split('/public/audio/')[1] || '', 3600);
+      
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        throw new Error(`Error generating signed URL: ${signedUrlError?.message}`);
+      }
+      
+      audioSourceUrl = signedUrlData.signedUrl;
+      console.log(`Generated signed URL for track ${trackId}`);
     }
-    
-    console.log(`Generated signed URL for track ${trackId}`);
     
     // Call FFmpeg Lambda service
     try {
+      console.log(`Calling FFmpeg Lambda at ${ffmpegServiceUrl} for track ${trackId}`);
+      
       const lambdaResponse = await callLambdaService(ffmpegServiceUrl, awsLambdaApiKey, {
         trackId,
         format,
-        signedUrl: signedUrlData.signedUrl
+        signedUrl: audioSourceUrl,
+        generateWaveform: true // Explicitly request waveform generation
       });
+      
+      console.log(`FFmpeg Lambda service response:`, lambdaResponse);
       
       if (!lambdaResponse.success) {
         throw new Error(`FFmpeg service failed: ${lambdaResponse.error}`);
+      }
+      
+      // Check if we have MP3 URL
+      if (format === 'all' || format === 'mp3') {
+        if (!lambdaResponse.mp3Url) {
+          console.log(`No MP3 URL returned from Lambda service`);
+        } else {
+          console.log(`MP3 processing completed for track: ${trackId}`);
+        }
+      }
+      
+      // Check if we have Opus URL
+      if (format === 'all' || format === 'opus') {
+        if (!lambdaResponse.opusUrl) {
+          console.log(`No Opus URL returned from Lambda service`);
+        } else {
+          console.log(`Opus processing completed for track: ${trackId}`);
+        }
+      }
+      
+      // Check if we have waveform peaks URL
+      if (!lambdaResponse.waveformPeaksUrl) {
+        console.log(`No waveform peaks URL returned from Lambda service`);
+      } else {
+        console.log(`Lambda returned waveform peaks URL: ${lambdaResponse.waveformPeaksUrl}`);
       }
       
       // Update track with processed URLs
