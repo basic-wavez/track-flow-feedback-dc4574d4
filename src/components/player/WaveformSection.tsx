@@ -8,7 +8,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 interface WaveformSectionProps {
   playbackUrl: string | undefined;
   waveformUrl: string | undefined;
-  waveformPeaksUrl?: string | undefined; // Add new prop for pre-computed peaks
+  waveformPeaksUrl?: string | undefined; // Pre-computed peaks data URL
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -81,6 +81,7 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
         isOpusAvailable={usingOpus}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
+        audioRef={audioRef}
       />
       
       {/* Track Actions (Download/Share buttons) */}
@@ -99,13 +100,15 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
         </div>
       )}
       
-      {/* Updated visualizer with dynamic height based on device */}
+      {/* Updated visualizer with dynamic height based on device
+           and pass the waveformPeaksUrl to the visualizer */}
       {showFFTVisualizer && (
         <div className="mt-2 mb-6">
           <MultiVisualizer 
             audioRef={audioRef}
             isPlaying={isPlaying}
             className={isMobile ? "w-full" : "h-[150px] w-full"}
+            peaksDataUrl={waveformPeaksUrl}
           />
         </div>
       )}

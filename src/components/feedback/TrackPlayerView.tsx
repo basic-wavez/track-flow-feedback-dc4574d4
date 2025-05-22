@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React from "react";
 import TrackPlayer from "@/components/TrackPlayer";
 import ProcessingIndicator from "@/components/ProcessingIndicator";
 import { getFileTypeFromUrl, needsProcessingIndicator, isWavFormat } from "@/lib/audioUtils";
@@ -71,6 +71,11 @@ const TrackPlayerView: React.FC<TrackPlayerViewProps> = ({
         onComplete={onProcessingComplete}
       />
     );
+  }
+
+  // Log the presence of waveform peaks URL
+  if (trackData.waveform_peaks_url) {
+    console.log('Track has pre-computed waveform peaks available:', trackData.waveform_peaks_url);
   }
 
   return (

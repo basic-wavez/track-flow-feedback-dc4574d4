@@ -1,38 +1,53 @@
 
-import React, { useRef } from 'react';
-import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
+import React, { useState } from 'react';
 import { AudioContextState } from '@/hooks/audio/useAudioContext';
-import VisualizerCanvas from './VisualizerCanvas';
 import VisualizerPanel from './VisualizerPanel';
+import VisualizerCanvas from './VisualizerCanvas';
+import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
+import { BarVisConfig } from '../config/visualizerConfig';
 
 interface FFTVisualizerPanelProps {
   audioContext: AudioContextState;
   isPlaying: boolean;
-  config: any;
-  enabled: boolean;
+  config: BarVisConfig;
+  enabled?: boolean;
+  usePeaksData?: boolean; // New prop for pre-computed peaks
 }
 
 const FFTVisualizerPanel: React.FC<FFTVisualizerPanelProps> = ({
   audioContext,
   isPlaying,
   config,
-  enabled
+  enabled = true,
+  usePeaksData = false
 }) => {
-  const fftCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null);
   
-  // Initialize FFT visualizer
-  useAudioVisualizer(
-    fftCanvasRef,
+  const { isActive } = useAudioVisualizer(
+    { current: canvasRef },
     audioContext,
-    isPlaying && enabled,
-    config
+    isPlaying,
+    {
+      ...config,
+      usePeaksData, // Pass the flag to useAudioVisualizer
+    }
   );
 
+  if (!enabled) return null;
+  
   return (
-    <VisualizerPanel width="w-[40%]" enabled={enabled} type="FFT">
-      <VisualizerCanvas ref={fftCanvasRef} className="bg-black" />
+    <VisualizerPanel
+      title="Spectrum Analyzer"
+      active={isActive && audioContext.isInitialized}
+      loading={!audioContext.isInitialized}
+      error={audioContext.error}
+    >
+      <VisualizerCanvas
+        ref={setCanvasRef}
+        className={usePeaksData ? "bg-purple-950/50" : "bg-zinc-950"}
+      />
     </VisualizerPanel>
   );
 };
 
-export default FFTVisualizerPanel;
+export default React.memo(FFTVisualizerPanel);

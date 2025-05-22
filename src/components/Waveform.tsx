@@ -1,15 +1,16 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { analyzeAudio } from '@/lib/audioUtils';
-import { generateWaveformWithVariance } from '@/lib/waveformUtils';
+import { generateWaveformWithVariance, isValidPeaksData } from '@/lib/waveformUtils';
 import WaveformLoader from './waveform/WaveformLoader';
 import WaveformCanvas from './waveform/WaveformCanvas';
 import WaveformStatus from './waveform/WaveformStatus';
+import { usePeaksData } from '@/context/PeaksDataContext';
 
 interface WaveformProps {
   audioUrl?: string;
   waveformAnalysisUrl?: string; // URL specifically for waveform analysis
-  peaksDataUrl?: string; // New prop for pre-computed peaks data URL
+  peaksDataUrl?: string; // URL for pre-computed peaks data
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -21,12 +22,13 @@ interface WaveformProps {
   isOpusAvailable?: boolean;
   isGeneratingWaveform?: boolean;
   audioLoaded?: boolean;
+  audioRef?: React.RefObject<HTMLAudioElement>;
 }
 
 const Waveform = ({ 
   audioUrl, 
-  waveformAnalysisUrl, // Use dedicated analysis URL if available
-  peaksDataUrl, // Use pre-computed peaks data if available
+  waveformAnalysisUrl,
+  peaksDataUrl,
   isPlaying, 
   currentTime, 
   duration, 
@@ -37,7 +39,8 @@ const Waveform = ({
   isMp3Available = false,
   isOpusAvailable = false,
   isGeneratingWaveform = false,
-  audioLoaded = false
+  audioLoaded = false,
+  audioRef
 }: WaveformProps) => {
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -46,15 +49,29 @@ const Waveform = ({
   const [analysisAttempted, setAnalysisAttempted] = useState(false);
   const [analysisUrl, setAnalysisUrl] = useState<string | null>(null);
   const [isPeaksLoading, setIsPeaksLoading] = useState(false);
+  const [usedPrecomputedPeaks, setUsedPrecomputedPeaks] = useState(false);
+  
+  // Get access to the shared peaks data context
+  const { peaksData, setPeaksData, hasPeaksData } = usePeaksData();
   
   // Generate initial placeholder waveform immediately with more segments for detail
   useEffect(() => {
-    if (waveformData.length === 0) {
+    if (waveformData.length === 0 && !hasPeaksData) {
       // Use enhanced generation with 250 segments and higher variance for more dynamics
       const initialWaveformData = generateWaveformWithVariance(250, 0.6);
       setWaveformData(initialWaveformData);
     }
   }, []);
+  
+  // If we already have peaks data in the context, use it immediately
+  useEffect(() => {
+    if (hasPeaksData && peaksData && !isWaveformGenerated) {
+      console.log('Using peaks data from context:', peaksData.length, 'points');
+      setWaveformData(peaksData);
+      setIsWaveformGenerated(true);
+      setUsedPrecomputedPeaks(true);
+    }
+  }, [hasPeaksData, peaksData, isWaveformGenerated]);
   
   // Function to load pre-computed peaks data
   const loadPeaksData = useCallback(async (url: string) => {
@@ -69,11 +86,18 @@ const Waveform = ({
       if (cachedData) {
         try {
           const parsedData = JSON.parse(cachedData);
-          console.log('Using cached waveform peaks data');
-          setWaveformData(parsedData);
-          setIsWaveformGenerated(true);
-          setIsPeaksLoading(false);
-          return true;
+          if (isValidPeaksData(parsedData)) {
+            console.log('Using cached waveform peaks data');
+            setWaveformData(parsedData);
+            setPeaksData(parsedData); // Store in context for other components
+            setIsWaveformGenerated(true);
+            setUsedPrecomputedPeaks(true);
+            setIsPeaksLoading(false);
+            return true;
+          } else {
+            console.warn('Cached peaks data is invalid, fetching from server');
+            localStorage.removeItem(cacheKey);
+          }
         } catch (e) {
           console.warn('Error parsing cached peaks data:', e);
           // Continue to fetch from server if cache parsing fails
@@ -90,7 +114,7 @@ const Waveform = ({
       
       const peaksData = await response.json();
       
-      if (Array.isArray(peaksData) && peaksData.length > 0) {
+      if (isValidPeaksData(peaksData)) {
         console.log('Successfully loaded pre-computed waveform peaks:', peaksData.length, 'points');
         
         // Cache the data for future use
@@ -102,7 +126,9 @@ const Waveform = ({
         }
         
         setWaveformData(peaksData);
+        setPeaksData(peaksData); // Store in context for other components
         setIsWaveformGenerated(true);
+        setUsedPrecomputedPeaks(true);
         return true;
       } else {
         throw new Error('Invalid peaks data format');
@@ -113,11 +139,11 @@ const Waveform = ({
     } finally {
       setIsPeaksLoading(false);
     }
-  }, []);
+  }, [setPeaksData]);
   
   // Try to load pre-computed peaks data first
   useEffect(() => {
-    if (peaksDataUrl && !isWaveformGenerated && !isAnalyzing && !isPeaksLoading) {
+    if (peaksDataUrl && !isWaveformGenerated && !isAnalyzing && !isPeaksLoading && !hasPeaksData) {
       loadPeaksData(peaksDataUrl)
         .then(success => {
           if (!success) {
@@ -127,7 +153,7 @@ const Waveform = ({
           }
         });
     }
-  }, [peaksDataUrl, isWaveformGenerated, isAnalyzing, isPeaksLoading, loadPeaksData]);
+  }, [peaksDataUrl, isWaveformGenerated, isAnalyzing, isPeaksLoading, hasPeaksData, loadPeaksData]);
   
   // Log which URL we're using for analysis to help with debugging
   useEffect(() => {
@@ -139,9 +165,15 @@ const Waveform = ({
   
   // Attempt to analyze waveform data when analysis URL is available and peaks data is not
   useEffect(() => {
-    // Only proceed if we have a URL to analyze and haven't attempted analysis yet
-    // and don't have pre-computed peaks data
-    if (!analysisUrl || analysisAttempted || isWaveformGenerated || peaksDataUrl) return;
+    // Only proceed if:
+    // 1. We have a URL to analyze 
+    // 2. Haven't attempted analysis yet
+    // 3. Don't have waveform data yet
+    // 4. Don't have pre-computed peaks or they failed to load
+    // 5. We're not already in the process of analyzing
+    if (!analysisUrl || analysisAttempted || isWaveformGenerated || isPeaksLoading || isAnalyzing || usedPrecomputedPeaks) {
+      return;
+    }
     
     // Store the fact that we've attempted analysis
     setAnalysisAttempted(true);
@@ -176,7 +208,7 @@ const Waveform = ({
       .finally(() => {
         setIsAnalyzing(false);
       });
-  }, [analysisUrl, analysisAttempted, isWaveformGenerated, peaksDataUrl]);
+  }, [analysisUrl, analysisAttempted, isWaveformGenerated, isPeaksLoading, isAnalyzing, usedPrecomputedPeaks]);
   
   // Reset analysis attempted flag when the URL changes significantly
   useEffect(() => {
@@ -189,7 +221,7 @@ const Waveform = ({
   
   // Show loading states
   if (isAnalyzing || isPeaksLoading) {
-    return <WaveformLoader isAnalyzing={isAnalyzing} isGeneratingWaveform={isPeaksLoading} />;
+    return <WaveformLoader isAnalyzing={isAnalyzing} isLoadingPeaks={isPeaksLoading} />;
   }
   
   if (isGeneratingWaveform) {
@@ -208,6 +240,7 @@ const Waveform = ({
         isBuffering={isBuffering}
         isMp3Available={isMp3Available || isOpusAvailable}
         onSeek={onSeek}
+        usedPrecomputedPeaks={usedPrecomputedPeaks}
       />
       
       <WaveformStatus 
@@ -217,6 +250,7 @@ const Waveform = ({
         analysisError={analysisError}
         isAudioLoading={!isAudioDurationValid && !analysisError}
         currentTime={currentTime}
+        usedPrecomputedPeaks={usedPrecomputedPeaks}
       />
     </div>
   );

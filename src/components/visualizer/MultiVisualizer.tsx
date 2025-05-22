@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useVisualizerConfig } from './config/visualizerConfig';
 import { useVisualizerInitialization } from './hooks/useVisualizerInitialization';
@@ -7,26 +7,45 @@ import VisualizerContainer from './components/VisualizerContainer';
 import FFTVisualizerPanel from './components/FFTVisualizerPanel';
 import OscilloscopePanel from './components/OscilloscopePanel';
 import SpectrogramPanel from './components/SpectrogramPanel';
+import { usePeaksData } from '@/context/PeaksDataContext';
 
 interface MultiVisualizerProps {
   audioRef: React.RefObject<HTMLAudioElement>;
   isPlaying: boolean;
   className?: string;
+  peaksDataUrl?: string; // Add URL for pre-computed peaks data
 }
 
 const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   audioRef,
   isPlaying,
-  className = ''
+  className = '',
+  peaksDataUrl
 }) => {
   // Audio context initialization
   const audioContext = useAudioContext(audioRef);
   
-  // Initialize visualizer
-  useVisualizerInitialization(audioRef, audioContext);
+  // Get access to shared peaks data
+  const { hasPeaksData, peaksData } = usePeaksData();
+  
+  // Initialize visualizer, passing the peaks data 
+  const { isInitialized } = useVisualizerInitialization(audioRef, audioContext, {
+    peaksDataUrl,
+    peaksData: hasPeaksData ? peaksData : undefined 
+  });
   
   // Get visualizer configuration based on device and settings
   const { fftConfig, oscilloscopeConfig, spectrogramConfig, settings } = useVisualizerConfig();
+
+  // Log initialization status for debugging
+  useEffect(() => {
+    if (isInitialized) {
+      console.log('MultiVisualizer: Audio visualizer initialized with AudioContext');
+      if (hasPeaksData) {
+        console.log('MultiVisualizer: Using pre-computed peaks data');
+      }
+    }
+  }, [isInitialized, hasPeaksData]);
 
   return (
     <VisualizerContainer className={className}>
@@ -36,6 +55,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         isPlaying={isPlaying}
         config={fftConfig}
         enabled={settings.fftEnabled}
+        usePeaksData={hasPeaksData}
       />
       
       {/* Oscilloscope Visualizer */}
