@@ -1,4 +1,3 @@
-
 import { useRef, useMemo } from "react";
 import { useAudioState } from "./useAudioState";
 import { useBufferingState } from "./useBufferingState";
@@ -8,6 +7,7 @@ import { useAudioEffects } from "./useAudioEffects";
 import { startPlayTracking, endPlayTracking, cancelPlayTracking } from "@/services/playCountService";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "@/components/ui/use-toast";
 
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
@@ -98,11 +98,28 @@ export function useAudioPlayer({
           console.error('Error playing audio:', error);
           setPlaybackState('error');
           
-          // Show more details about the error
+          // Improved error handling
           if (error.name === 'NotSupportedError') {
             console.error('Browser does not support this audio format');
+            toast({
+              title: "Format not supported",
+              description: "Your browser doesn't support this audio format.",
+              variant: "destructive",
+            });
           } else if (error.name === 'NotAllowedError') {
             console.error('Auto-play prevented - user interaction needed');
+            toast({
+              title: "Playback blocked",
+              description: "Auto-play prevented. Please interact with the page first.",
+              variant: "default",
+            });
+          } else {
+            // Handle other errors, including potential CORS issues
+            toast({
+              title: "Playback error",
+              description: "There was a problem playing this track.",
+              variant: "destructive",
+            });
           }
         });
     } else {
