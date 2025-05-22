@@ -17,5 +17,4 @@ export interface SpectrogramOptions {
   useLogScale?: boolean;
   useDevicePixelRatio?: boolean;
   colorMap?: ColorMapType;
-  preComputedWaveform?: number[] | null;
 }

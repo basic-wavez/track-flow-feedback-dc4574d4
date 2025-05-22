@@ -12,14 +12,12 @@ interface MultiVisualizerProps {
   audioRef: React.RefObject<HTMLAudioElement>;
   isPlaying: boolean;
   className?: string;
-  preComputedWaveform?: number[] | null;
 }
 
 const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   audioRef,
   isPlaying,
-  className = '',
-  preComputedWaveform = null
+  className = ''
 }) => {
   // Audio context initialization
   const audioContext = useAudioContext(audioRef);
@@ -29,13 +27,6 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   
   // Get visualizer configuration based on device and settings
   const { fftConfig, oscilloscopeConfig, spectrogramConfig, settings } = useVisualizerConfig();
-  
-  // Log when preComputed waveform is available
-  React.useEffect(() => {
-    if (preComputedWaveform && preComputedWaveform.length > 0) {
-      console.log('MultiVisualizer: Pre-computed waveform available with', preComputedWaveform.length, 'points');
-    }
-  }, [preComputedWaveform]);
 
   return (
     <VisualizerContainer className={className}>
@@ -45,7 +36,6 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         isPlaying={isPlaying}
         config={fftConfig}
         enabled={settings.fftEnabled}
-        preComputedWaveform={preComputedWaveform}
       />
       
       {/* Oscilloscope Visualizer */}
@@ -54,7 +44,6 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         isPlaying={isPlaying}
         config={oscilloscopeConfig}
         enabled={settings.oscilloscopeEnabled}
-        preComputedWaveform={preComputedWaveform}
       />
       
       {/* Spectrogram Visualizer */}
@@ -63,7 +52,6 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
         isPlaying={isPlaying}
         config={spectrogramConfig}
         enabled={settings.spectrogramEnabled}
-        preComputedWaveform={preComputedWaveform}
       />
     </VisualizerContainer>
   );

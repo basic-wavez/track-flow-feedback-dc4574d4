@@ -10,27 +10,22 @@ interface OscilloscopePanelProps {
   isPlaying: boolean;
   config: any;
   enabled: boolean;
-  preComputedWaveform?: number[] | null;
 }
 
 const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({
   audioContext,
   isPlaying,
   config,
-  enabled,
-  preComputedWaveform
+  enabled
 }) => {
   const oscilloscopeCanvasRef = useRef<HTMLCanvasElement>(null);
   
-  // Initialize Oscilloscope visualizer with pre-computed data option
+  // Initialize Oscilloscope visualizer
   useOscilloscopeVisualizer(
     oscilloscopeCanvasRef,
     audioContext,
     isPlaying && enabled,
-    {
-      ...config,
-      preComputedWaveform
-    }
+    config
   );
 
   return (

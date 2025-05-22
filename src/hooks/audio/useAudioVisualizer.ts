@@ -1,4 +1,3 @@
-
 import { useRef, useEffect, useState } from 'react';
 import { AudioContextState } from './useAudioContext';
 
@@ -11,8 +10,7 @@ interface VisualizerOptions {
   capFallSpeed?: number;
   maxFrequency?: number;
   targetFPS?: number;
-  smoothingFactor?: number; // Option for EMA smoothing
-  preComputedWaveform?: number[] | null; // New option for pre-computed waveform data
+  smoothingFactor?: number; // New option for EMA smoothing
 }
 
 // Shared frame rate controller across all visualizer instances
@@ -61,13 +59,11 @@ export function useAudioVisualizer(
 ) {
   const [isActive, setIsActive] = useState(false);
   const dataArray = useRef<Uint8Array | null>(null);
-  const smoothedDataArray = useRef<Float32Array | null>(null);
+  const smoothedDataArray = useRef<Float32Array | null>(null); // New ref for smoothed data
   const caps = useRef<number[]>([]);
   const canvasDimensions = useRef({ width: 0, height: 0 });
   const lastDrawTime = useRef(0);
-  const melBands = useRef<number[][]>([]);
-  const usesPreComputedData = useRef(false);
-  const preComputedNormalized = useRef<Float32Array | null>(null);
+  const melBands = useRef<number[][]>([]); // New ref for mel bands (logarithmic frequency bins)
 
   // Default options
   const {
@@ -78,59 +74,12 @@ export function useAudioVisualizer(
     capHeight = 2,
     capFallSpeed = 0.8,
     maxFrequency = 15000,
-    targetFPS = 30,
-    smoothingFactor = 0.7,
-    preComputedWaveform = null,
+    targetFPS = 30, // Default target of 30fps for better performance
+    smoothingFactor = 0.7, // Default smoothing factor for EMA
   } = options;
-
-  // Process pre-computed waveform data when available
-  useEffect(() => {
-    if (preComputedWaveform && preComputedWaveform.length > 0) {
-      console.log('useAudioVisualizer: Using pre-computed waveform data with', preComputedWaveform.length, 'points');
-      
-      // Create normalized data for visualizer (scale to 0-255 range like frequency data)
-      const normalized = new Float32Array(barCount);
-      
-      // Process the waveform data to fit our bar count
-      // For a simple approach, we'll sample at regular intervals
-      const step = preComputedWaveform.length / barCount;
-      
-      for (let i = 0; i < barCount; i++) {
-        const index = Math.floor(i * step);
-        if (index < preComputedWaveform.length) {
-          // Normalize values to 0-255 range for consistent visualization
-          normalized[i] = Math.abs(preComputedWaveform[index]) * 255;
-        }
-      }
-      
-      preComputedNormalized.current = normalized;
-      usesPreComputedData.current = true;
-      
-      // Initialize smoothed data array with the normalized values
-      if (!smoothedDataArray.current) {
-        smoothedDataArray.current = new Float32Array(barCount);
-        for (let i = 0; i < barCount; i++) {
-          smoothedDataArray.current[i] = normalized[i];
-        }
-      }
-      
-      // Initialize caps array if needed
-      if (caps.current.length === 0) {
-        caps.current = Array(barCount).fill(0);
-      }
-      
-      console.log('useAudioVisualizer: Pre-computed data processed successfully');
-    }
-  }, [preComputedWaveform, barCount]);
 
   // Initialize the frequency data arrays and mel bands
   useEffect(() => {
-    // Skip initializing analyzer node when using pre-computed data
-    if (usesPreComputedData.current) {
-      console.log('useAudioVisualizer: Using pre-computed data, skipping analyzer setup');
-      return;
-    }
-    
     if (!audioContext.analyserNode) return;
     
     // Use enhanced FFT settings as in the spectrogram
@@ -201,7 +150,7 @@ export function useAudioVisualizer(
 
   // Draw the visualizer frame
   const draw = () => {
-    if (!canvasRef.current || !isActive) {
+    if (!canvasRef.current || !audioContext.analyserNode || !dataArray.current || !isActive) {
       return;
     }
 
@@ -216,7 +165,7 @@ export function useAudioVisualizer(
     lastDrawTime.current = now;
     
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d', { alpha: false });
+    const ctx = canvas.getContext('2d', { alpha: false }); // Disable alpha for better performance
     
     if (!ctx) return;
     
@@ -235,47 +184,34 @@ export function useAudioVisualizer(
     // Clear the canvas
     ctx.clearRect(0, 0, width, height);
     
-    // If using pre-computed data, we don't need to get frequency data
-    if (usesPreComputedData.current && preComputedNormalized.current) {
-      // We already have our data in preComputedNormalized.current
-      // No need to process through mel bands, just apply smoothing
-      for (let i = 0; i < barCount; i++) {
-        if (smoothedDataArray.current) {
-          // Apply exponential moving average for smoothing
-          smoothedDataArray.current[i] = smoothingFactor * smoothedDataArray.current[i] + 
-                                     (1 - smoothingFactor) * (preComputedNormalized.current[i] || 0);
-        }
-      }
-    } else if (audioContext.analyserNode && dataArray.current) {
-      // Get frequency data from the analyzer node
-      audioContext.analyserNode.getByteFrequencyData(dataArray.current);
-      
-      // Process data through mel bands and apply exponential moving average
-      for (let i = 0; i < barCount; i++) {
-        if (melBands.current[i]) {
-          const [startBin, endBin] = melBands.current[i];
-          
-          // Calculate average value for this mel band
-          let sum = 0;
-          let count = 0;
-          for (let j = startBin; j <= endBin; j++) {
-            sum += dataArray.current[j];
-            count++;
-          }
-          
-          const average = count > 0 ? sum / count : 0;
-          
-          // Apply exponential moving average for smoothing
-          if (smoothedDataArray.current) {
-            smoothedDataArray.current[i] = smoothingFactor * smoothedDataArray.current[i] + 
-                                       (1 - smoothingFactor) * average;
-          }
-        }
-      }
-    }
+    // Get frequency data
+    audioContext.analyserNode.getByteFrequencyData(dataArray.current);
     
     // Calculate bar width with spacing
     const barWidth = Math.floor(width / barCount) - barSpacing;
+    
+    // Process data through mel bands and apply exponential moving average
+    for (let i = 0; i < barCount; i++) {
+      if (melBands.current[i]) {
+        const [startBin, endBin] = melBands.current[i];
+        
+        // Calculate average value for this mel band
+        let sum = 0;
+        let count = 0;
+        for (let j = startBin; j <= endBin; j++) {
+          sum += dataArray.current[j];
+          count++;
+        }
+        
+        const average = count > 0 ? sum / count : 0;
+        
+        // Apply exponential moving average for smoothing
+        if (smoothedDataArray.current) {
+          smoothedDataArray.current[i] = smoothingFactor * smoothedDataArray.current[i] + 
+                                     (1 - smoothingFactor) * average;
+        }
+      }
+    }
     
     // Draw bars and caps based on smoothed data
     for (let i = 0; i < barCount; i++) {
@@ -337,9 +273,9 @@ export function useAudioVisualizer(
 
   // Start/stop animation based on playing state and active state
   useEffect(() => {
-    if (isPlaying && isActive) {
-      // If using pre-computed data, we don't need to resume audio context
-      if (!usesPreComputedData.current && audioContext.audioContext?.state === 'suspended') {
+    if (isPlaying && isActive && audioContext.isInitialized) {
+      // Resume the audio context if it's suspended (browser autoplay policy)
+      if (audioContext.audioContext?.state === 'suspended') {
         audioContext.audioContext.resume().catch(console.error);
       }
       
