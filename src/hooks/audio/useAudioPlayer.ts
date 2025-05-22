@@ -85,12 +85,13 @@ export function useAudioPlayer({
           if ((user || isSharedRoute) && !playCountInProgressRef.current) {
             // Start tracking play time for this track
             playCountInProgressRef.current = true;
-            startPlayTracking(trackId || null, shareKey || null)
-              .catch(error => {
-                // Log error but don't break playback
-                console.error('Error starting play tracking:', error);
-                playCountInProgressRef.current = false;
-              });
+            try {
+              startPlayTracking(trackId || null, shareKey || null);
+            } catch (error) {
+              // Log error but don't break playback
+              console.error('Error starting play tracking:', error);
+              playCountInProgressRef.current = false;
+            }
           }
         })
         .catch(error => {
