@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import TrackHeader from "./player/TrackHeader";
@@ -17,6 +18,7 @@ interface TrackPlayerProps {
   audioUrl?: string;
   originalUrl?: string;
   waveformAnalysisUrl?: string;
+  waveformPeaksUrl?: string; // Add this prop for pre-computed peaks data
   originalFilename?: string;
   isOwner?: boolean;
   processingStatus?: string;
