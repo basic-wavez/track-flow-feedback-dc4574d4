@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback } from 'react';
 import Waveform from "../Waveform";
 import MultiVisualizer from '../visualizer/MultiVisualizer';
@@ -7,6 +6,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { isValidPeaksData } from '@/lib/waveformUtils';
 import { useAudioAnalysis } from '@/hooks/useAudioAnalysis';
 import { createPeaksCacheKey, savePeaksToCache } from '@/lib/peaksDataUtils';
+import { saveTrackWaveformData } from '@/services/trackWaveformService';
 
 interface WaveformSectionProps {
   playbackUrl: string | undefined;
@@ -84,6 +84,17 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
       if (trackId) {
         const cacheKey = createPeaksCacheKey(`analyzed_${trackId}`);
         savePeaksToCache(cacheKey, peaks);
+        
+        // Also save to Supabase for persistence across sessions
+        if (isOwner) {
+          console.log("Saving browser-analyzed waveform data to Supabase");
+          saveTrackWaveformData(trackId, peaks)
+            .then(success => {
+              if (success) {
+                console.log("Successfully saved waveform data to database");
+              }
+            });
+        }
       }
     }
   });

@@ -8,6 +8,7 @@ import { useWaveformData } from './hooks/useWaveformData';
 interface WaveformContainerProps {
   audioUrl?: string;
   peaksDataUrl?: string;
+  trackId?: string; // Added track ID prop
   waveformData?: number[] | Float32Array; // Allow direct passing of waveform data
   isPlaying: boolean;
   currentTime: number;
@@ -25,6 +26,7 @@ interface WaveformContainerProps {
 const WaveformContainer: React.FC<WaveformContainerProps> = ({
   audioUrl,
   peaksDataUrl,
+  trackId, // Added track ID
   waveformData: externalWaveformData, // Renamed to avoid conflict
   isPlaying,
   currentTime,
@@ -47,8 +49,9 @@ const WaveformContainer: React.FC<WaveformContainerProps> = ({
     usingPrecomputedPeaks,
     isWaveformGenerated
   } = useWaveformData({
-    peaksDataUrl, // Remove waveformAnalysisUrl, just use peaksDataUrl
-    isGeneratingWaveform
+    peaksDataUrl,
+    isGeneratingWaveform,
+    trackId // Pass track ID to the hook
   });
   
   // Use externally provided data if available, otherwise use internal data
