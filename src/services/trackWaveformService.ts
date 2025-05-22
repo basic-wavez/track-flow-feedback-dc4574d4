@@ -67,8 +67,19 @@ export const getTrackWaveformData = async (trackId: string): Promise<Float32Arra
       return null;
     }
     
+    // Convert from JSON data to proper number array
+    // Handle potential mixed types by explicitly converting each value to a number
+    const numericArray = track.waveform_data.map(value => 
+      typeof value === 'number' ? value : parseFloat(String(value))
+    ).filter(value => !isNaN(value)); // Filter out any NaN values
+    
+    if (numericArray.length === 0) {
+      console.warn("Waveform data conversion resulted in empty array");
+      return null;
+    }
+    
     // Convert to Float32Array for rendering
-    return Float32Array.from(track.waveform_data);
+    return Float32Array.from(numericArray);
   } catch (error: any) {
     console.error("Error getting track waveform data:", error);
     return null;
