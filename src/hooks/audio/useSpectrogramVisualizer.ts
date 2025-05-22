@@ -1,4 +1,3 @@
-
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
 import { sharedFrameController } from './useAudioVisualizer';
@@ -24,6 +23,8 @@ export function useSpectrogramVisualizer(
   const colorCache = useRef<RGBColor[]>(Array(256).fill({r: 0, g: 0, b: 0}));
   const logPositionCache = useRef<number[]>([]);
   const devicePixelRatio = useRef<number>(window.devicePixelRatio || 1);
+  const usesPreComputedData = useRef(false);
+  const preComputedNormalized = useRef<Float32Array | null>(null);
 
   // Default options
   const {
@@ -42,11 +43,50 @@ export function useSpectrogramVisualizer(
     useLogScale = true,
     useDevicePixelRatio = true,
     colorMap = 'default',
+    preComputedWaveform = null,
   } = options;
+
+  // Process pre-computed waveform data when available
+  useEffect(() => {
+    if (preComputedWaveform && preComputedWaveform.length > 0) {
+      console.log('useSpectrogramVisualizer: Using pre-computed waveform data with', preComputedWaveform.length, 'points');
+      usesPreComputedData.current = true;
+      
+      // Create normalized data for visualizer
+      const dataLength = Math.min(1024, preComputedWaveform.length);
+      const normalized = new Float32Array(dataLength);
+      
+      // Process the waveform data to fit our visualization needs
+      const step = preComputedWaveform.length / dataLength;
+      
+      for (let i = 0; i < dataLength; i++) {
+        const index = Math.floor(i * step);
+        if (index < preComputedWaveform.length) {
+          // Normalize values to 0-255 range for consistent visualization
+          normalized[i] = Math.abs(preComputedWaveform[index]) * 255;
+        }
+      }
+      
+      preComputedNormalized.current = normalized;
+      
+      // Initialize spectrogram data with pre-computed values
+      if (!dataArray.current) {
+        dataArray.current = new Uint8Array(dataLength).fill(0);
+      }
+      
+      console.log('useSpectrogramVisualizer: Pre-computed data processed successfully');
+    }
+  }, [preComputedWaveform]);
 
   // Initialize the frequency data array
   useEffect(() => {
     if (!audioContext.analyserNode) return;
+    
+    // Skip full analyzer setup if using pre-computed data
+    if (usesPreComputedData.current && preComputedWaveform) {
+      console.log('Spectrogram: Using pre-computed waveform data, skipping analyzer setup');
+      return;
+    }
     
     const analyser = audioContext.analyserNode;
     
@@ -68,7 +108,7 @@ export function useSpectrogramVisualizer(
     return () => {
       sharedFrameController.unregister(draw);
     };
-  }, [audioContext.analyserNode, fftSize, smoothingTimeConstant, minDecibels, maxDecibels]);
+  }, [audioContext.analyserNode, fftSize, smoothingTimeConstant, minDecibels, maxDecibels, preComputedWaveform]);
 
   // Generate the color map based on the selected palette
   useEffect(() => {
@@ -92,7 +132,7 @@ export function useSpectrogramVisualizer(
 
   // Draw the spectrogram frame
   const draw = () => {
-    if (!canvasRef.current || !audioContext.analyserNode || !dataArray.current) {
+    if (!canvasRef.current) {
       return;
     }
 
@@ -165,8 +205,22 @@ export function useSpectrogramVisualizer(
     // Lower timeScale = slower movement, higher timeScale = faster movement
     const updateInterval = 1000 / 30 / timeScale;
     if (now - lastDrawTime.current >= updateInterval) {
-      // Get frequency data
-      audioContext.analyserNode.getByteFrequencyData(dataArray.current);
+      // Update audio data
+      if (usesPreComputedData.current && preComputedNormalized.current) {
+        // Use pre-computed data instead of analyzing audio
+        if (dataArray.current) {
+          // Convert float data to uint8 for compatibility with existing rendering code
+          for (let i = 0; i < dataArray.current.length; i++) {
+            dataArray.current[i] = Math.min(255, Math.floor(preComputedNormalized.current[i % preComputedNormalized.current.length]));
+          }
+        }
+      } else if (audioContext.analyserNode && dataArray.current) {
+        // Get real-time frequency data from the analyzer node
+        audioContext.analyserNode.getByteFrequencyData(dataArray.current);
+      } else {
+        // No data available
+        return;
+      }
       
       // Shift the spectrogram data buffer to make space for new data
       // Only shift when we actually have new data to add
@@ -207,9 +261,9 @@ export function useSpectrogramVisualizer(
 
   // Start/stop animation based on playing state
   useEffect(() => {
-    if (isPlaying && audioContext.isInitialized) {
-      // Resume the audio context if it's suspended
-      if (audioContext.audioContext?.state === 'suspended') {
+    if (isPlaying) {
+      // Resume the audio context if it's suspended and we're not using pre-computed data
+      if (!usesPreComputedData.current && audioContext.audioContext?.state === 'suspended') {
         audioContext.audioContext.resume().catch(console.error);
       }
       
