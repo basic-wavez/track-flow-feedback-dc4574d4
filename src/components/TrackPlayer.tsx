@@ -43,6 +43,7 @@ const TrackPlayer = ({
   audioUrl, 
   originalUrl,
   waveformAnalysisUrl,
+  waveformPeaksUrl,
   originalFilename,
   isOwner = false,
   processingStatus = 'completed',
@@ -263,7 +264,9 @@ const TrackPlayer = ({
       
       <WaveformSection 
         playbackUrl={playbackUrl}
-        waveformUrl={waveformUrl}
+        waveformPeaksUrl={waveformPeaksUrl}
+        // Change waveformUrl to match the interface property name
+        waveformUrl={waveformAnalysisUrl}
         isPlaying={isPlaylistMode ? contextIsPlaying : isPlaying}
         currentTime={currentTime}
         duration={duration}
@@ -276,7 +279,6 @@ const TrackPlayer = ({
         audioLoaded={audioLoaded}
         audioRef={audioRef}
         showFFTVisualizer={showFFTVisualizer}
-        // Pass track action props directly to WaveformSection
         isOwner={isOwner}
         originalUrl={originalUrl}
         originalFilename={originalFilename}

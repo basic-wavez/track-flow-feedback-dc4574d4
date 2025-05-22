@@ -9,6 +9,8 @@ import { isValidPeaksData } from '@/lib/waveformUtils';
 interface WaveformSectionProps {
   playbackUrl: string | undefined;
   waveformPeaksUrl?: string | undefined;
+  // Add waveformUrl prop to match what's being passed in TrackPlayer.tsx
+  waveformUrl?: string;
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -21,7 +23,7 @@ interface WaveformSectionProps {
   audioLoaded: boolean;
   audioRef: React.RefObject<HTMLAudioElement>;
   showFFTVisualizer?: boolean;
-  // New props for track actions
+  // Track action props
   isOwner: boolean;
   originalUrl?: string;
   originalFilename?: string;
@@ -36,6 +38,7 @@ interface WaveformSectionProps {
 const WaveformSection: React.FC<WaveformSectionProps> = ({
   playbackUrl,
   waveformPeaksUrl,
+  waveformUrl, // Add this to destructuring
   isPlaying,
   currentTime,
   duration,
