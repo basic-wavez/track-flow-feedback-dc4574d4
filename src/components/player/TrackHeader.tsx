@@ -109,7 +109,7 @@ const TrackHeader = ({
           )}
           {/* Version number badge */}
           {versionNumber && (
-            <Badge variant="outline" className="ml-1 bg-wip-darker text-white border-wip-pink">
+            <Badge variant="outline" className="ml-1 bg-wip-darker text-white border-white">
               v{versionNumber}
             </Badge>
           )}
@@ -122,7 +122,7 @@ const TrackHeader = ({
         <div className="flex items-center gap-3">
           <Badge 
             variant="outline" 
-            className={`border-wip-pink text-white ${isOwner ? 'cursor-pointer hover:bg-wip-pink/10 transition-colors' : 'opacity-75'}`}
+            className={`border-white text-white ${isOwner ? 'cursor-pointer hover:bg-white/10 transition-colors' : 'opacity-75'}`}
             onClick={toggleStatus}
             title={isOwner ? `Change status to ${statusMode === "wip" ? "Demo" : "Work In Progress"}` : "Only the owner can change this status"}
           >

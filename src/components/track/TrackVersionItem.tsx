@@ -22,7 +22,7 @@ const TrackVersionItem = ({ version, trackId, isCurrent = false }: TrackVersionI
       <div className="flex items-center gap-3">
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs font-mono">
+            <Badge variant="outline" className="text-xs font-mono border-white text-white">
               v{version.version_number}
             </Badge>
             
@@ -46,7 +46,7 @@ const TrackVersionItem = ({ version, trackId, isCurrent = false }: TrackVersionI
       <Button
         variant="outline"
         size="sm"
-        className="flex gap-1 items-center"
+        className="flex gap-1 items-center border-white text-white"
         onClick={() => navigate(`/track/${version.id}`)}
       >
         <ExternalLink className="h-3.5 w-3.5" />
