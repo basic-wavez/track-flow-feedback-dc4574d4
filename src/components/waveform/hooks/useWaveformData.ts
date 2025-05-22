@@ -81,6 +81,11 @@ export const useWaveformData = ({
         setWaveformData(peaksData);
         setIsWaveformGenerated(true);
         setUsingPrecomputedPeaks(true);
+        
+        // Set analysis as attempted when peaks are successfully loaded
+        // This prevents the analysis from running later
+        setAnalysisAttempted(true);
+        
         return true;
       } else {
         throw new Error('Invalid peaks data format');
@@ -162,14 +167,14 @@ export const useWaveformData = ({
       });
   }, [analysisUrl, analysisAttempted, isWaveformGenerated, usingPrecomputedPeaks]);
   
-  // Reset analysis attempted flag when the URL changes significantly
+  // Reset analysis attempted flag when the URL changes significantly, but ONLY if we're not using precomputed peaks
   useEffect(() => {
-    if (waveformAnalysisUrl && waveformAnalysisUrl !== analysisUrl) {
+    if (waveformAnalysisUrl && waveformAnalysisUrl !== analysisUrl && !usingPrecomputedPeaks) {
       console.log('Waveform analysis URL changed, resetting analysis state');
       setAnalysisAttempted(false);
       setAnalysisUrl(waveformAnalysisUrl);
     }
-  }, [waveformAnalysisUrl, analysisUrl]);
+  }, [waveformAnalysisUrl, analysisUrl, usingPrecomputedPeaks]);
 
   return {
     waveformData,
@@ -180,3 +185,4 @@ export const useWaveformData = ({
     isWaveformGenerated
   };
 };
+
