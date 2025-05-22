@@ -8,6 +8,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 interface WaveformSectionProps {
   playbackUrl: string | undefined;
   waveformUrl: string | undefined;
+  waveformPeaksUrl?: string | undefined; // Add new prop for pre-computed peaks
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -35,6 +36,7 @@ interface WaveformSectionProps {
 const WaveformSection: React.FC<WaveformSectionProps> = ({
   playbackUrl,
   waveformUrl,
+  waveformPeaksUrl,
   isPlaying,
   currentTime,
   duration,
@@ -67,6 +69,7 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
       <Waveform 
         audioUrl={playbackUrl}
         waveformAnalysisUrl={waveformUrl}
+        peaksDataUrl={waveformPeaksUrl}
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}

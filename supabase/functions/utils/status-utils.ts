@@ -85,15 +85,17 @@ export async function updateTrackStatusToFailed(
  * @param format The format that was processed
  * @param mp3Url The MP3 URL to save
  * @param opusUrl The Opus URL to save
+ * @param waveformPeaksUrl The URL to the pre-computed waveform peaks JSON
  */
 export async function updateTrackWithProcessedUrls(
   supabase: any,
   trackId: string,
   format: ProcessingFormat,
   mp3Url?: string,
-  opusUrl?: string
+  opusUrl?: string,
+  waveformPeaksUrl?: string
 ): Promise<void> {
-  console.log(`Updating track ${trackId} with processed URLs:`, { mp3Url, opusUrl });
+  console.log(`Updating track ${trackId} with processed URLs:`, { mp3Url, opusUrl, waveformPeaksUrl });
   
   const updateData: Record<string, any> = {};
   
@@ -107,6 +109,12 @@ export async function updateTrackWithProcessedUrls(
     updateData.opus_url = opusUrl;
     updateData.opus_processing_status = 'completed';
     console.log(`Opus processing completed for track: ${trackId}`);
+  }
+  
+  // Store the waveform peaks URL if provided
+  if (waveformPeaksUrl) {
+    updateData.waveform_peaks_url = waveformPeaksUrl;
+    console.log(`Waveform peaks URL saved for track: ${trackId}`);
   }
   
   // Only proceed if we have data to update

@@ -80,6 +80,7 @@ const TrackPlayerView: React.FC<TrackPlayerViewProps> = ({
       audioUrl={getPlaybackUrl()} 
       originalUrl={trackData.original_url}
       waveformAnalysisUrl={getWaveformUrl()} 
+      waveformPeaksUrl={trackData.waveform_peaks_url}
       originalFilename={trackData.original_filename}
       isOwner={true}
       versionNumber={trackData.version_number || 1}

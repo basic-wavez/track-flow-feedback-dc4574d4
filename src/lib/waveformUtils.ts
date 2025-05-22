@@ -80,3 +80,28 @@ export const generateWaveformData = (length: number = 250): number[] => {
   
   return data;
 };
+
+/**
+ * Check if waveform peaks data is valid
+ * @param data The peaks data to validate
+ */
+export const isValidPeaksData = (data: any): boolean => {
+  return Array.isArray(data) && 
+         data.length > 0 && 
+         data.every(value => typeof value === 'number' && !isNaN(value));
+};
+
+/**
+ * Create a cache key for storing waveform data
+ * @param url The URL used as the basis for the cache key
+ */
+export const createWaveformCacheKey = (url: string): string => {
+  // Create a hash from the URL
+  let hash = 0;
+  for (let i = 0; i < url.length; i++) {
+    const char = url.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return `waveform_peaks_${Math.abs(hash)}`;
+};

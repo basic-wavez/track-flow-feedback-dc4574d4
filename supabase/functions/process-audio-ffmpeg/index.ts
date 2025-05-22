@@ -1,220 +1,146 @@
 
-// @ts-ignore
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { parseStorageUrl } from "../utils/storage-utils.ts";
+// Import needed modules
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
+import { callLambdaService } from '../utils/lambda-utils.ts';
 import { 
   updateTrackStatusToProcessing, 
   updateTrackStatusToFailed,
-  updateTrackWithProcessedUrls,
-  ProcessingFormat
-} from "../utils/status-utils.ts";
-import {
-  callLambdaService,
-  LambdaProcessingRequest,
-  LambdaProcessingResponse
-} from "../utils/lambda-utils.ts";
+  updateTrackWithProcessedUrls
+} from '../utils/status-utils.ts';
 
-interface RequestBody {
-  trackId: string;
-  format: ProcessingFormat;
-  originalUrl: string;
-  useDirectUrl?: boolean;
-}
-
-const SUPABASE_URL = "https://qzykfyavenplpxpdnfxh.supabase.co";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const FFMPEG_SERVICE_URL = Deno.env.get("FFMPEG_SERVICE_URL") || "";
-const AWS_LAMBDA_API_KEY = Deno.env.get("AWS_LAMBDA_API_KEY") || "";
-const USE_DIRECT_URL = true; // Default to using direct URL approach
-
-// Define CORS headers for cross-origin requests
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-serve(async (req: Request) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
-  }
-
+// Define the request handler
+Deno.serve(async (req) => {
   try {
-    // Create a Supabase client with the service role key
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-
-    // Only allow POST requests
-    if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "Method not allowed" }), {
-        status: 405,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // CORS headers
+    if (req.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey, X-Client-Info',
+        },
       });
     }
-
+    
+    // Set up Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const ffmpegServiceUrl = Deno.env.get('FFMPEG_SERVICE_URL');
+    const awsLambdaApiKey = Deno.env.get('AWS_LAMBDA_API_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase URL or service role key');
+    }
+    
+    if (!ffmpegServiceUrl || !awsLambdaApiKey) {
+      throw new Error('Missing FFmpeg service URL or API key');
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
     // Parse request body
-    const requestBody = await req.json() as RequestBody;
-    const { trackId, format, originalUrl, useDirectUrl = USE_DIRECT_URL } = requestBody;
+    const { trackId, format = 'all' } = await req.json();
     
-    if (!trackId || !format || !originalUrl) {
-      return new Response(JSON.stringify({ error: "Missing required parameters" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!trackId) {
+      throw new Error('Missing track ID');
     }
-
-    // Validate environment variables
-    if (!FFMPEG_SERVICE_URL || !AWS_LAMBDA_API_KEY) {
-      const missingVars = [];
-      if (!FFMPEG_SERVICE_URL) missingVars.push("FFMPEG_SERVICE_URL");
-      if (!AWS_LAMBDA_API_KEY) missingVars.push("AWS_LAMBDA_API_KEY");
-      
-      const errorMsg = `Missing required environment variables: ${missingVars.join(", ")}`;
-      console.error(errorMsg);
-      
-      return new Response(JSON.stringify({ error: errorMsg }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    console.log(`Received request to process track ${trackId} in format ${format}`);
-    console.log(`Using ${useDirectUrl ? 'direct URL' : 'signed URL'} approach for processing`);
     
-    // Process the audio file using FFmpeg service
-    // @ts-ignore: EdgeRuntime exists in Supabase Edge Functions
-    EdgeRuntime.waitUntil(processAudioFile(supabase, trackId, format, originalUrl, useDirectUrl));
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: `Audio processing started for track ${trackId} in format ${format}`,
-      approach: useDirectUrl ? 'direct URL' : 'signed URL'
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error("Error in process-audio-ffmpeg function:", error);
-    return new Response(JSON.stringify({ error: error.message || "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-});
-
-/**
- * Main processing function that handles the audio processing workflow
- */
-async function processAudioFile(
-  supabase: any, 
-  trackId: string, 
-  format: ProcessingFormat, 
-  originalUrl: string,
-  useDirectUrl: boolean = true
-) {
-  try {
-    // Get the track record to work with
-    const { data: track, error: trackError } = await supabase
-      .from("tracks")
-      .select("*")
-      .eq("id", trackId)
-      .single();
-    
-    if (trackError || !track) {
-      console.error("Error fetching track:", trackError);
-      await updateTrackStatusToFailed(supabase, trackId, format);
-      return;
-    }
-
-    console.log(`Processing audio for track ${trackId} in format ${format}, original URL: ${originalUrl}`);
-    console.log(`Using ${useDirectUrl ? 'direct URL' : 'signed URL'} approach for processing`);
+    console.log(`Processing ${format} for track ${trackId}`);
     
     // Update track status to processing
     await updateTrackStatusToProcessing(supabase, trackId, format);
     
-    let urlForLambda: string = originalUrl;
+    // Get track details
+    const { data: track, error: trackError } = await supabase
+      .from('tracks')
+      .select('*')
+      .eq('id', trackId)
+      .single();
     
-    // Only attempt signed URL generation if not using direct URL approach
-    if (!useDirectUrl) {
-      try {
-        // Parse the storage URL to extract bucket and path
-        const parsedUrl = parseStorageUrl(originalUrl);
-        const { bucketName, filePath } = parsedUrl;
-        
-        console.log(`Creating signed URL for bucket: ${bucketName}, file path: ${filePath}`);
-        
-        // Create signed URL for FFmpeg service
-        const { data: { signedURL }, error: signedUrlError } = await supabase.storage
-          .from(bucketName)
-          .createSignedUrl(filePath, 60 * 10); // 10 minute expiry
-        
-        if (!signedURL || signedUrlError) {
-          console.error("Failed to create signed URL for original audio:", signedUrlError);
-          console.log("Falling back to direct URL approach");
-          urlForLambda = originalUrl;
-        } else {
-          console.log(`Successfully created signed URL with length: ${signedURL.length}`);
-          urlForLambda = signedURL;
-        }
-      } catch (error) {
-        console.error(`Error parsing URL or creating signed URL:`, error);
-        console.log("Falling back to direct URL approach");
-        urlForLambda = originalUrl;
-      }
-    } else {
-      console.log(`Using direct URL approach: ${originalUrl}`);
+    if (trackError || !track) {
+      throw new Error(`Error fetching track ${trackId}: ${trackError?.message}`);
     }
     
-    // Prepare request for Lambda service
-    const lambdaRequest: LambdaProcessingRequest = {
-      trackId,
-      format,
-      signedUrl: urlForLambda // This is the key parameter name that Lambda expects
-    };
+    // Generate a presigned URL for the original file
+    const { data: signedUrlData, error: signedUrlError } = await supabase
+      .storage
+      .from('audio')
+      .createSignedUrl(track.original_url?.split('/public/audio/')[1] || '', 3600);
     
-    console.log(`Calling Lambda service with URL of length: ${urlForLambda.length}`);
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      throw new Error(`Error generating signed URL: ${signedUrlError?.message}`);
+    }
     
-    // Call the FFmpeg Lambda service
+    console.log(`Generated signed URL for track ${trackId}`);
+    
+    // Call FFmpeg Lambda service
     try {
-      const responseData = await callLambdaService(
-        FFMPEG_SERVICE_URL,
-        AWS_LAMBDA_API_KEY,
-        lambdaRequest
-      );
+      const lambdaResponse = await callLambdaService(ffmpegServiceUrl, awsLambdaApiKey, {
+        trackId,
+        format,
+        signedUrl: signedUrlData.signedUrl
+      });
       
-      console.log(`Lambda service response:`, responseData);
-      
-      // Debug output for Opus URL
-      if (responseData.opusUrl) {
-        console.log(`Received Opus URL from Lambda: ${responseData.opusUrl}`);
-      } else {
-        console.log(`No Opus URL received from Lambda, even though one may have been generated`);
+      if (!lambdaResponse.success) {
+        throw new Error(`FFmpeg service failed: ${lambdaResponse.error}`);
       }
       
-      // Update track with new URLs and status
+      // Update track with processed URLs
       await updateTrackWithProcessedUrls(
         supabase,
         trackId,
         format,
-        responseData.mp3Url,
-        responseData.opusUrl
+        lambdaResponse.mp3Url,
+        lambdaResponse.opusUrl,
+        lambdaResponse.waveformPeaksUrl
       );
       
-    } catch (error) {
-      console.error(`Error processing audio with Lambda:`, error);
+      console.log(`Successfully processed ${format} for track ${trackId}`);
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Track ${trackId} processed successfully`,
+          mp3Url: lambdaResponse.mp3Url,
+          opusUrl: lambdaResponse.opusUrl,
+          waveformPeaksUrl: lambdaResponse.waveformPeaksUrl
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          },
+        }
+      );
+    } catch (lambdaError) {
+      console.error(`Lambda service error: ${lambdaError.message}`);
+      
+      // Update track status to failed
       await updateTrackStatusToFailed(supabase, trackId, format);
+      
+      throw lambdaError;
     }
   } catch (error) {
-    console.error(`Error processing audio for track ${trackId}:`, error);
-    await updateTrackStatusToFailed(supabase, trackId, format);
+    console.error(`Error in process-audio-ffmpeg function: ${error.message}`);
+    
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+      }
+    );
   }
-}
+});

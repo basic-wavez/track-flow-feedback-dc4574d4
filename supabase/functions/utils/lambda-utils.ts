@@ -13,6 +13,7 @@ export interface LambdaProcessingResponse {
   success: boolean;
   mp3Url?: string;
   opusUrl?: string;
+  waveformPeaksUrl?: string;
   error?: string;
 }
 
@@ -77,6 +78,11 @@ export async function callLambdaService(
         // Add the constructed URL to the response
         responseData.opusUrl = opusUrl;
       }
+    }
+    
+    // Log waveform peaks URL if available
+    if (responseData.waveformPeaksUrl) {
+      console.log(`Lambda returned waveform peaks URL: ${responseData.waveformPeaksUrl}`);
     }
     
     return responseData;

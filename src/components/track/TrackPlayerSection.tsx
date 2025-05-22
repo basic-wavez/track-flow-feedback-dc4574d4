@@ -40,6 +40,7 @@ const TrackPlayerSection: React.FC<TrackPlayerSectionProps> = ({
   // Determine which URL to prioritize for playback
   const playbackUrl = getPlaybackUrl();
   const waveformUrl = getWaveformUrl();
+  const waveformPeaksUrl = trackData.waveform_peaks_url;
 
   // Determine which URL to prioritize for playback
   function getPlaybackUrl() {
@@ -82,6 +83,7 @@ const TrackPlayerSection: React.FC<TrackPlayerSectionProps> = ({
       audioUrl={playbackUrl} 
       originalUrl={trackData.original_url}
       waveformAnalysisUrl={waveformUrl}
+      waveformPeaksUrl={waveformPeaksUrl}
       originalFilename={trackData.original_filename}
       isOwner={isOwner}
       mp3Url={trackData.mp3_url}
