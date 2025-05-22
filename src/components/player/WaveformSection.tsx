@@ -30,6 +30,7 @@ interface WaveformSectionProps {
   trackVersions?: any[];
   trackTitle?: string;
   isPlaylistMode?: boolean;
+  waveformJsonUrl?: string; // Add waveformJsonUrl prop
 }
 
 const WaveformSection: React.FC<WaveformSectionProps> = ({
@@ -56,7 +57,8 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   shareKey,
   trackVersions = [],
   trackTitle = "",
-  isPlaylistMode = false
+  isPlaylistMode = false,
+  waveformJsonUrl  // Pass through the waveformJsonUrl prop
 }) => {
   // Check if we're on mobile
   const isMobile = useIsMobile();
@@ -78,6 +80,7 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
         isOpusAvailable={usingOpus}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
+        waveformJsonUrl={waveformJsonUrl} // Pass the waveformJsonUrl prop
       />
       
       {/* Track Actions (Download/Share buttons) */}

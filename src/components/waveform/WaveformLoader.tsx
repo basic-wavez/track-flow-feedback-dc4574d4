@@ -1,37 +1,40 @@
 
-import { Loader } from 'lucide-react';
+import { Loader } from "lucide-react";
 
 interface WaveformLoaderProps {
   isAnalyzing?: boolean;
   isGeneratingWaveform?: boolean;
+  message?: string;
 }
 
-const WaveformLoader = ({ isAnalyzing, isGeneratingWaveform }: WaveformLoaderProps) => {
-  // Show analyzing state when processing actual audio file
-  if (isAnalyzing) {
-    return (
-      <div className="w-full h-32 relative flex items-center justify-center bg-wip-darker/50 rounded-md">
-        <div className="flex flex-col items-center gap-2">
-          <Loader className="h-8 w-8 text-wip-pink animate-spin" />
-          <div className="text-sm text-wip-pink">Analyzing audio waveform...</div>
-        </div>
-      </div>
-    );
+const WaveformLoader: React.FC<WaveformLoaderProps> = ({
+  isAnalyzing = false,
+  isGeneratingWaveform = false,
+  message
+}) => {
+  // Determine the message text based on props
+  let displayMessage = message;
+  
+  if (!displayMessage) {
+    if (isAnalyzing) {
+      displayMessage = "Analyzing audio waveform...";
+    } else if (isGeneratingWaveform) {
+      displayMessage = "Generating waveform...";
+    } else {
+      displayMessage = "Loading...";
+    }
   }
   
-  // Show waveform loading state when generating waveform for MP3
-  if (isGeneratingWaveform) {
-    return (
-      <div className="w-full h-32 relative flex items-center justify-center bg-wip-darker/50 rounded-md">
-        <div className="flex flex-col items-center gap-2">
-          <Loader className="h-8 w-8 text-wip-pink animate-spin" />
-          <div className="text-sm text-wip-pink">Generating waveform...</div>
-        </div>
+  return (
+    <div className="w-full h-32 flex items-center justify-center bg-wip-darker rounded-md border border-wip-gray opacity-80">
+      <div className="flex flex-col items-center">
+        <Loader className="animate-spin h-6 w-6 text-wip-pink mb-2" />
+        <span className="text-sm text-gray-400">
+          {displayMessage}
+        </span>
       </div>
-    );
-  }
-  
-  return null;
+    </div>
+  );
 };
 
 export default WaveformLoader;

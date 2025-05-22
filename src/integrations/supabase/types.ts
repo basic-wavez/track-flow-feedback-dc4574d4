@@ -271,6 +271,7 @@ export type Database = {
           version_notes: string | null
           version_number: number
           waveform_data: Json | null
+          waveform_json_url: string | null
         }
         Insert: {
           chunk_count?: number | null
@@ -293,6 +294,7 @@ export type Database = {
           version_notes?: string | null
           version_number?: number
           waveform_data?: Json | null
+          waveform_json_url?: string | null
         }
         Update: {
           chunk_count?: number | null
@@ -315,6 +317,7 @@ export type Database = {
           version_notes?: string | null
           version_number?: number
           waveform_data?: Json | null
+          waveform_json_url?: string | null
         }
         Relationships: [
           {

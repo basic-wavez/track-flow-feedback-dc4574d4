@@ -178,7 +178,8 @@ async function processAudioFile(
     const lambdaRequest: LambdaProcessingRequest = {
       trackId,
       format,
-      signedUrl: urlForLambda // This is the key parameter name that Lambda expects
+      signedUrl: urlForLambda, // This is the key parameter name that Lambda expects
+      generateWaveform: true   // NEW: Add flag to generate waveform data
     };
     
     console.log(`Calling Lambda service with URL of length: ${urlForLambda.length}`);
@@ -198,6 +199,25 @@ async function processAudioFile(
         console.log(`Received Opus URL from Lambda: ${responseData.opusUrl}`);
       } else {
         console.log(`No Opus URL received from Lambda, even though one may have been generated`);
+      }
+      
+      // Check for waveform JSON URL
+      if (responseData.waveformJsonUrl) {
+        console.log(`Received waveform JSON URL from Lambda: ${responseData.waveformJsonUrl}`);
+        
+        // Update track with waveform JSON URL
+        const { error: updateError } = await supabase
+          .from("tracks")
+          .update({ waveform_json_url: responseData.waveformJsonUrl })
+          .eq("id", trackId);
+          
+        if (updateError) {
+          console.error(`Error updating track with waveform JSON URL:`, updateError);
+        } else {
+          console.log(`Successfully updated track with waveform JSON URL`);
+        }
+      } else {
+        console.log(`No waveform JSON URL received from Lambda`);
       }
       
       // Update track with new URLs and status
