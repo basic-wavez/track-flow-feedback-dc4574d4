@@ -21,10 +21,10 @@ export const applyWaveformEffects = (
   
   // Apply playing effect (subtle glow)
   if (isPlaying && !isBuffering) {
-    // Create a subtle gradient glow at the bottom
+    // Create a subtle gradient glow at the bottom with our pink color
     const glowGradient = ctx.createLinearGradient(0, height * 0.7, 0, height);
-    glowGradient.addColorStop(0, 'rgba(99, 102, 241, 0)');
-    glowGradient.addColorStop(1, 'rgba(99, 102, 241, 0.15)');
+    glowGradient.addColorStop(0, 'rgba(210, 148, 182, 0)');
+    glowGradient.addColorStop(1, 'rgba(210, 148, 182, 0.15)');
     
     ctx.fillStyle = glowGradient;
     ctx.fillRect(0, height * 0.7, width, height * 0.3);
