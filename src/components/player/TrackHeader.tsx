@@ -95,7 +95,7 @@ const TrackHeader = ({
     <>
       <div className="mb-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <h2 className="text-xl font-bold gradient-text">{trackName}</h2>
+          <h2 className="text-xl font-bold text-white">{trackName}</h2>
           {isOwner && (
             <Button 
               size="icon"
