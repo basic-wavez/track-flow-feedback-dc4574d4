@@ -66,11 +66,10 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   // Check if we're on mobile
   const isMobile = useIsMobile();
   
-  // State for waveform data
+  // State for waveform data - removed redundant loading logic
   const [waveformData, setWaveformData] = useState<Float32Array | null>(null);
-  const [peaksLoaded, setPeaksLoaded] = useState(false);
   
-  // Use our new audio analysis hook when no peaks URL is available
+  // Use our audio analysis hook when no peaks URL is available or loaded data
   const { 
     waveformData: analyzedWaveformData, 
     isAnalyzing,
@@ -99,81 +98,16 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
     }
   });
   
-  // Load peaks data from URL or use analyzed data
-  const loadPeaksData = useCallback(async () => {
-    if (!trackId || peaksLoaded) return;
-    
-    try {
-      // Try to load from localStorage first (using our existing utility)
-      const cacheKey = `waveform_peaks_${trackId}`;
-      const cachedData = localStorage.getItem(cacheKey);
-      
-      if (cachedData) {
-        try {
-          const parsedData = JSON.parse(cachedData);
-          if (isValidPeaksData(parsedData)) {
-            console.log('Using cached waveform peaks data from localStorage');
-            setWaveformData(Float32Array.from(parsedData));
-            setPeaksLoaded(true);
-            return;
-          }
-        } catch (e) {
-          console.warn('Error parsing cached peaks data:', e);
-          localStorage.removeItem(cacheKey);
-        }
-      }
-      
-      // If no cached data and we have a peaks URL, fetch it
-      if (waveformPeaksUrl) {
-        console.log('Fetching peaks data from URL:', waveformPeaksUrl);
-        const response = await fetch(waveformPeaksUrl);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch peaks data: ${response.status}`);
-        }
-        
-        const peaksData = await response.json();
-        
-        if (isValidPeaksData(peaksData)) {
-          console.log('Successfully loaded pre-computed waveform peaks:', peaksData.length, 'points');
-          
-          // Convert to Float32Array for direct rendering
-          const typedArray = Float32Array.from(peaksData);
-          setWaveformData(typedArray);
-          setPeaksLoaded(true);
-          
-          // Cache the data for future use
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(peaksData));
-          } catch (e) {
-            console.warn('Failed to cache waveform peaks data:', e);
-          }
-          return;
-        }
-      }
-      
-      // If we get here, we couldn't load peaks from URL or cache
-      // In that case we rely on the analyzed data
-    } catch (error) {
-      console.error('Error loading peaks data:', error);
-    }
-  }, [waveformPeaksUrl, trackId, peaksLoaded]);
-  
-  // Try to load peaks data on mount or when URLs change
-  useEffect(() => {
-    loadPeaksData();
-  }, [loadPeaksData]);
-  
-  // Set the final waveform data to use for rendering
-  // Priority: 1. Loaded peaks from URL/cache, 2. Analyzed data, 3. None (will use placeholder)
-  const finalWaveformData = waveformData || analyzedWaveformData;
+  // Just use the analyzed data if available
+  const finalWaveformData = analyzedWaveformData;
   
   return (
     <div className="flex flex-col space-y-4">
-      {/* Waveform component with our waveform data */}
+      {/* Waveform component - now pass trackId to ensure database loading works */}
       <Waveform 
         audioUrl={playbackUrl}
         peaksDataUrl={waveformPeaksUrl}
+        trackId={trackId} // Add trackId here to ensure it's passed down
         waveformData={finalWaveformData || undefined}
         isPlaying={isPlaying}
         currentTime={currentTime}

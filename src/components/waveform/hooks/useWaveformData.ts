@@ -35,31 +35,6 @@ export const useWaveformData = ({
     }
   }, []);
   
-  // Function to load pre-computed peaks data
-  const loadPeaksData = useCallback(async (url: string) => {
-    try {
-      setIsPeaksLoading(true);
-      
-      const { data, success } = await loadPeaksDataWithCaching(url);
-      
-      if (success && data) {
-        setWaveformData(data);
-        setIsWaveformGenerated(true);
-        setUsingPrecomputedPeaks(true);
-        peaksLoadedRef.current = true;
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Error in loadPeaksData:', error);
-      setUsingPrecomputedPeaks(false);
-      return false;
-    } finally {
-      setIsPeaksLoading(false);
-    }
-  }, []);
-  
   // Load waveform data from Supabase if available
   const loadWaveformDataFromDatabase = useCallback(async () => {
     if (!trackId || peaksLoadedRef.current) return false;
@@ -89,10 +64,32 @@ export const useWaveformData = ({
     }
   }, [trackId]);
   
-  // Load data based on priority:
-  // 1. Pre-computed peaks URL
-  // 2. Database waveform data
-  // 3. Fall back to placeholder
+  // Function to load pre-computed peaks data from URL
+  const loadPeaksData = useCallback(async (url: string) => {
+    try {
+      setIsPeaksLoading(true);
+      
+      const { data, success } = await loadPeaksDataWithCaching(url);
+      
+      if (success && data) {
+        setWaveformData(data);
+        setIsWaveformGenerated(true);
+        setUsingPrecomputedPeaks(true);
+        peaksLoadedRef.current = true;
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error in loadPeaksData:', error);
+      setUsingPrecomputedPeaks(false);
+      return false;
+    } finally {
+      setIsPeaksLoading(false);
+    }
+  }, []);
+  
+  // Changed load priority: 1. Database, 2. Pre-computed peaks URL, 3. Placeholder
   useEffect(() => {
     // Skip if we already have peaks or if we're already loading
     if (peaksLoadedRef.current || isPeaksLoading) {
@@ -102,23 +99,26 @@ export const useWaveformData = ({
     const loadData = async () => {
       let loaded = false;
       
-      // First try loading from URL if available
-      if (peaksDataUrl) {
-        console.log('Attempting to load peaks data from URL:', peaksDataUrl);
-        loaded = await loadPeaksData(peaksDataUrl);
-      }
-      
-      // If URL loading failed and we have a track ID, try database
-      if (!loaded && trackId) {
-        console.log('Trying to load from database after URL failed');
+      // First priority: Try to load from Supabase database if we have a track ID
+      if (trackId) {
+        console.log('First priority: Loading waveform from database for track:', trackId);
         loaded = await loadWaveformDataFromDatabase();
       }
       
+      // Second priority: If database loading failed and we have a peaks URL, try loading from URL
+      if (!loaded && peaksDataUrl) {
+        console.log('Second priority: Loading waveform from peaksDataUrl:', peaksDataUrl);
+        loaded = await loadPeaksData(peaksDataUrl);
+      }
+      
       // If both failed, we'll use the placeholder generated in the first effect
+      if (!loaded) {
+        console.log('Both loading methods failed, using placeholder waveform');
+      }
     };
     
     loadData();
-  }, [peaksDataUrl, trackId, isPeaksLoading, loadPeaksData, loadWaveformDataFromDatabase]);
+  }, [trackId, peaksDataUrl, isPeaksLoading, loadWaveformDataFromDatabase, loadPeaksData]);
 
   return {
     waveformData,
