@@ -63,7 +63,7 @@ const defaultSettings: VisualizerSettings = {
   fftSmoothingFactor: 0.7, // New default smoothing factor for EMA
   
   // Oscilloscope settings
-  oscilloscopeColor: '#7DE3FF', // Light blue 
+  oscilloscopeColor: '#E7A2C8', // Changed from #7DE3FF to #E7A2C8 (pink)
   oscilloscopeSensitivity: 1.5, 
   oscilloscopeLineWidth: 2,
   oscilloscopeBackgroundColor: '#000000',

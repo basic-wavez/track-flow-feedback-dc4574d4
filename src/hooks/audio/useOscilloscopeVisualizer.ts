@@ -1,3 +1,4 @@
+
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
 import { sharedFrameController } from './useAudioVisualizer';
@@ -27,13 +28,13 @@ export function useOscilloscopeVisualizer(
 
   // Default options
   const {
-    lineColor = '#34c759',
+    lineColor = '#E7A2C8', // Changed default color to match the setting color
     lineWidth = 2,
     backgroundColor = 'transparent',
     sensitivity = 1.0,
     drawMode = 'line',
     dashPattern = [],
-    fillColor = 'rgba(52, 199, 89, 0.1)',
+    fillColor = 'rgba(231, 162, 200, 0.1)', // Changed to match lineColor
     fillOpacity = 0.2,
     invertY = false,
     targetFPS = 30

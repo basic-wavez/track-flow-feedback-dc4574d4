@@ -1,62 +1,26 @@
 
-import { useIsMobile } from '@/hooks/use-mobile';
-import { SpectrogramOptions } from '@/hooks/audio/types/spectrogramTypes';
 import { useVisualizerSettings } from '@/hooks/audio/useVisualizerSettings';
+import { useIsMobile } from '@/hooks/use-mobile';
 
-export const useVisualizerConfig = () => {
-  const isMobile = useIsMobile();
+export function useVisualizerConfig() {
   const { settings } = useVisualizerSettings();
-  
-  // Set adjusted target FPS based on mobile status
-  const targetFPS = isMobile ? 20 : 30;
+  const isMobile = useIsMobile();
 
-  // Calculate appropriate FFT size based on device capability
-  const spectrogramFftSize = isMobile ? 8192 : 32768;
-  
-  // FFT visualizer config
-  const fftConfig = {
-    barCount: isMobile ? 32 : (settings.fftBarCount || 64),
-    barColor: settings.fftBarColor,
-    capColor: settings.fftCapColor || '#000000',
-    maxFrequency: settings.fftMaxFrequency || 15000,
-    targetFPS: targetFPS,
-    smoothingFactor: 0.7,
-  };
-
-  // Oscilloscope config
+  // Configure oscilloscope options based on settings
   const oscilloscopeConfig = {
-    lineColor: settings.oscilloscopeColor,
-    sensitivity: settings.oscilloscopeSensitivity || settings.sensitivity,
+    lineColor: settings.oscilloscopeColor, // This will now use #E7A2C8
     lineWidth: settings.oscilloscopeLineWidth,
-    backgroundColor: settings.oscilloscopeBackgroundColor || 'transparent',
+    backgroundColor: settings.oscilloscopeBackgroundColor,
+    sensitivity: settings.oscilloscopeSensitivity,
     drawMode: settings.oscilloscopeDrawMode,
     dashPattern: settings.oscilloscopeDashPattern,
     fillColor: settings.oscilloscopeFillColor,
     fillOpacity: settings.oscilloscopeFillOpacity,
     invertY: settings.oscilloscopeInvertY,
-    targetFPS: targetFPS,
-  };
-  
-  // Spectrogram config
-  const spectrogramConfig: SpectrogramOptions = {
-    colorMid: settings.spectrogramColorMid || settings.fftBarColor,
-    timeScale: isMobile ? (settings.spectrogramTimeScale || 10) * 0.5 : settings.spectrogramTimeScale || 10,
-    maxFrequency: settings.spectrogramMaxFrequency || 15000,
-    targetFPS: isMobile ? 15 : 20,
-    bufferSize: isMobile ? 100 : 200,
-    fftSize: spectrogramFftSize,
-    smoothingTimeConstant: 0,
-    minDecibels: -100,
-    maxDecibels: -30,
-    useLogScale: true,
-    useDevicePixelRatio: true,
-    colorMap: settings.spectrogramColorMap || 'magma',
+    targetFPS: 30, // Lower FPS for better performance
   };
 
   return {
-    fftConfig,
-    oscilloscopeConfig,
-    spectrogramConfig,
-    settings
+    oscilloscopeConfig
   };
-};
+}
