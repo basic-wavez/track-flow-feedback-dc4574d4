@@ -16,7 +16,7 @@ const VisualizerContainer: React.FC<VisualizerContainerProps> = ({
   
   return (
     <div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-wip-darker ${className}`} id="visualizer-container">
-      <div className={`flex gap-2 p-2 ${visualizerHeight}`}>
+      <div className={`flex p-2 ${visualizerHeight}`}>
         {children}
       </div>
     </div>

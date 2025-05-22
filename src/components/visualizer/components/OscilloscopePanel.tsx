@@ -7,6 +7,7 @@ import VisualizerPanel from './VisualizerPanel';
 
 interface OscilloscopePanelProps {
   audioContext: AudioContextState;
+  audioRef?: React.RefObject<HTMLAudioElement>;
   isPlaying: boolean;
   config: any;
   enabled: boolean;
@@ -14,6 +15,7 @@ interface OscilloscopePanelProps {
 
 const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({
   audioContext,
+  audioRef,
   isPlaying,
   config,
   enabled
@@ -29,7 +31,7 @@ const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({
   );
 
   return (
-    <VisualizerPanel width="w-[20%]" enabled={enabled} type="Oscilloscope">
+    <VisualizerPanel width="w-full" enabled={enabled} type="Oscilloscope">
       <VisualizerCanvas ref={oscilloscopeCanvasRef} className="bg-black" />
     </VisualizerPanel>
   );
