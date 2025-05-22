@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import WaveformLoader from './WaveformLoader';
 import WaveformCanvas from './WaveformCanvas';
 import WaveformStatus from './WaveformStatus';
@@ -8,8 +8,8 @@ import { useWaveformData } from './hooks/useWaveformData';
 interface WaveformContainerProps {
   audioUrl?: string;
   peaksDataUrl?: string;
-  trackId?: string; // Keep track ID prop
-  waveformData?: number[] | Float32Array; // Allow direct passing of waveform data
+  trackId?: string;
+  waveformData?: number[] | Float32Array;
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -21,13 +21,14 @@ interface WaveformContainerProps {
   isOpusAvailable?: boolean;
   isGeneratingWaveform?: boolean;
   audioLoaded?: boolean;
+  onDatabaseLoadingComplete?: (success: boolean) => void;
 }
 
 const WaveformContainer: React.FC<WaveformContainerProps> = ({
   audioUrl,
   peaksDataUrl,
-  trackId, // Use trackId param
-  waveformData: externalWaveformData, // Renamed to avoid conflict
+  trackId,
+  waveformData: externalWaveformData,
   isPlaying,
   currentTime,
   duration,
@@ -38,7 +39,8 @@ const WaveformContainer: React.FC<WaveformContainerProps> = ({
   isMp3Available = false,
   isOpusAvailable = false,
   isGeneratingWaveform = false,
-  audioLoaded = false
+  audioLoaded = false,
+  onDatabaseLoadingComplete
 }) => {
   // Only use the hook if we don't have data passed directly
   const {
@@ -47,11 +49,13 @@ const WaveformContainer: React.FC<WaveformContainerProps> = ({
     isPeaksLoading,
     analysisError,
     usingPrecomputedPeaks,
-    isWaveformGenerated
+    isWaveformGenerated,
+    databaseLoadingAttempted
   } = useWaveformData({
     peaksDataUrl,
     isGeneratingWaveform,
-    trackId // Pass track ID to the hook
+    trackId,
+    onDatabaseLoadingComplete
   });
   
   // Use externally provided data if available, otherwise use internal data
@@ -88,6 +92,7 @@ const WaveformContainer: React.FC<WaveformContainerProps> = ({
         isAudioLoading={!isAudioDurationValid && !analysisError}
         currentTime={currentTime}
         usingPrecomputedPeaks={usingPrecomputedPeaks || !!externalWaveformData}
+        databaseLoadingAttempted={databaseLoadingAttempted}
       />
     </div>
   );

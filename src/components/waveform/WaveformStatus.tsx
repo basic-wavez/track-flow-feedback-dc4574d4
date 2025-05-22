@@ -7,6 +7,7 @@ interface WaveformStatusProps {
   isAudioLoading?: boolean;
   currentTime?: number;
   usingPrecomputedPeaks?: boolean;
+  databaseLoadingAttempted?: boolean;
 }
 
 const WaveformStatus = ({ 
@@ -16,7 +17,8 @@ const WaveformStatus = ({
   analysisError, 
   isAudioLoading,
   currentTime = 0,
-  usingPrecomputedPeaks = false
+  usingPrecomputedPeaks = false,
+  databaseLoadingAttempted = false
 }: WaveformStatusProps) => {
   // Show no loading text, only analysis error if present
   return (

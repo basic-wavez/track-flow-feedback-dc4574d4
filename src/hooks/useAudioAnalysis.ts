@@ -5,6 +5,7 @@ interface UseAudioAnalysisProps {
   audioRef?: React.RefObject<HTMLAudioElement>;
   audioUrl?: string;
   onAnalysisComplete?: (waveformData: Float32Array) => void;
+  skipInitialAnalysis?: boolean; // Add option to skip initial analysis
 }
 
 /**
@@ -13,7 +14,8 @@ interface UseAudioAnalysisProps {
 export const useAudioAnalysis = ({
   audioRef,
   audioUrl,
-  onAnalysisComplete
+  onAnalysisComplete,
+  skipInitialAnalysis = false // Default to false for backward compatibility
 }: UseAudioAnalysisProps) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,11 +106,11 @@ export const useAudioAnalysis = ({
   };
 
   useEffect(() => {
-    // Start analysis when audio is available
-    if ((audioRef?.current?.src || audioUrl) && !waveformData && !isAnalyzing) {
+    // Only auto-analyze if skipInitialAnalysis is false and we have audio data available
+    if (!skipInitialAnalysis && (audioRef?.current?.src || audioUrl) && !waveformData && !isAnalyzing) {
       analyzeAudio();
     }
-  }, [audioRef?.current?.src, audioUrl, waveformData, isAnalyzing]);
+  }, [audioRef?.current?.src, audioUrl, waveformData, isAnalyzing, skipInitialAnalysis]);
 
   // Cleanup on unmount
   useEffect(() => {

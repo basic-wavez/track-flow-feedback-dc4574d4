@@ -8,12 +8,14 @@ interface UseWaveformDataProps {
   peaksDataUrl?: string;
   isGeneratingWaveform?: boolean;
   trackId?: string;
+  onDatabaseLoadingComplete?: (success: boolean) => void;
 }
 
 export const useWaveformData = ({
   peaksDataUrl,
   isGeneratingWaveform = false,
   trackId,
+  onDatabaseLoadingComplete
 }: UseWaveformDataProps) => {
   // State management
   const [waveformData, setWaveformData] = useState<number[] | Float32Array>([]);
@@ -21,6 +23,7 @@ export const useWaveformData = ({
   const [isWaveformGenerated, setIsWaveformGenerated] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [usingPrecomputedPeaks, setUsingPrecomputedPeaks] = useState(false);
+  const [databaseLoadingAttempted, setDatabaseLoadingAttempted] = useState(false);
   
   // Use refs to track state
   const peaksLoadedRef = useRef(false);
@@ -51,18 +54,22 @@ export const useWaveformData = ({
         setIsWaveformGenerated(true);
         setUsingPrecomputedPeaks(true);
         peaksLoadedRef.current = true;
+        if (onDatabaseLoadingComplete) onDatabaseLoadingComplete(true);
         return true;
       }
       
       console.log('No waveform data found in database');
+      if (onDatabaseLoadingComplete) onDatabaseLoadingComplete(false);
       return false;
     } catch (error) {
       console.error('Error loading waveform data from database:', error);
+      if (onDatabaseLoadingComplete) onDatabaseLoadingComplete(false);
       return false;
     } finally {
       setIsPeaksLoading(false);
+      setDatabaseLoadingAttempted(true);
     }
-  }, [trackId]);
+  }, [trackId, onDatabaseLoadingComplete]);
   
   // Function to load pre-computed peaks data from URL
   const loadPeaksData = useCallback(async (url: string) => {
@@ -126,6 +133,7 @@ export const useWaveformData = ({
     isPeaksLoading,
     analysisError,
     usingPrecomputedPeaks,
-    isWaveformGenerated
+    isWaveformGenerated,
+    databaseLoadingAttempted
   };
 };

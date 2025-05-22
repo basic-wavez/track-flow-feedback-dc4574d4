@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+
+import React, { useState, useCallback } from 'react';
 import Waveform from "../Waveform";
 import MultiVisualizer from '../visualizer/MultiVisualizer';
 import TrackActions from './TrackActions';
@@ -66,10 +67,21 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   // Check if we're on mobile
   const isMobile = useIsMobile();
   
-  // State for waveform data - removed redundant loading logic
-  const [waveformData, setWaveformData] = useState<Float32Array | null>(null);
+  // State to track if we should analyze audio (only if database loading fails)
+  const [shouldAnalyzeAudio, setShouldAnalyzeAudio] = useState(false);
   
-  // Use our audio analysis hook when no peaks URL is available or loaded data
+  // Handle database loading completion
+  const handleDatabaseLoadingComplete = useCallback((success: boolean) => {
+    // Only start analysis if database loading failed
+    if (!success) {
+      console.log("Database loading failed, starting client-side audio analysis");
+      setShouldAnalyzeAudio(true);
+    } else {
+      console.log("Using waveform data from database, skipping client-side analysis");
+    }
+  }, []);
+  
+  // Use our audio analysis hook with conditional execution
   const { 
     waveformData: analyzedWaveformData, 
     isAnalyzing,
@@ -95,8 +107,17 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
             });
         }
       }
-    }
+    },
+    skipInitialAnalysis: true // Don't start analyzing immediately
   });
+  
+  // Trigger analysis if we should analyze
+  React.useEffect(() => {
+    if (shouldAnalyzeAudio && audioRef.current && !isAnalyzing) {
+      console.log("Triggering audio analysis as fallback");
+      analyzeAudio();
+    }
+  }, [shouldAnalyzeAudio, audioRef, analyzeAudio, isAnalyzing]);
   
   // Just use the analyzed data if available
   const finalWaveformData = analyzedWaveformData;
@@ -120,6 +141,7 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
         isOpusAvailable={usingOpus}
         isGeneratingWaveform={isGeneratingWaveform || isAnalyzing}
         audioLoaded={audioLoaded}
+        onDatabaseLoadingComplete={handleDatabaseLoadingComplete}
       />
       
       {/* Track Actions (Download/Share buttons) */}

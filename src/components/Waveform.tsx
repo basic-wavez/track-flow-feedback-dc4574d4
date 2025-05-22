@@ -5,8 +5,8 @@ import WaveformContainer from './waveform/WaveformContainer';
 interface WaveformProps {
   audioUrl?: string;
   peaksDataUrl?: string;
-  trackId?: string; // Keep trackId prop
-  waveformData?: number[] | Float32Array; // Allow direct passing of waveform data
+  trackId?: string;
+  waveformData?: number[] | Float32Array;
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -18,6 +18,7 @@ interface WaveformProps {
   isOpusAvailable?: boolean;
   isGeneratingWaveform?: boolean;
   audioLoaded?: boolean;
+  onDatabaseLoadingComplete?: (success: boolean) => void;
 }
 
 const Waveform = (props: WaveformProps) => {
