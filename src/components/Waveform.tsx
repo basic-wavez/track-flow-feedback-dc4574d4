@@ -46,6 +46,7 @@ const Waveform = ({
   const [analysisAttempted, setAnalysisAttempted] = useState(false);
   const [analysisUrl, setAnalysisUrl] = useState<string | null>(null);
   const [isPeaksLoading, setIsPeaksLoading] = useState(false);
+  const [usingPrecomputedPeaks, setUsingPrecomputedPeaks] = useState(false);
   
   // Generate initial placeholder waveform immediately with more segments for detail
   useEffect(() => {
@@ -72,6 +73,7 @@ const Waveform = ({
           console.log('Using cached waveform peaks data');
           setWaveformData(parsedData);
           setIsWaveformGenerated(true);
+          setUsingPrecomputedPeaks(true);
           setIsPeaksLoading(false);
           return true;
         } catch (e) {
@@ -103,12 +105,14 @@ const Waveform = ({
         
         setWaveformData(peaksData);
         setIsWaveformGenerated(true);
+        setUsingPrecomputedPeaks(true);
         return true;
       } else {
         throw new Error('Invalid peaks data format');
       }
     } catch (error) {
       console.error('Error loading pre-computed peaks data:', error);
+      setUsingPrecomputedPeaks(false);
       return false;
     } finally {
       setIsPeaksLoading(false);
@@ -139,9 +143,14 @@ const Waveform = ({
   
   // Attempt to analyze waveform data when analysis URL is available and peaks data is not
   useEffect(() => {
+    // Skip analysis if we're using pre-computed peaks data
+    if (usingPrecomputedPeaks) {
+      console.log('Skipping waveform analysis since pre-computed peaks are being used');
+      return;
+    }
+    
     // Only proceed if we have a URL to analyze and haven't attempted analysis yet
-    // and don't have pre-computed peaks data
-    if (!analysisUrl || analysisAttempted || isWaveformGenerated || peaksDataUrl) return;
+    if (!analysisUrl || analysisAttempted || isWaveformGenerated) return;
     
     // Store the fact that we've attempted analysis
     setAnalysisAttempted(true);
@@ -176,7 +185,7 @@ const Waveform = ({
       .finally(() => {
         setIsAnalyzing(false);
       });
-  }, [analysisUrl, analysisAttempted, isWaveformGenerated, peaksDataUrl]);
+  }, [analysisUrl, analysisAttempted, isWaveformGenerated, usingPrecomputedPeaks]);
   
   // Reset analysis attempted flag when the URL changes significantly
   useEffect(() => {
@@ -217,6 +226,7 @@ const Waveform = ({
         analysisError={analysisError}
         isAudioLoading={!isAudioDurationValid && !analysisError}
         currentTime={currentTime}
+        usingPrecomputedPeaks={usingPrecomputedPeaks}
       />
     </div>
   );
