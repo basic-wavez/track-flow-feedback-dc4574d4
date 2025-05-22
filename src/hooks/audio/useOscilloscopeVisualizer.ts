@@ -1,4 +1,3 @@
-
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
 import { sharedFrameController } from './useAudioVisualizer';
@@ -30,7 +29,7 @@ export function useOscilloscopeVisualizer(
   const {
     lineColor = '#E7A2C8',
     lineWidth = 2,
-    backgroundColor = 'transparent',
+    backgroundColor = '#121212', // Updated to match player background
     sensitivity = 1.0,
     drawMode = 'line',
     dashPattern = [],
@@ -57,6 +56,7 @@ export function useOscilloscopeVisualizer(
 
   // Draw the oscilloscope frame
   const draw = () => {
+    // Only update what's needed - the backgroundColor in ctx.fillStyle
     if (!canvasRef.current || !audioContext.analyserNode || !dataArray.current) {
       return;
     }
@@ -88,9 +88,10 @@ export function useOscilloscopeVisualizer(
       canvasDimensions.current = { width, height };
     }
     
-    // Clear the canvas
-    ctx.fillStyle = backgroundColor;
+    // Clear the canvas with the updated background color
+    ctx.fillStyle = backgroundColor; // Now uses #121212
     ctx.fillRect(0, 0, width, height);
+    
     
     // Get time domain data
     const analyser = audioContext.analyserNode;
