@@ -139,22 +139,3 @@ export async function getTrackProcessingStatus(trackId: string) {
     return { mp3Status: 'unknown', opusStatus: 'unknown' };
   }
 }
-
-/**
- * Check if track processing is complete
- * @param trackId The ID of the track to check
- * @returns A promise that resolves to an object with processing completion status
- */
-export async function checkTrackProcessing(trackId: string): Promise<{ processingComplete: boolean, opusProcessingComplete: boolean }> {
-  try {
-    const { mp3Status, opusStatus } = await getTrackProcessingStatus(trackId);
-    
-    return {
-      processingComplete: mp3Status === 'completed',
-      opusProcessingComplete: opusStatus === 'completed'
-    };
-  } catch (error) {
-    console.error("Error checking if track processing is complete:", error);
-    return { processingComplete: false, opusProcessingComplete: false };
-  }
-}

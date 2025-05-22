@@ -26,15 +26,10 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement>) {
   
   // Track if the context has been initialized to prevent duplicate initialization
   const isInitializedRef = useRef(false);
-  // Track initialization attempts to prevent infinite retry loops
-  const initAttempts = useRef(0);
 
   // Initialize the audio context and nodes
   const initializeContext = () => {
-    if (isInitializedRef.current || !audioRef.current || initAttempts.current >= 2) return;
-    
-    // Increment attempt counter
-    initAttempts.current += 1;
+    if (isInitializedRef.current || !audioRef.current) return;
     
     try {
       console.log('Initializing audio context...');
@@ -44,8 +39,10 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement>) {
       console.log('Audio context created:', context.state);
       
       // Ensure the audio element has crossOrigin set
-      audioRef.current.crossOrigin = 'anonymous';
-      console.log('Set crossOrigin="anonymous" on audio element');
+      if (!audioRef.current.crossOrigin) {
+        audioRef.current.crossOrigin = 'anonymous';
+        console.log('Set crossOrigin="anonymous" on audio element');
+      }
       
       // Try to use the maximum FFT size allowed by the browser
       const maxPossibleFftSize = 32768;
@@ -64,15 +61,9 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement>) {
       analyser.maxDecibels = -30;
       console.log('Main analyser node created with enhanced settings');
       
-      // Create a source node from the audio element - this is where CORS errors often happen
-      let source: MediaElementAudioSourceNode;
-      try {
-        source = context.createMediaElementSource(audioRef.current);
-        console.log('Media element source created');
-      } catch (error) {
-        console.error('Failed to create media element source - likely CORS issue:', error);
-        throw error;
-      }
+      // Create a source node from the audio element
+      const source = context.createMediaElementSource(audioRef.current);
+      console.log('Media element source created');
       
       // Create a channel splitter for stereo analysis
       const splitter = context.createChannelSplitter(2);
@@ -124,12 +115,7 @@ export function useAudioContext(audioRef: React.RefObject<HTMLAudioElement>) {
       console.log('Audio context initialized successfully with enhanced FFT settings');
     } catch (err) {
       console.error('Failed to initialize audio context:', err);
-      setState(prev => ({ 
-        ...prev, 
-        error: err as Error,
-        // Important: Allow audio playback by connecting to destination even if visualizer fails
-        audioContext: prev.audioContext || new (window.AudioContext || (window as any).webkitAudioContext)()
-      }));
+      setState(prev => ({ ...prev, error: err as Error }));
     }
   };
 

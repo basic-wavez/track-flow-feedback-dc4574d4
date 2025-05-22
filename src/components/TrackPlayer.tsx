@@ -10,7 +10,6 @@ import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
 import AudioStatusIndicator from "./player/AudioStatusIndicator";
 import WaveformSection from "./player/WaveformSection";
 import PlaylistModeIndicator from "./player/PlaylistModeIndicator";
-import { useToast } from "@/components/ui/use-toast";
 
 interface TrackPlayerProps {
   trackId: string;
@@ -170,6 +169,8 @@ const TrackPlayer = ({
       contextTogglePlayPause();
       
       // Also update the local audio state
+      // The sync effect will handle the actual audio element changes
+      // But we still call localTogglePlayPause to update local state in sync
       localTogglePlayPause();
     } else {
       // Just use local toggle when not in playlist mode
@@ -207,24 +208,14 @@ const TrackPlayer = ({
   // Determine combined cooldown state
   const isCooldown = inCooldownPeriod || serverCooldown;
   
-  const { toast } = useToast();
-  
   return (
     <div className="w-full max-w-4xl mx-auto bg-wip-darker rounded-lg p-6 shadow-lg">
-      {/* Main audio element - adding crossOrigin attribute and error handling */}
+      {/* Main audio element - adding crossOrigin attribute */}
       <audio 
         ref={audioRef} 
         src={playbackUrl}
         preload="auto"
         crossOrigin="anonymous"
-        onError={(e) => {
-          console.error("Audio playback error:", e);
-          toast({
-            title: "Playback issue",
-            description: "There was a problem playing this track. This may be due to CORS restrictions.",
-            variant: "destructive",
-          });
-        }}
       />
       
       <TrackHeader 

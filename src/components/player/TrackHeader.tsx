@@ -19,7 +19,7 @@ interface TrackHeaderProps {
   isRequestingProcessing: boolean;
   onRequestProcessing: () => Promise<void>;
   isOwner?: boolean;
-  versionNumber?: number;
+  versionNumber?: number; // Added version number prop
 }
 
 const TrackHeader = ({
@@ -33,7 +33,7 @@ const TrackHeader = ({
   isRequestingProcessing,
   onRequestProcessing,
   isOwner = false,
-  versionNumber = 1
+  versionNumber = 1 // Default to version 1
 }: TrackHeaderProps) => {
   const [statusMode, setStatusMode] = useState<"wip" | "demo">("wip");
   const [isRenaming, setIsRenaming] = useState(false);
