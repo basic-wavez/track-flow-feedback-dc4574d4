@@ -15,22 +15,23 @@ export const useWaveformData = ({
   isGeneratingWaveform = false,
 }: UseWaveformDataProps) => {
   // State management
-  const [waveformData, setWaveformData] = useState<number[]>([]);
+  const [waveformData, setWaveformData] = useState<number[] | Float32Array>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isWaveformGenerated, setIsWaveformGenerated] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [analysisAttempted, setAnalysisAttempted] = useState(false);
-  const [analysisUrl, setAnalysisUrl] = useState<string | null>(null);
   const [isPeaksLoading, setIsPeaksLoading] = useState(false);
   const [usingPrecomputedPeaks, setUsingPrecomputedPeaks] = useState(false);
   
   // Use refs to track state between effects
   const peaksLoadedRef = useRef(false);
+  const analysisUrlRef = useRef<string | null>(null);
   
   // Generate initial placeholder waveform immediately
   useEffect(() => {
-    if (waveformData.length === 0) {
-      // Use enhanced generation with 250 segments and higher variance for more dynamics
+    if ((Array.isArray(waveformData) && waveformData.length === 0) || 
+        (waveformData instanceof Float32Array && waveformData.length === 0)) {
+      console.log('Generating initial placeholder waveform');
       const initialWaveformData = generateWaveformWithVariance(250, 0.6);
       setWaveformData(initialWaveformData);
     }
@@ -44,6 +45,7 @@ export const useWaveformData = ({
       setIsPeaksLoading(true);
       
       // Important: Mark that we're attempting analysis to prevent parallel analysis path
+      // Set this flag FIRST to make sure no race conditions occur
       setAnalysisAttempted(true);
       
       // Check browser storage cache first
@@ -55,7 +57,10 @@ export const useWaveformData = ({
           const parsedData = JSON.parse(cachedData);
           if (isValidPeaksData(parsedData)) {
             console.log('Using cached waveform peaks data - skipping analysis completely');
-            setWaveformData(parsedData);
+            
+            // Convert to Float32Array for direct rendering
+            const typedArray = Float32Array.from(parsedData);
+            setWaveformData(typedArray);
             setIsWaveformGenerated(true);
             setUsingPrecomputedPeaks(true);
             peaksLoadedRef.current = true;
@@ -83,6 +88,9 @@ export const useWaveformData = ({
       if (isValidPeaksData(peaksData)) {
         console.log('Successfully loaded pre-computed waveform peaks:', peaksData.length, 'points');
         
+        // Convert to Float32Array for direct rendering
+        const typedArray = Float32Array.from(peaksData);
+        
         // Cache the data for future use
         try {
           localStorage.setItem(cacheKey, JSON.stringify(peaksData));
@@ -90,7 +98,7 @@ export const useWaveformData = ({
           console.warn('Failed to cache waveform peaks data:', e);
         }
         
-        setWaveformData(peaksData);
+        setWaveformData(typedArray);
         setIsWaveformGenerated(true);
         setUsingPrecomputedPeaks(true);
         peaksLoadedRef.current = true;
@@ -109,36 +117,43 @@ export const useWaveformData = ({
   
   // First priority: Try to load pre-computed peaks data
   useEffect(() => {
-    if (peaksDataUrl && !isWaveformGenerated && !isAnalyzing && !isPeaksLoading && !peaksLoadedRef.current) {
-      console.log('Attempting to load peaks data from URL:', peaksDataUrl);
-      loadPeaksData(peaksDataUrl)
-        .then(success => {
-          if (!success && !analysisAttempted) {
-            console.log('Peaks data loading failed, will attempt audio analysis as fallback');
-            setAnalysisAttempted(false);
-          }
-        });
+    // Skip if we already have peaks or if we're already loading
+    if (peaksLoadedRef.current || !peaksDataUrl || isWaveformGenerated || isAnalyzing || isPeaksLoading) {
+      return;
     }
+    
+    console.log('Attempting to load peaks data from URL:', peaksDataUrl);
+    loadPeaksData(peaksDataUrl)
+      .then(success => {
+        if (!success && !analysisAttempted) {
+          console.log('Peaks data loading failed, will attempt audio analysis as fallback');
+          setAnalysisAttempted(false);
+        }
+      });
   }, [peaksDataUrl, isWaveformGenerated, isAnalyzing, isPeaksLoading, loadPeaksData, analysisAttempted]);
   
   // Track analysis URL for debugging
   useEffect(() => {
     if (waveformAnalysisUrl) {
       console.log('Waveform analysis URL set to:', waveformAnalysisUrl);
-      setAnalysisUrl(waveformAnalysisUrl);
+      analysisUrlRef.current = waveformAnalysisUrl;
     }
   }, [waveformAnalysisUrl]);
   
   // Fallback: Analyze waveform data only if peaks loading failed and we have a URL
   useEffect(() => {
-    // Skip analysis if we're using pre-computed peaks data
-    if (peaksLoadedRef.current || usingPrecomputedPeaks) {
-      console.log('Skipping waveform analysis since pre-computed peaks are being used');
-      return;
-    }
-    
-    // Only proceed if we have a URL to analyze and haven't attempted analysis yet
-    if (!analysisUrl || analysisAttempted || isWaveformGenerated) {
+    // Skip analysis if:
+    // 1. We're using pre-computed peaks data
+    // 2. We don't have a URL to analyze
+    // 3. We've already attempted analysis
+    // 4. We've already generated the waveform
+    // 5. We're already analyzing
+    if (peaksLoadedRef.current || 
+        usingPrecomputedPeaks || 
+        !analysisUrlRef.current || 
+        analysisAttempted || 
+        isWaveformGenerated || 
+        isAnalyzing) {
       return;
     }
     
@@ -148,16 +163,19 @@ export const useWaveformData = ({
     // Use higher segment count for more detailed visualization
     const segments = 250;
     
-    console.log('Starting waveform analysis from URL:', analysisUrl);
+    console.log('Starting waveform analysis from URL:', analysisUrlRef.current);
     setIsAnalyzing(true);
     setAnalysisError(null);
     
     // Attempt to analyze the audio file with enhanced dynamics
-    analyzeAudio(analysisUrl, segments)
+    analyzeAudio(analysisUrlRef.current, segments)
       .then(analyzedData => {
         if (analyzedData && analyzedData.length > 0) {
           console.log('Successfully analyzed waveform data:', analyzedData.length, 'segments');
-          setWaveformData(analyzedData);
+          
+          // Store as Float32Array for consistent rendering
+          const typedArray = Float32Array.from(analyzedData);
+          setWaveformData(typedArray);
           setIsWaveformGenerated(true);
         } else {
           throw new Error("No waveform data generated from analysis");
@@ -175,16 +193,16 @@ export const useWaveformData = ({
       .finally(() => {
         setIsAnalyzing(false);
       });
-  }, [analysisUrl, analysisAttempted, isWaveformGenerated, usingPrecomputedPeaks]);
+  }, [analysisAttempted, isWaveformGenerated, usingPrecomputedPeaks, isAnalyzing]);
   
   // Reset analysis attempted flag when the URL changes significantly
   useEffect(() => {
-    if (waveformAnalysisUrl && waveformAnalysisUrl !== analysisUrl && !peaksLoadedRef.current) {
+    if (waveformAnalysisUrl && waveformAnalysisUrl !== analysisUrlRef.current && !peaksLoadedRef.current) {
       console.log('Waveform analysis URL changed, resetting analysis state');
       setAnalysisAttempted(false);
-      setAnalysisUrl(waveformAnalysisUrl);
+      analysisUrlRef.current = waveformAnalysisUrl;
     }
-  }, [waveformAnalysisUrl, analysisUrl]);
+  }, [waveformAnalysisUrl]);
 
   return {
     waveformData,

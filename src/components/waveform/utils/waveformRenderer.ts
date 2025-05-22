@@ -11,7 +11,7 @@ import { drawPulseEffects, drawPlayhead } from './waveformEffects';
  */
 export const renderWaveform = (
   ctx: CanvasRenderingContext2D,
-  waveformData: number[],
+  waveformData: number[] | Float32Array, // Updated to support Float32Array
   width: number,
   height: number,
   progressPixel: number,
@@ -20,7 +20,9 @@ export const renderWaveform = (
   isMp3Available: boolean
 ) => {
   // Only proceed if we have valid waveform data
-  if (!waveformData || waveformData.length === 0) {
+  if (!waveformData || 
+      (Array.isArray(waveformData) && waveformData.length === 0) ||
+      (waveformData instanceof Float32Array && waveformData.length === 0)) {
     console.warn('No waveform data provided to renderer');
     return;
   }

@@ -4,7 +4,7 @@ import { renderWaveform } from '../utils/waveformRenderer';
 
 interface UseWaveformRendererProps {
   canvasRef: RefObject<HTMLCanvasElement>;
-  waveformData: number[];
+  waveformData: number[] | Float32Array; // Updated to support Float32Array
   currentTime: number;
   duration: number;
   isPlaying: boolean;
@@ -23,7 +23,9 @@ export const useWaveformRenderer = ({
 }: UseWaveformRendererProps) => {
   useEffect(() => {
     // Skip rendering if we have no waveform data
-    if (!waveformData || waveformData.length === 0) {
+    if (!waveformData || 
+        (Array.isArray(waveformData) && waveformData.length === 0) || 
+        (waveformData instanceof Float32Array && waveformData.length === 0)) {
       return;
     }
     

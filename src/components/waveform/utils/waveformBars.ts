@@ -8,7 +8,7 @@
  */
 export const drawWaveformBars = (
   ctx: CanvasRenderingContext2D,
-  waveformData: number[],
+  waveformData: number[] | Float32Array, // Updated to support Float32Array
   width: number,
   height: number,
   progressPixel: number,
