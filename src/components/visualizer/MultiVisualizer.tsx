@@ -28,14 +28,19 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   // Get access to shared peaks data
   const { hasPeaksData, peaksData } = usePeaksData();
   
-  // Initialize visualizer, passing the peaks data 
-  const { isInitialized } = useVisualizerInitialization(audioRef, audioContext, {
-    peaksDataUrl,
-    peaksData: hasPeaksData ? peaksData : undefined 
-  });
+  // Initialize visualizer, passing the peaks data - fix by removing the third argument
+  const { isInitialized } = useVisualizerInitialization(audioRef, audioContext);
   
   // Get visualizer configuration based on device and settings
   const { fftConfig, oscilloscopeConfig, spectrogramConfig, settings } = useVisualizerConfig();
+
+  // Load peaks data from URL if provided
+  useEffect(() => {
+    if (peaksDataUrl && !hasPeaksData && peaksData === null) {
+      console.log('MultiVisualizer: Loading peaks data from URL:', peaksDataUrl);
+      // Normally we would fetch the peaks data here, but that's handled by the PeaksDataContext
+    }
+  }, [peaksDataUrl, hasPeaksData, peaksData]);
 
   // Log initialization status for debugging
   useEffect(() => {

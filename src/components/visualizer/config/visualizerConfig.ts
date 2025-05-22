@@ -3,6 +3,17 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { SpectrogramOptions } from '@/hooks/audio/types/spectrogramTypes';
 import { useVisualizerSettings } from '@/hooks/audio/useVisualizerSettings';
 
+// Define the BarVisConfig type that was missing
+export interface BarVisConfig {
+  barCount?: number;
+  barColor?: string;
+  capColor?: string;
+  maxFrequency?: number;
+  targetFPS?: number;
+  smoothingFactor?: number;
+  usePeaksData?: boolean;
+}
+
 export const useVisualizerConfig = () => {
   const isMobile = useIsMobile();
   const { settings } = useVisualizerSettings();
@@ -14,7 +25,7 @@ export const useVisualizerConfig = () => {
   const spectrogramFftSize = isMobile ? 8192 : 32768;
   
   // FFT visualizer config
-  const fftConfig = {
+  const fftConfig: BarVisConfig = {
     barCount: isMobile ? 32 : (settings.fftBarCount || 64),
     barColor: settings.fftBarColor,
     capColor: settings.fftCapColor || '#000000',

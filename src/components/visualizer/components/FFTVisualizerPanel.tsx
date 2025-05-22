@@ -38,6 +38,8 @@ const FFTVisualizerPanel: React.FC<FFTVisualizerPanelProps> = ({
   return (
     <VisualizerPanel
       title="Spectrum Analyzer"
+      type="FFT Visualizer"
+      enabled={enabled}
       active={isActive && audioContext.isInitialized}
       loading={!audioContext.isInitialized}
       error={audioContext.error}
