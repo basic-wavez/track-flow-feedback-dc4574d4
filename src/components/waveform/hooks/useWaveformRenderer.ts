@@ -22,9 +22,14 @@ export const useWaveformRenderer = ({
   isMp3Available
 }: UseWaveformRendererProps) => {
   useEffect(() => {
+    // Skip rendering if we have no waveform data
+    if (!waveformData || waveformData.length === 0) {
+      return;
+    }
+    
     const drawWaveform = () => {
       const canvas = canvasRef.current;
-      if (!canvas || waveformData.length === 0) return;
+      if (!canvas) return;
       
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
@@ -37,7 +42,7 @@ export const useWaveformRenderer = ({
       const progress = isValidDuration ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
       const progressPixel = width * progress;
       
-      // Use our unified renderer function
+      // Use our unified renderer function with the provided waveform data
       renderWaveform(
         ctx, 
         waveformData, 

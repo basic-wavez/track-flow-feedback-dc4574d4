@@ -19,6 +19,12 @@ export const renderWaveform = (
   isBuffering: boolean,
   isMp3Available: boolean
 ) => {
+  // Only proceed if we have valid waveform data
+  if (!waveformData || waveformData.length === 0) {
+    console.warn('No waveform data provided to renderer');
+    return;
+  }
+
   // Clear the canvas
   ctx.clearRect(0, 0, width, height);
   
