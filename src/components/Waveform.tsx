@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { analyzeAudio } from '@/lib/audioUtils';
 import { generateWaveformWithVariance } from '@/lib/waveformUtils';
 import WaveformLoader from './waveform/WaveformLoader';
@@ -8,7 +8,7 @@ import WaveformStatus from './waveform/WaveformStatus';
 
 interface WaveformProps {
   audioUrl?: string;
-  waveformAnalysisUrl?: string; // URL specifically for waveform analysis
+  waveformAnalysisUrl?: string;
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -20,12 +20,12 @@ interface WaveformProps {
   isOpusAvailable?: boolean;
   isGeneratingWaveform?: boolean;
   audioLoaded?: boolean;
-  waveformJsonUrl?: string; // New: URL to pre-computed waveform data JSON
+  waveformJsonUrl?: string;
 }
 
 const Waveform = ({ 
   audioUrl, 
-  waveformAnalysisUrl, // Use dedicated analysis URL if available
+  waveformAnalysisUrl,
   isPlaying, 
   currentTime, 
   duration, 
@@ -37,7 +37,7 @@ const Waveform = ({
   isOpusAvailable = false,
   isGeneratingWaveform = false,
   audioLoaded = false,
-  waveformJsonUrl // New: pre-computed waveform JSON URL
+  waveformJsonUrl
 }: WaveformProps) => {
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -46,6 +46,9 @@ const Waveform = ({
   const [analysisAttempted, setAnalysisAttempted] = useState(false);
   const [analysisUrl, setAnalysisUrl] = useState<string | null>(null);
   const [isLoadingWaveformJson, setIsLoadingWaveformJson] = useState(false);
+  
+  // Ref to track if we've already attempted to load precomputed waveform
+  const precomputedLoadAttemptedRef = useRef(false);
   
   // Generate initial placeholder waveform immediately with more segments for detail
   useEffect(() => {
@@ -56,13 +59,39 @@ const Waveform = ({
     }
   }, []);
   
-  // New: Try to fetch pre-computed waveform data first
+  // Create a cache key based on the URL
+  const createCacheKey = useCallback((url: string) => {
+    return `waveform:${url.split('?')[0]}`; // Remove any query params for more reliable caching
+  }, []);
+  
+  // Try to fetch pre-computed waveform data
   const fetchWaveformJson = useCallback(async (url: string) => {
+    if (!url) return false;
+    
     setIsLoadingWaveformJson(true);
+    const cacheKey = createCacheKey(url);
+    
     try {
       console.log('Fetching pre-computed waveform data from:', url);
       
-      // Fetch with cache headers
+      // Try to get from localStorage first
+      try {
+        const cachedWaveform = localStorage.getItem(cacheKey);
+        if (cachedWaveform) {
+          console.log('Using cached waveform data from localStorage');
+          const waveformJson = JSON.parse(cachedWaveform);
+          if (waveformJson && Array.isArray(waveformJson) && waveformJson.length > 0) {
+            setWaveformData(waveformJson);
+            setIsWaveformGenerated(true);
+            setIsLoadingWaveformJson(false);
+            return true;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to read from localStorage:', err);
+      }
+      
+      // Fetch with cache headers and disable cache busting
       const response = await fetch(url, { 
         headers: { 'Cache-Control': 'max-age=31536000' },
         cache: 'force-cache'
@@ -74,14 +103,19 @@ const Waveform = ({
       
       const waveformJson = await response.json();
       
+      if (!Array.isArray(waveformJson) || waveformJson.length === 0) {
+        throw new Error('Invalid waveform data format');
+      }
+      
       // Store in localStorage for faster future loads
       try {
-        localStorage.setItem(`waveform:${url}`, JSON.stringify(waveformJson));
+        localStorage.setItem(cacheKey, JSON.stringify(waveformJson));
+        console.log('Saved waveform data to localStorage with key:', cacheKey);
       } catch (err) {
         console.warn('Failed to cache waveform data in localStorage:', err);
       }
       
-      console.log('Successfully loaded pre-computed waveform data:', waveformJson.length);
+      console.log('Successfully loaded pre-computed waveform data:', waveformJson.length, 'points');
       setWaveformData(waveformJson);
       setIsWaveformGenerated(true);
       return true;
@@ -91,52 +125,53 @@ const Waveform = ({
     } finally {
       setIsLoadingWaveformJson(false);
     }
-  }, []);
+  }, [createCacheKey]);
   
-  // Try to load waveform from pre-computed JSON first
+  // FIRST PRIORITY: Try to load waveform from pre-computed JSON
+  // This effect runs first and has priority over analysis
   useEffect(() => {
-    if (!waveformJsonUrl || isWaveformGenerated) return;
+    // Skip if already generated or already attempted
+    if (!waveformJsonUrl || isWaveformGenerated || precomputedLoadAttemptedRef.current) return;
     
-    // Check localStorage cache first
-    try {
-      const cachedWaveform = localStorage.getItem(`waveform:${waveformJsonUrl}`);
-      if (cachedWaveform) {
-        console.log('Using cached waveform data from localStorage');
-        const waveformJson = JSON.parse(cachedWaveform);
-        setWaveformData(waveformJson);
-        setIsWaveformGenerated(true);
-        return;
-      }
-    } catch (err) {
-      console.warn('Failed to read from localStorage:', err);
-    }
+    console.log('Attempting to load pre-computed waveform data:', waveformJsonUrl);
+    precomputedLoadAttemptedRef.current = true;
     
-    // If not in cache, fetch from server
     fetchWaveformJson(waveformJsonUrl)
       .then(success => {
-        // If we couldn't fetch the JSON, fall back to analysis
-        if (!success) {
-          setAnalysisAttempted(false); // Allow normal analysis to proceed
+        if (success) {
+          console.log('Successfully loaded pre-computed waveform data');
+          // Explicitly prevent analysis if we successfully loaded JSON
+          setAnalysisAttempted(true);
+        } else {
+          console.log('Failed to load pre-computed waveform, will fall back to analysis');
+          // Allow fallback to analysis by NOT marking analysis as attempted
         }
       });
   }, [waveformJsonUrl, fetchWaveformJson, isWaveformGenerated]);
   
-  // Log which URL we're using for analysis to help with debugging
+  // Set analysis URL from waveformAnalysisUrl prop
   useEffect(() => {
-    if (waveformAnalysisUrl) {
-      console.log('Waveform analysis URL set to:', waveformAnalysisUrl);
+    if (waveformAnalysisUrl && !analysisUrl) {
+      console.log('Setting waveform analysis URL to:', waveformAnalysisUrl);
       setAnalysisUrl(waveformAnalysisUrl);
     }
-  }, [waveformAnalysisUrl]);
+  }, [waveformAnalysisUrl, analysisUrl]);
   
-  // Attempt to analyze waveform data when analysis URL is available
-  // and we couldn't load it from pre-computed JSON
+  // SECOND PRIORITY: Fall back to audio analysis if pre-computed data loading failed
   useEffect(() => {
-    // Only proceed if we have a URL to analyze, haven't attempted analysis yet,
-    // and don't have pre-computed waveform data
-    if (!analysisUrl || analysisAttempted || isWaveformGenerated || isLoadingWaveformJson) return;
+    // Only proceed if:
+    // 1. We have an analysis URL
+    // 2. We haven't attempted analysis yet
+    // 3. We haven't successfully generated a waveform (either from pre-computed or analysis)
+    // 4. We're not currently loading pre-computed data
+    if (!analysisUrl || 
+        analysisAttempted || 
+        isWaveformGenerated || 
+        isLoadingWaveformJson) {
+      return;
+    }
     
-    // Store the fact that we've attempted analysis
+    // Mark that we've attempted analysis
     setAnalysisAttempted(true);
     
     // Use higher segment count for more detailed visualization
@@ -164,19 +199,19 @@ const Waveform = ({
         // Fall back to generated data with higher variance for more realistic appearance
         const fallbackData = generateWaveformWithVariance(segments, 0.6);
         setWaveformData(fallbackData);
-        setIsWaveformGenerated(true);
       })
       .finally(() => {
         setIsAnalyzing(false);
       });
   }, [analysisUrl, analysisAttempted, isWaveformGenerated, isLoadingWaveformJson]);
   
-  // Reset analysis attempted flag when the URL changes significantly
+  // Reset analysis flags when URL changes significantly
   useEffect(() => {
     if (waveformAnalysisUrl && waveformAnalysisUrl !== analysisUrl) {
       console.log('Waveform analysis URL changed, resetting analysis state');
       setAnalysisAttempted(false);
       setAnalysisUrl(waveformAnalysisUrl);
+      precomputedLoadAttemptedRef.current = false;
     }
   }, [waveformAnalysisUrl, analysisUrl]);
   

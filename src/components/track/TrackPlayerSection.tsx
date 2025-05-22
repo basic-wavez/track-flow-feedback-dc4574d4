@@ -35,6 +35,15 @@ const TrackPlayerSection = ({
   const [processingStatus, setProcessingStatus] = useState(trackData.processing_status || "pending");
   const [opusProcessingStatus, setOpusProcessingStatus] = useState(trackData.opus_processing_status || "pending");
   
+  // Log waveform json url availability for debugging
+  useEffect(() => {
+    if (trackData.waveform_json_url) {
+      console.log(`Track ${trackData.id} has pre-computed waveform data: ${trackData.waveform_json_url}`);
+    } else {
+      console.log(`Track ${trackData.id} does not have pre-computed waveform data`);
+    }
+  }, [trackData.id, trackData.waveform_json_url]);
+  
   // Determine if track is being processed
   const isProcessing = processingStatus === "processing" || processingStatus === "pending";
   const isOpusProcessing = opusProcessingStatus === "processing" || opusProcessingStatus === "pending";

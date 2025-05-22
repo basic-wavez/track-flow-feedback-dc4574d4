@@ -30,7 +30,7 @@ interface WaveformSectionProps {
   trackVersions?: any[];
   trackTitle?: string;
   isPlaylistMode?: boolean;
-  waveformJsonUrl?: string; // Add waveformJsonUrl prop
+  waveformJsonUrl?: string;
 }
 
 const WaveformSection: React.FC<WaveformSectionProps> = ({
@@ -58,10 +58,15 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   trackVersions = [],
   trackTitle = "",
   isPlaylistMode = false,
-  waveformJsonUrl  // Pass through the waveformJsonUrl prop
+  waveformJsonUrl
 }) => {
   // Check if we're on mobile
   const isMobile = useIsMobile();
+  
+  // Log waveformJsonUrl for debugging
+  if (waveformJsonUrl) {
+    console.log(`WaveformSection: Using pre-computed waveform data from ${waveformJsonUrl}`);
+  }
   
   return (
     <div className="flex flex-col space-y-4">
@@ -80,7 +85,7 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
         isOpusAvailable={usingOpus}
         isGeneratingWaveform={isGeneratingWaveform}
         audioLoaded={audioLoaded}
-        waveformJsonUrl={waveformJsonUrl} // Pass the waveformJsonUrl prop
+        waveformJsonUrl={waveformJsonUrl}
       />
       
       {/* Track Actions (Download/Share buttons) */}
