@@ -32,7 +32,7 @@ const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({
 
   return (
     <VisualizerPanel width="w-full" enabled={enabled} type="Oscilloscope">
-      <VisualizerCanvas ref={oscilloscopeCanvasRef} className="bg-wip-darker" />
+      <VisualizerCanvas ref={oscilloscopeCanvasRef} className="bg-black" />
     </VisualizerPanel>
   );
 };

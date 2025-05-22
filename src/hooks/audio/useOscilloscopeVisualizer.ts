@@ -30,7 +30,7 @@ export function useOscilloscopeVisualizer(
   const {
     lineColor = '#E7A2C8',
     lineWidth = 2,
-    backgroundColor = '#1A1A1A', // Updated to #1A1A1A
+    backgroundColor = 'transparent',
     sensitivity = 1.0,
     drawMode = 'line',
     dashPattern = [],
@@ -57,7 +57,6 @@ export function useOscilloscopeVisualizer(
 
   // Draw the oscilloscope frame
   const draw = () => {
-    // Only update what's needed - the backgroundColor in ctx.fillStyle
     if (!canvasRef.current || !audioContext.analyserNode || !dataArray.current) {
       return;
     }
@@ -89,10 +88,9 @@ export function useOscilloscopeVisualizer(
       canvasDimensions.current = { width, height };
     }
     
-    // Clear the canvas with the updated background color
-    ctx.fillStyle = backgroundColor; // Now uses #1A1A1A
+    // Clear the canvas
+    ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, width, height);
-    
     
     // Get time domain data
     const analyser = audioContext.analyserNode;
