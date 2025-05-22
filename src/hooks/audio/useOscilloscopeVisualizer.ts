@@ -26,15 +26,15 @@ export function useOscilloscopeVisualizer(
   const canvasDimensions = useRef({ width: 0, height: 0 });
   const lastDrawTime = useRef(0);
 
-  // Default options
+  // Default options - making sure to use #E7A2C8 (pink) as the default color
   const {
-    lineColor = '#E7A2C8', // Changed default color to match the setting color
+    lineColor = '#E7A2C8',
     lineWidth = 2,
     backgroundColor = 'transparent',
     sensitivity = 1.0,
     drawMode = 'line',
     dashPattern = [],
-    fillColor = 'rgba(231, 162, 200, 0.1)', // Changed to match lineColor
+    fillColor = 'rgba(231, 162, 200, 0.1)', // Semi-transparent pink that matches lineColor
     fillOpacity = 0.2,
     invertY = false,
     targetFPS = 30
@@ -111,7 +111,7 @@ export function useOscilloscopeVisualizer(
     if (drawMode === 'line') {
       // Standard line drawing - optimized
       ctx.lineWidth = lineWidth;
-      ctx.strokeStyle = lineColor;
+      ctx.strokeStyle = lineColor; // Make sure to use the pink color
       ctx.beginPath();
       
       // Reduce the number of points we draw for better performance
@@ -134,7 +134,7 @@ export function useOscilloscopeVisualizer(
       ctx.stroke();
       
       // Fill below the line if fillColor is provided
-      if (fillColor !== 'transparent') {
+      if (fillColor !== 'transparent' && fillOpacity > 0) {
         ctx.lineTo(width, height);
         ctx.lineTo(0, height);
         ctx.closePath();
@@ -146,7 +146,7 @@ export function useOscilloscopeVisualizer(
       
     } else if (drawMode === 'dots') {
       // Draw dots for each sample - optimized to draw fewer points
-      ctx.fillStyle = lineColor;
+      ctx.fillStyle = lineColor; // Make sure to use the pink color
       
       // Draw fewer dots for better performance
       const skipPoints = Math.max(2, Math.floor(dataArray.current.length / 100));
@@ -165,7 +165,7 @@ export function useOscilloscopeVisualizer(
       
     } else if (drawMode === 'bars') {
       // Draw vertical bars - optimized
-      ctx.fillStyle = lineColor;
+      ctx.fillStyle = lineColor; // Make sure to use the pink color
       
       // Draw fewer bars for better performance
       const skipPoints = Math.max(4, Math.floor(dataArray.current.length / 75));

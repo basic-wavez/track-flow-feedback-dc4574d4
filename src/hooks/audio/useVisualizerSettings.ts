@@ -63,13 +63,13 @@ const defaultSettings: VisualizerSettings = {
   fftSmoothingFactor: 0.7, // New default smoothing factor for EMA
   
   // Oscilloscope settings
-  oscilloscopeColor: '#E7A2C8', // Changed from #7DE3FF to #E7A2C8 (pink)
+  oscilloscopeColor: '#E7A2C8', // Pink color as requested
   oscilloscopeSensitivity: 1.5, 
   oscilloscopeLineWidth: 2,
   oscilloscopeBackgroundColor: '#000000',
   oscilloscopeDrawMode: 'line',
   oscilloscopeDashPattern: [], // Empty array for solid lines
-  oscilloscopeFillColor: '#00FF00',
+  oscilloscopeFillColor: 'rgba(231, 162, 200, 0.1)', // Match the line color with transparency
   oscilloscopeFillOpacity: 0.0,
   oscilloscopeInvertY: false,
   
