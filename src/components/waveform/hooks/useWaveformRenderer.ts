@@ -1,10 +1,6 @@
 
 import { useEffect, RefObject } from 'react';
-import { 
-  drawWaveformBars, 
-  drawPulseEffects, 
-  drawPlayhead 
-} from '../utils/waveformDrawing';
+import { renderWaveform } from '../utils/waveformRenderer';
 
 interface UseWaveformRendererProps {
   canvasRef: RefObject<HTMLCanvasElement>;
@@ -36,22 +32,22 @@ export const useWaveformRenderer = ({
       const width = canvas.width;
       const height = canvas.height;
       
-      // Clear the canvas
-      ctx.clearRect(0, 0, width, height);
-      
       // Calculate the progress position
       const isValidDuration = isFinite(duration) && duration > 0;
       const progress = isValidDuration ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
       const progressPixel = width * progress;
       
-      // Draw the waveform bars
-      drawWaveformBars(ctx, waveformData, width, height, progressPixel, isMp3Available);
-      
-      // Draw pulse effects
-      drawPulseEffects(ctx, waveformData, width, height, progressPixel, isPlaying, isBuffering);
-      
-      // Draw playhead and buffering indicator
-      drawPlayhead(ctx, width, height, progressPixel, isBuffering);
+      // Use our unified renderer function
+      renderWaveform(
+        ctx, 
+        waveformData, 
+        width, 
+        height, 
+        progressPixel, 
+        isPlaying, 
+        isBuffering, 
+        isMp3Available
+      );
     };
     
     // Draw the waveform
