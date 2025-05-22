@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getPlaylistByShareKey } from "@/services/playlistShareService";
 import { Button } from "@/components/ui/button";
@@ -17,15 +17,22 @@ const PlaylistSharedView = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [playlist, setPlaylistData] = useState<PlaylistWithTracks | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const initialFetchCompleteRef = useRef(false);
 
   useEffect(() => {
     const fetchPlaylist = async () => {
+      // Skip fetch if already completed
+      if (initialFetchCompleteRef.current || !shareKey) return;
+      
       try {
+        console.log("PlaylistSharedView: Fetching playlist data");
         setIsLoading(true);
-        const data = await getPlaylistByShareKey(shareKey || "");
+        initialFetchCompleteRef.current = true; // Mark as initialized
+        
+        const data = await getPlaylistByShareKey(shareKey);
         setPlaylistData(data);
         
-        // Automatically redirect to the player view
+        // Set playlist data in context and navigate to player view
         if (data) {
           setPlaylist(data);
           navigate(`/shared/playlist/${shareKey}/play`);
@@ -33,14 +40,13 @@ const PlaylistSharedView = () => {
       } catch (err) {
         console.error("Error fetching shared playlist:", err);
         setError("Failed to load the shared playlist.");
+        initialFetchCompleteRef.current = false; // Reset on error
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (shareKey) {
-      fetchPlaylist();
-    }
+    fetchPlaylist();
   }, [shareKey, navigate, setPlaylist]);
 
   if (isLoading) {

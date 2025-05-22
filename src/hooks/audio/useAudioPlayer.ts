@@ -29,6 +29,7 @@ export function useAudioPlayer({
   
   // Store visibility-related state
   const wasPlayingBeforeHideRef = useRef(false);
+  const playCountInProgressRef = useRef(false);
   
   // Get location to check if we're in a shared route
   const location = useLocation();
@@ -79,10 +80,17 @@ export function useAudioPlayer({
           setIsPlaying(true);
           setPlaybackState('playing');
           
-          // Only track plays if user is logged in or if we're not on a shared route
-          if (user || isSharedRoute) {
+          // Only track plays if user is logged in or if we're on a shared route
+          // And avoid duplicate tracking calls
+          if ((user || isSharedRoute) && !playCountInProgressRef.current) {
             // Start tracking play time for this track
-            startPlayTracking(trackId || null, shareKey || null);
+            playCountInProgressRef.current = true;
+            startPlayTracking(trackId || null, shareKey || null)
+              .catch(error => {
+                // Log error but don't break playback
+                console.error('Error starting play tracking:', error);
+                playCountInProgressRef.current = false;
+              });
           }
         })
         .catch(error => {
@@ -104,22 +112,24 @@ export function useAudioPlayer({
       setPlaybackState('paused');
       
       // Only end tracking when user is authenticated or we're on a shared route
-      if (user || isSharedRoute) {
+      if ((user || isSharedRoute) && playCountInProgressRef.current) {
         // Only end tracking when pausing if we've played for some time
         // This avoids unnecessary calls when rapidly toggling play/pause
         if (audio.currentTime > 2) {
           endPlayTracking()
             .then(incremented => {
+              playCountInProgressRef.current = false;
               if (incremented) {
                 console.log("Play count incremented successfully");
-                // We could dispatch an event or update some state here if needed
               }
             })
             .catch(error => {
               console.error("Error handling play count:", error);
+              playCountInProgressRef.current = false;
             });
         } else {
           cancelPlayTracking();
+          playCountInProgressRef.current = false;
         }
       }
     }
@@ -128,16 +138,19 @@ export function useAudioPlayer({
   // Handle reaching the end of the track
   const handleTrackEnd = () => {
     // Only track plays if user is logged in or if we're on a shared route
-    if (user || isSharedRoute) {
+    // And if tracking is in progress
+    if ((user || isSharedRoute) && playCountInProgressRef.current) {
       // Track has finished playing naturally, check if we should increment
       endPlayTracking()
         .then(incremented => {
+          playCountInProgressRef.current = false;
           if (incremented) {
             console.log("Play count incremented after track finished");
           }
         })
         .catch(error => {
           console.error("Error handling play count at track end:", error);
+          playCountInProgressRef.current = false;
         });
     }
   };

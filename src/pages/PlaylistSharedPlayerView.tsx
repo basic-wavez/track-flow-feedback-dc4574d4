@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { usePlaylistPlayer } from "@/context/PlaylistPlayerContext";
@@ -22,6 +23,8 @@ const PlaylistSharedPlayerView = () => {
     isPlaying: contextIsPlaying
   } = usePlaylistPlayer();
   
+  // Use refs to track initialization state and prevent redundant fetches
+  const initialLoadRef = useRef(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const [isLoadingTrack, setIsLoadingTrack] = useState(false);
   const [trackAudioUrl, setTrackAudioUrl] = useState<string | undefined>();
@@ -30,18 +33,29 @@ const PlaylistSharedPlayerView = () => {
   const [playlistData, setPlaylistData] = useState<PlaylistWithTracks | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  // Fetch the playlist data by share key
+  // Fetch the playlist data by share key - optimized to prevent unnecessary fetches
   useEffect(() => {
     const fetchPlaylist = async () => {
+      // Skip fetch if already loaded or initializing
+      if (initialLoadRef.current || !shareKey) return;
+      
       try {
+        console.log("PlaylistSharedPlayerView: Fetching playlist data");
+        initialLoadRef.current = true; // Mark as initializing
         setIsLoadingPlaylist(true);
-        const data = await getPlaylistByShareKey(shareKey || "");
-        setPlaylistData(data);
         
-        // Set the playlist only on initial load
-        if (data && initialLoad) {
-          setPlaylist(data);
-          setInitialLoad(false);
+        const data = await getPlaylistByShareKey(shareKey);
+        
+        // Only update state if we have data
+        if (data) {
+          setPlaylistData(data);
+          
+          // Set the playlist only on initial load
+          if (initialLoad) {
+            console.log("PlaylistSharedPlayerView: Setting initial playlist data");
+            setPlaylist(data);
+            setInitialLoad(false);
+          }
         }
       } catch (err) {
         console.error("Error fetching shared playlist:", err);
@@ -51,44 +65,48 @@ const PlaylistSharedPlayerView = () => {
       }
     };
 
-    if (shareKey) {
-      fetchPlaylist();
-    }
+    fetchPlaylist();
+    
+    // Cleanup function to handle component unmount properly
+    return () => {
+      console.log("PlaylistSharedPlayerView: Cleanup");
+    };
   }, [shareKey, initialLoad, setPlaylist]);
 
   // Load detailed track data when current track changes
   useEffect(() => {
     const loadTrackData = async () => {
-      if (currentTrack?.track_id) {
-        setIsLoadingTrack(true);
-        try {
-          const trackData = await getTrack(currentTrack.track_id);
-          if (trackData) {
-            // Use the best available URL - prefer mp3, then opus, then compressed, then original
-            const audioUrl = trackData.mp3_url || 
-                            trackData.opus_url || 
-                            trackData.compressed_url || 
-                            trackData.original_url;
-            
-            // Set the waveform URL - prefer mp3, then compressed
-            const waveformAnalysisUrl = trackData.mp3_url || trackData.compressed_url;
-            
-            setTrackAudioUrl(audioUrl);
-            setWaveformUrl(waveformAnalysisUrl);
-          }
-        } catch (error) {
-          console.error("Error loading track data:", error);
-        } finally {
-          setIsLoadingTrack(false);
+      if (!currentTrack?.track_id) return;
+      
+      setIsLoadingTrack(true);
+      try {
+        console.log("PlaylistSharedPlayerView: Loading track data for", currentTrack.track_id);
+        const trackData = await getTrack(currentTrack.track_id);
+        if (trackData) {
+          // Use the best available URL - prefer mp3, then opus, then compressed, then original
+          const audioUrl = trackData.mp3_url || 
+                          trackData.opus_url || 
+                          trackData.compressed_url || 
+                          trackData.original_url;
+          
+          // Set the waveform URL - prefer mp3, then compressed
+          const waveformAnalysisUrl = trackData.mp3_url || trackData.compressed_url;
+          
+          setTrackAudioUrl(audioUrl);
+          setWaveformUrl(waveformAnalysisUrl);
         }
+      } catch (error) {
+        console.error("Error loading track data:", error);
+      } finally {
+        setIsLoadingTrack(false);
       }
     };
     
     loadTrackData();
-  }, [currentTrack]);
+  }, [currentTrack?.track_id]); // Only depend on track ID, not the entire track object
 
   // Handle loading and error states
-  if (isLoadingPlaylist) {
+  if (isLoadingPlaylist && !playlistData) {
     return (
       <>
         <Header />
