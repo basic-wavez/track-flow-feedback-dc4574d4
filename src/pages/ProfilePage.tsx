@@ -19,7 +19,6 @@ import { FeedbackSummary } from "@/types/feedback";
 // Import refactored components
 import TracksTab from "@/components/profile/TracksTab";
 import FeedbackTab from "@/components/profile/FeedbackTab";
-import PlaylistsTab from "@/components/profile/PlaylistsTab";
 import DeleteTrackDialog from "@/components/profile/DeleteTrackDialog";
 import DeletePlaylistDialog from "@/components/profile/DeletePlaylistDialog";
 
@@ -32,7 +31,7 @@ const ProfilePage = () => {
   const [feedback, setFeedback] = useState<FeedbackSummary[]>([]);
   const [activeTab, setActiveTab] = useState("tracks");
   
-  // Get playlists using the usePlaylists hook - Keep this for backend functionality
+  // Keep the playlists hook for backend functionality
   const { 
     playlists, 
     isLoadingPlaylists, 
@@ -287,13 +286,6 @@ const ProfilePage = () => {
                 </Badge>
               </TabsTrigger>
               
-              <TabsTrigger value="playlists" className="flex gap-2 items-center flex-1 md:flex-none">
-                <ListMusic className="h-4 w-4" />
-                <span>My Playlists</span>
-                <Badge variant="outline" className="ml-1">
-                  {playlists.length}
-                </Badge>
-              </TabsTrigger>
               
               <TabsTrigger value="feedback" className="flex gap-2 items-center flex-1 md:flex-none">
                 <MessageSquare className="h-4 w-4" />
@@ -319,15 +311,7 @@ const ProfilePage = () => {
               />
             </TabsContent>
             
-            {/* Playlists Tab */}
-            <TabsContent value="playlists">
-              <PlaylistsTab 
-                playlists={playlists}
-                isLoadingPlaylists={isLoadingPlaylists}
-                refetchPlaylists={refetchPlaylists}
-                openDeletePlaylistDialog={openDeletePlaylistDialog}
-              />
-            </TabsContent>
+            
             
             {/* Feedback Tab */}
             <TabsContent value="feedback">
@@ -353,7 +337,7 @@ const ProfilePage = () => {
         onDelete={handleDeleteTrack}
       />
       
-      {/* Playlist Delete Confirmation Dialog */}
+      {/* Playlist Delete Confirmation Dialog - Keep for backend functionality */}
       <DeletePlaylistDialog
         playlistId={playlistToDelete}
         onClose={() => setPlaylistToDelete(null)}
