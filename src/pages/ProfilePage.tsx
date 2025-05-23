@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,7 +32,7 @@ const ProfilePage = () => {
   const [feedback, setFeedback] = useState<FeedbackSummary[]>([]);
   const [activeTab, setActiveTab] = useState("tracks");
   
-  // Get playlists using the usePlaylists hook
+  // Get playlists using the usePlaylists hook - Keep this for backend functionality
   const { 
     playlists, 
     isLoadingPlaylists, 
@@ -41,7 +40,7 @@ const ProfilePage = () => {
     deletePlaylist 
   } = usePlaylists();
   
-  // State for playlist deletion
+  // State for playlist deletion - Keep this for backend functionality
   const [playlistToDelete, setPlaylistToDelete] = useState<string | null>(null);
   
   // State for track deletion
@@ -208,7 +207,7 @@ const ProfilePage = () => {
     }
   };
 
-  // Handle playlist deletion
+  // Handle playlist deletion - Keep for backend functionality
   const handleDeletePlaylist = async () => {
     if (playlistToDelete) {
       try {
@@ -288,7 +287,6 @@ const ProfilePage = () => {
                 </Badge>
               </TabsTrigger>
               
-              {/* Playlists Tab */}
               <TabsTrigger value="playlists" className="flex gap-2 items-center flex-1 md:flex-none">
                 <ListMusic className="h-4 w-4" />
                 <span>My Playlists</span>

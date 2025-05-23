@@ -7,8 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, ListMusic, Download, Share2, Trash, ListPlus } from "lucide-react";
-import AddToPlaylistDialog from "../playlist/AddToPlaylistDialog";
+import { MoreHorizontal, Download, Share2, Trash, ListMusic } from "lucide-react";
 
 interface TrackActionsProps {
   trackId: string;
@@ -40,12 +39,7 @@ const TrackActions = ({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[200px] bg-wip-dark border-wip-gray">
-        <AddToPlaylistDialog trackId={trackId}>
-          <DropdownMenuItem className="cursor-pointer">
-            <ListPlus className="mr-2 h-4 w-4" />
-            Add to Playlist
-          </DropdownMenuItem>
-        </AddToPlaylistDialog>
+        {/* "Add to Playlist" option removed */}
         
         {onShare && (
           <DropdownMenuItem onClick={onShare} className="cursor-pointer">

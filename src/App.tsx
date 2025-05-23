@@ -9,17 +9,42 @@ import { useAuth } from "./context/AuthContext";
 import { PlaylistPlayerProvider } from "./context/PlaylistPlayerContext";
 import AuthPage from "./pages/AuthPage";
 import ProfilePage from "./pages/ProfilePage";
-import PlaylistsPage from "./pages/PlaylistsPage";
-import PlaylistPage from "./pages/PlaylistView"; 
-import EditPlaylistPage from "./pages/EditPlaylistPage";
-import PlaylistPlayerView from "./pages/PlaylistPlayerView";
-import PlaylistSharedView from "./pages/PlaylistSharedView";
-import PlaylistSharedPlayerView from "./pages/PlaylistSharedPlayerView";
-import AddTracksToPlaylist from "./pages/AddTracksToPlaylist";
 import TrackView from "./pages/TrackView";
 import NewVersionPage from "./pages/NewVersionPage";
 import FeedbackView from "./pages/FeedbackView";
 import Index from "./pages/Index";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+
+// Placeholder component for playlist routes
+const PlaylistFeatureComingSoon = () => {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Playlist Feature Coming Soon</CardTitle>
+            <CardDescription>
+              We're working on enhancing our playlist feature for an improved experience.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button 
+              onClick={() => window.history.back()}
+              className="mt-4"
+            >
+              Go Back
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+      <Footer />
+    </div>
+  );
+};
 
 function App() {
   const { user } = useAuth();
@@ -36,50 +61,16 @@ function App() {
           path="/profile"
           element={user ? <ProfilePage /> : <Navigate to="/auth" />}
         />
-        <Route
-          path="/playlists"
-          element={user ? <PlaylistsPage /> : <Navigate to="/auth" />}
-        />
-        <Route
-          path="/playlist/:playlistId"
-          element={user ? <PlaylistPage /> : <Navigate to="/auth" />}
-        />
-        <Route
-          path="/playlist/:playlistId/edit"
-          element={user ? <EditPlaylistPage /> : <Navigate to="/auth" />}
-        />
-        <Route
-          path="/playlist/:playlistId/add-tracks"
-          element={user ? <AddTracksToPlaylist /> : <Navigate to="/auth" />}
-        />
-        <Route
-          path="/playlist/:playlistId/play"
-          element={
-            user ? (
-              <PlaylistPlayerProvider>
-                <PlaylistPlayerView />
-              </PlaylistPlayerProvider>
-            ) : (
-              <Navigate to="/auth" />
-            )
-          }
-        />
-        <Route
-          path="/shared/playlist/:shareKey"
-          element={
-            <PlaylistPlayerProvider>
-              <PlaylistSharedView />
-            </PlaylistPlayerProvider>
-          }
-        />
-        <Route
-          path="/shared/playlist/:shareKey/play"
-          element={
-            <PlaylistPlayerProvider>
-              <PlaylistSharedPlayerView />
-            </PlaylistPlayerProvider>
-          }
-        />
+        
+        {/* Playlist routes - redirected to Coming Soon page */}
+        <Route path="/playlists" element={<PlaylistFeatureComingSoon />} />
+        <Route path="/playlist/:playlistId" element={<PlaylistFeatureComingSoon />} />
+        <Route path="/playlist/:playlistId/edit" element={<PlaylistFeatureComingSoon />} />
+        <Route path="/playlist/:playlistId/add-tracks" element={<PlaylistFeatureComingSoon />} />
+        <Route path="/playlist/:playlistId/play" element={<PlaylistFeatureComingSoon />} />
+        <Route path="/shared/playlist/:shareKey" element={<PlaylistFeatureComingSoon />} />
+        <Route path="/shared/playlist/:shareKey/play" element={<PlaylistFeatureComingSoon />} />
+        
         {/* Track Routes - Note: More specific routes come first */}
         <Route path="/track/share/:shareKey" element={<TrackView />} />
         <Route path="/track/:trackId/version" element={<NewVersionPage />} />
