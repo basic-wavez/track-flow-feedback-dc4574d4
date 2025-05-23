@@ -1,7 +1,7 @@
 
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
-import { sharedFrameController } from './useAudioVisualizer';
+import { sharedFrameController } from './visualizer/frameController';
 import { OscilloscopeOptions } from './oscilloscope/types';
 import { drawOscilloscope } from './oscilloscope/drawingUtils';
 

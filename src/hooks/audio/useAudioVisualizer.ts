@@ -1,55 +1,12 @@
 import { useRef, useEffect, useState } from 'react';
 import { AudioContextState } from './useAudioContext';
+import { VisualizerOptions } from './visualizer/types';
+import { sharedFrameController } from './visualizer/frameController';
+import { calculateMelBands, processFrequencyData, drawFrequencyLabels } from './visualizer/frequencyBands';
+import { drawBarsAndCaps } from './visualizer/drawingUtils';
 
-interface VisualizerOptions {
-  barCount?: number;
-  barColor?: string;
-  barSpacing?: number;
-  capColor?: string;
-  capHeight?: number;
-  capFallSpeed?: number;
-  maxFrequency?: number;
-  targetFPS?: number;
-  smoothingFactor?: number; // New option for EMA smoothing
-}
-
-// Shared frame rate controller across all visualizer instances
-// Explicitly export for use in other visualizers
-export const sharedFrameController = {
-  lastFrameTime: 0,
-  requestId: null as number | null,
-  activeVisualizers: new Set<() => void>(),
-  
-  // Register a visualizer's draw function
-  register(drawFn: () => void) {
-    this.activeVisualizers.add(drawFn);
-    if (this.activeVisualizers.size === 1) {
-      this.startLoop();
-    }
-  },
-  
-  // Unregister a visualizer's draw function
-  unregister(drawFn: () => void) {
-    this.activeVisualizers.delete(drawFn);
-    if (this.activeVisualizers.size === 0 && this.requestId !== null) {
-      cancelAnimationFrame(this.requestId);
-      this.requestId = null;
-    }
-  },
-  
-  // Main animation loop that controls all visualizers
-  startLoop() {
-    const loop = () => {
-      const now = performance.now();
-      // Run all active visualizer draw functions
-      this.activeVisualizers.forEach(drawFn => drawFn());
-      this.lastFrameTime = now;
-      this.requestId = requestAnimationFrame(loop);
-    };
-    
-    this.requestId = requestAnimationFrame(loop);
-  }
-};
+// Re-export the shared frame controller for use in other visualizers
+export { sharedFrameController } from './visualizer/frameController';
 
 export function useAudioVisualizer(
   canvasRef: React.RefObject<HTMLCanvasElement>,
@@ -59,11 +16,11 @@ export function useAudioVisualizer(
 ) {
   const [isActive, setIsActive] = useState(false);
   const dataArray = useRef<Uint8Array | null>(null);
-  const smoothedDataArray = useRef<Float32Array | null>(null); // New ref for smoothed data
+  const smoothedDataArray = useRef<Float32Array | null>(null);
   const caps = useRef<number[]>([]);
   const canvasDimensions = useRef({ width: 0, height: 0 });
   const lastDrawTime = useRef(0);
-  const melBands = useRef<number[][]>([]); // New ref for mel bands (logarithmic frequency bins)
+  const melBands = useRef<number[][]>([]);
 
   // Default options
   const {
@@ -74,8 +31,8 @@ export function useAudioVisualizer(
     capHeight = 2,
     capFallSpeed = 0.8,
     maxFrequency = 15000,
-    targetFPS = 30, // Default target of 30fps for better performance
-    smoothingFactor = 0.7, // Default smoothing factor for EMA
+    targetFPS = 30,
+    smoothingFactor = 0.7,
   } = options;
 
   // Initialize the frequency data arrays and mel bands
@@ -105,38 +62,13 @@ export function useAudioVisualizer(
     caps.current = Array(barCount).fill(0);
     
     // Calculate mel bands (logarithmic frequency bins)
-    calculateMelBands(bufferLength, barCount);
+    const sampleRate = audioContext.audioContext?.sampleRate || 44100;
+    melBands.current = calculateMelBands(bufferLength, barCount, sampleRate, maxFrequency);
     
     return () => {
       sharedFrameController.unregister(draw);
     };
-  }, [audioContext.analyserNode, barCount]);
-
-  // Calculate logarithmic frequency bins (mel bands)
-  const calculateMelBands = (bufferLength: number, bandCount: number) => {
-    const sampleRate = audioContext.audioContext?.sampleRate || 44100;
-    const nyquist = sampleRate / 2;
-    const maxBinIndex = Math.floor((maxFrequency / nyquist) * bufferLength);
-    
-    // Clear existing bands
-    melBands.current = [];
-    
-    // Create logarithmically spaced bands
-    for (let i = 0; i < bandCount; i++) {
-      // Use a logarithmic scale to determine band edges
-      const startFreq = Math.exp(Math.log(20) + (Math.log(maxFrequency) - Math.log(20)) * (i / bandCount));
-      const endFreq = Math.exp(Math.log(20) + (Math.log(maxFrequency) - Math.log(20)) * ((i + 1) / bandCount));
-      
-      // Convert frequencies to bin indices
-      const startBin = Math.floor((startFreq / nyquist) * bufferLength);
-      const endBin = Math.min(Math.floor((endFreq / nyquist) * bufferLength), maxBinIndex);
-      
-      // Store bin range for this mel band
-      melBands.current.push([Math.max(startBin, 0), endBin]);
-    }
-    
-    console.log(`FFT Visualizer: Created ${bandCount} logarithmic frequency bands (mel bands)`);
-  };
+  }, [audioContext.analyserNode, barCount, maxFrequency]);
 
   // Toggle visualizer active state
   const toggleVisualizer = () => {
@@ -187,87 +119,34 @@ export function useAudioVisualizer(
     // Get frequency data
     audioContext.analyserNode.getByteFrequencyData(dataArray.current);
     
-    // Calculate bar width with spacing
-    const barWidth = Math.floor(width / barCount) - barSpacing;
-    
     // Process data through mel bands and apply exponential moving average
-    for (let i = 0; i < barCount; i++) {
-      if (melBands.current[i]) {
-        const [startBin, endBin] = melBands.current[i];
-        
-        // Calculate average value for this mel band
-        let sum = 0;
-        let count = 0;
-        for (let j = startBin; j <= endBin; j++) {
-          sum += dataArray.current[j];
-          count++;
-        }
-        
-        const average = count > 0 ? sum / count : 0;
-        
-        // Apply exponential moving average for smoothing
-        if (smoothedDataArray.current) {
-          smoothedDataArray.current[i] = smoothingFactor * smoothedDataArray.current[i] + 
-                                     (1 - smoothingFactor) * average;
-        }
-      }
+    if (smoothedDataArray.current) {
+      processFrequencyData(dataArray.current, melBands.current, smoothedDataArray.current, smoothingFactor);
     }
     
-    // Draw bars and caps based on smoothed data
-    for (let i = 0; i < barCount; i++) {
-      // Get smoothed value for this bar
-      const value = smoothedDataArray.current ? smoothedDataArray.current[i] : 0;
-      
-      // Calculate bar height based on frequency value (0-255)
-      const barHeight = (value / 255) * height * 0.8; // 80% of canvas height max
-      
-      // Draw the bar
-      ctx.fillStyle = barColor;
-      ctx.fillRect(
-        i * (barWidth + barSpacing), 
-        height - barHeight, 
-        barWidth, 
-        barHeight
-      );
-      
-      // Update and draw caps
-      if (barHeight > caps.current[i]) {
-        caps.current[i] = barHeight;
-      } else {
-        caps.current[i] = caps.current[i] * capFallSpeed;
-      }
-      
-      // Draw the cap
-      ctx.fillStyle = capColor;
-      ctx.fillRect(
-        i * (barWidth + barSpacing), 
-        height - caps.current[i] - capHeight, 
-        barWidth, 
-        capHeight
+    // Calculate bar width with spacing for the drawing function
+    const barWidth = Math.floor(width / barCount) - barSpacing;
+    
+    // Draw bars and caps
+    if (smoothedDataArray.current) {
+      drawBarsAndCaps(
+        ctx, 
+        barCount, 
+        smoothedDataArray.current, 
+        caps.current, 
+        width, 
+        height, 
+        barColor, 
+        capColor, 
+        barSpacing, 
+        capHeight, 
+        capFallSpeed
       );
     }
     
     // Only draw labels at a lower frequency to save performance
     if (now % 500 < frameInterval) {
-      // Draw frequency labels
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.font = '9px sans-serif';
-      
-      // Only show frequency labels on bars at specific positions
-      const frequencyLabels = [
-        { freq: '0', position: 0 },
-        { freq: '5k', position: Math.floor(barCount * (5000 / maxFrequency)) },
-        { freq: '10k', position: Math.floor(barCount * (10000 / maxFrequency)) },
-        { freq: '15k', position: barCount - 1 }
-      ];
-      
-      frequencyLabels.forEach(label => {
-        if (label.position >= 0 && label.position < barCount) {
-          const x = label.position * (barWidth + barSpacing) + barWidth/2;
-          ctx.textAlign = 'center';
-          ctx.fillText(label.freq, x, height - 5);
-        }
-      });
+      drawFrequencyLabels(ctx, barCount, barWidth, barSpacing, height, maxFrequency);
     }
   };
 

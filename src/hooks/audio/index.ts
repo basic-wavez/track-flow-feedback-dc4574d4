@@ -12,3 +12,5 @@ export * from './useOscilloscopeVisualizer'; // Re-exports OscilloscopeOptions
 export * from './useSpectrogramVisualizer';
 export * from './types/spectrogramTypes';
 export * from './utils/colorMapUtils';
+export * from './visualizer/types';
+export * from './visualizer/frameController';
