@@ -189,6 +189,12 @@ export function useOscilloscopeVisualizer(
       }
     }
   };
+  
+  // Define the cleanup function explicitly
+  const cleanupFunction = () => {
+    sharedFrameController.unregister(draw);
+    console.log('Oscilloscope visualizer cleanup executed');
+  };
 
   // Start/stop animation based on playing state
   useEffect(() => {
@@ -208,5 +214,5 @@ export function useOscilloscopeVisualizer(
     };
   }, [isPlaying, audioContext.isInitialized, options]);
 
-  return { draw };
+  return { draw, cleanup: cleanupFunction };
 }
