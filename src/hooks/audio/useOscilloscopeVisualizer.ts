@@ -2,19 +2,10 @@
 import { useRef, useEffect } from 'react';
 import { AudioContextState } from './useAudioContext';
 import { sharedFrameController } from './useAudioVisualizer';
+import { OscilloscopeOptions } from './oscilloscope/types';
+import { drawOscilloscope } from './oscilloscope/drawingUtils';
 
-export interface OscilloscopeOptions {
-  lineColor?: string;
-  lineWidth?: number;
-  backgroundColor?: string;
-  sensitivity?: number;
-  drawMode?: 'line' | 'dots' | 'bars';
-  dashPattern?: number[];
-  fillColor?: string;
-  fillOpacity?: number;
-  invertY?: boolean;
-  targetFPS?: number;
-}
+export type { OscilloscopeOptions } from './oscilloscope/types';
 
 export function useOscilloscopeVisualizer(
   canvasRef: React.RefObject<HTMLCanvasElement>,
@@ -88,106 +79,22 @@ export function useOscilloscopeVisualizer(
       canvasDimensions.current = { width, height };
     }
     
-    // Clear the canvas
-    ctx.fillStyle = backgroundColor;
-    ctx.fillRect(0, 0, width, height);
-    
     // Get time domain data
     const analyser = audioContext.analyserNode;
     analyser.getFloatTimeDomainData(dataArray.current);
     
-    // Calculate vertical scaling based on sensitivity
-    const verticalScale = height * 0.4 * sensitivity;
-    const sliceWidth = width / dataArray.current.length;
-    
-    // Set up dash pattern if specified
-    if (dashPattern && dashPattern.length > 0) {
-      ctx.setLineDash(dashPattern);
-    } else {
-      ctx.setLineDash([]);
-    }
-    
-    // Draw the waveform based on draw mode
-    if (drawMode === 'line') {
-      // Standard line drawing - optimized
-      ctx.lineWidth = lineWidth;
-      ctx.strokeStyle = lineColor; // Make sure to use the pink color
-      ctx.beginPath();
-      
-      // Reduce the number of points we draw for better performance
-      const skipPoints = Math.max(1, Math.floor(dataArray.current.length / 300));
-      
-      for (let i = 0; i < dataArray.current.length; i += skipPoints) {
-        const x = i * sliceWidth;
-        
-        const yValue = dataArray.current[i];
-        const yValueWithInversion = invertY ? -yValue : yValue;
-        const y = height / 2 - (yValueWithInversion * verticalScale);
-        
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      }
-      
-      ctx.stroke();
-      
-      // Fill below the line if fillColor is provided
-      if (fillColor !== 'transparent' && fillOpacity > 0) {
-        ctx.lineTo(width, height);
-        ctx.lineTo(0, height);
-        ctx.closePath();
-        ctx.fillStyle = fillColor;
-        ctx.globalAlpha = fillOpacity;
-        ctx.fill();
-        ctx.globalAlpha = 1.0; // Reset alpha
-      }
-      
-    } else if (drawMode === 'dots') {
-      // Draw dots for each sample - optimized to draw fewer points
-      ctx.fillStyle = lineColor; // Make sure to use the pink color
-      
-      // Draw fewer dots for better performance
-      const skipPoints = Math.max(2, Math.floor(dataArray.current.length / 100));
-      
-      for (let i = 0; i < dataArray.current.length; i += skipPoints) {
-        const x = i * sliceWidth;
-        
-        const yValue = dataArray.current[i];
-        const yValueWithInversion = invertY ? -yValue : yValue;
-        const y = height / 2 - (yValueWithInversion * verticalScale);
-        
-        ctx.beginPath();
-        ctx.arc(x, y, lineWidth, 0, 2 * Math.PI);
-        ctx.fill();
-      }
-      
-    } else if (drawMode === 'bars') {
-      // Draw vertical bars - optimized
-      ctx.fillStyle = lineColor; // Make sure to use the pink color
-      
-      // Draw fewer bars for better performance
-      const skipPoints = Math.max(4, Math.floor(dataArray.current.length / 75));
-      
-      for (let i = 0; i < dataArray.current.length; i += skipPoints) {
-        const x = i * sliceWidth;
-        
-        const yValue = dataArray.current[i];
-        const yValueWithInversion = invertY ? -yValue : yValue;
-        const y = height / 2 - (yValueWithInversion * verticalScale);
-        
-        // Draw bar from center line to signal point
-        const barHeight = Math.abs(y - height / 2);
-        
-        ctx.fillRect(
-          x - lineWidth / 2, 
-          Math.min(y, height / 2), 
-          lineWidth, 
-          barHeight
-        );
-      }
-    }
+    // Draw the oscilloscope using the utility function
+    drawOscilloscope(ctx, dataArray.current, width, height, {
+      lineColor,
+      lineWidth,
+      backgroundColor,
+      sensitivity,
+      drawMode,
+      dashPattern,
+      fillColor,
+      fillOpacity,
+      invertY
+    });
   };
   
   // Define the cleanup function explicitly
