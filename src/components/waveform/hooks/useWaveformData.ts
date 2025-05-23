@@ -27,6 +27,39 @@ export const useWaveformData = ({
   
   // Use refs to track state
   const peaksLoadedRef = useRef(false);
+  const currentTrackIdRef = useRef<string | undefined>(trackId);
+  const isMountedRef = useRef(true);
+  
+  // Reset all state whenever trackId changes
+  useEffect(() => {
+    // Only reset if we have a new track ID that's different from the current one
+    if (trackId !== currentTrackIdRef.current) {
+      console.log(`Track ID changed from ${currentTrackIdRef.current} to ${trackId}, resetting waveform state`);
+      
+      // Update the current track ref
+      currentTrackIdRef.current = trackId;
+      
+      // Reset all state variables
+      peaksLoadedRef.current = false;
+      setWaveformData([]);
+      setIsPeaksLoading(false);
+      setIsWaveformGenerated(false);
+      setAnalysisError(null);
+      setUsingPrecomputedPeaks(false);
+      setDatabaseLoadingAttempted(false);
+      
+      // Generate new placeholder immediately
+      const initialWaveformData = generateWaveformWithVariance(250, 0.6);
+      setWaveformData(initialWaveformData);
+    }
+  }, [trackId]);
+  
+  // Cleanup function to run on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   
   // Generate initial placeholder waveform immediately
   useEffect(() => {
@@ -38,7 +71,7 @@ export const useWaveformData = ({
     }
   }, []);
   
-  // Load waveform data from Supabase if available
+  // Load waveform data from Supabase if available - only called once per track
   const loadWaveformDataFromDatabase = useCallback(async () => {
     if (!trackId || peaksLoadedRef.current) return false;
     
@@ -47,6 +80,12 @@ export const useWaveformData = ({
       console.log('Attempting to load waveform data from database for track:', trackId);
       
       const data = await getTrackWaveformData(trackId);
+      
+      // Make sure we're still mounted and the trackId is still relevant
+      if (!isMountedRef.current || trackId !== currentTrackIdRef.current) {
+        console.log('Component unmounted or track changed during database load, aborting');
+        return false;
+      }
       
       if (data && data.length > 0) {
         console.log('Successfully loaded waveform data from database');
@@ -66,19 +105,31 @@ export const useWaveformData = ({
       if (onDatabaseLoadingComplete) onDatabaseLoadingComplete(false);
       return false;
     } finally {
-      setIsPeaksLoading(false);
-      setDatabaseLoadingAttempted(true);
+      if (isMountedRef.current) {
+        setIsPeaksLoading(false);
+        setDatabaseLoadingAttempted(true);
+      }
     }
   }, [trackId, onDatabaseLoadingComplete]);
   
-  // Function to load pre-computed peaks data from URL
+  // Function to load pre-computed peaks data from URL - only called once per track
   const loadPeaksData = useCallback(async (url: string) => {
+    if (peaksLoadedRef.current) return false;
+    
     try {
       setIsPeaksLoading(true);
+      console.log(`Loading peaks data from URL: ${url}`);
       
       const { data, success } = await loadPeaksDataWithCaching(url);
       
+      // Make sure we're still mounted and the trackId is still relevant
+      if (!isMountedRef.current || trackId !== currentTrackIdRef.current) {
+        console.log('Component unmounted or track changed during peaks load, aborting');
+        return false;
+      }
+      
       if (success && data) {
+        console.log('Successfully loaded peaks data from URL');
         setWaveformData(data);
         setIsWaveformGenerated(true);
         setUsingPrecomputedPeaks(true);
@@ -92,39 +143,50 @@ export const useWaveformData = ({
       setUsingPrecomputedPeaks(false);
       return false;
     } finally {
-      setIsPeaksLoading(false);
+      if (isMountedRef.current) {
+        setIsPeaksLoading(false);
+      }
     }
-  }, []);
+  }, [trackId]);
   
   // Changed load priority: 1. Database, 2. Pre-computed peaks URL, 3. Placeholder
+  // Run this effect only once per track ID change
   useEffect(() => {
     // Skip if we already have peaks or if we're already loading
     if (peaksLoadedRef.current || isPeaksLoading) {
       return;
     }
     
+    // Create a cleanup flag to prevent state updates after unmount
+    let isCancelled = false;
+    
     const loadData = async () => {
       let loaded = false;
       
       // First priority: Try to load from Supabase database if we have a track ID
-      if (trackId) {
+      if (trackId && !isCancelled) {
         console.log('First priority: Loading waveform from database for track:', trackId);
         loaded = await loadWaveformDataFromDatabase();
       }
       
       // Second priority: If database loading failed and we have a peaks URL, try loading from URL
-      if (!loaded && peaksDataUrl) {
+      if (!loaded && !isCancelled && peaksDataUrl) {
         console.log('Second priority: Loading waveform from peaksDataUrl:', peaksDataUrl);
         loaded = await loadPeaksData(peaksDataUrl);
       }
       
       // If both failed, we'll use the placeholder generated in the first effect
-      if (!loaded) {
+      if (!loaded && !isCancelled) {
         console.log('Both loading methods failed, using placeholder waveform');
       }
     };
     
     loadData();
+    
+    // Cleanup function to cancel any pending operations
+    return () => {
+      isCancelled = true;
+    };
   }, [trackId, peaksDataUrl, isPeaksLoading, loadWaveformDataFromDatabase, loadPeaksData]);
 
   return {

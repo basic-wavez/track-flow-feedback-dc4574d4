@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { usePlaylists } from "@/hooks/usePlaylists";
@@ -147,6 +148,7 @@ const PlaylistPlayerView = () => {
         {currentTrack && (
           <div className="mb-8">
             <TrackPlayer
+              key={currentTrack.track_id} // Add key prop to force remount on track change
               trackId={currentTrack.track_id}
               trackName={currentTrack.track?.title || "Unknown Track"}
               audioUrl={trackAudioUrl}

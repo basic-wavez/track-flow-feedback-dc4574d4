@@ -22,6 +22,14 @@ interface WaveformProps {
 }
 
 const Waveform = (props: WaveformProps) => {
+  // Add debugging for component lifecycle
+  React.useEffect(() => {
+    console.log(`Waveform component mounted/updated for trackId: ${props.trackId}`);
+    return () => {
+      console.log(`Waveform component unmounted for trackId: ${props.trackId}`);
+    };
+  }, [props.trackId]);
+  
   return <WaveformContainer {...props} />;
 };
 

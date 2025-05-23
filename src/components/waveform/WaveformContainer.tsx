@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import WaveformLoader from './WaveformLoader';
 import WaveformCanvas from './WaveformCanvas';
 import WaveformStatus from './WaveformStatus';
@@ -42,6 +42,14 @@ const WaveformContainer: React.FC<WaveformContainerProps> = ({
   audioLoaded = false,
   onDatabaseLoadingComplete
 }) => {
+  // Debug logging for component lifecycle
+  useEffect(() => {
+    console.log(`WaveformContainer mounted/updated for trackId: ${trackId}`);
+    return () => {
+      console.log(`WaveformContainer unmounted for trackId: ${trackId}`);
+    };
+  }, [trackId]);
+
   // Only use the hook if we don't have data passed directly
   const {
     waveformData: internalWaveformData,
@@ -54,7 +62,7 @@ const WaveformContainer: React.FC<WaveformContainerProps> = ({
   } = useWaveformData({
     peaksDataUrl,
     isGeneratingWaveform,
-    trackId,
+    trackId, // This prop change will trigger the reset in the useWaveformData hook
     onDatabaseLoadingComplete
   });
   

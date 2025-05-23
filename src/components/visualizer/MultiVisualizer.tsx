@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAudioContext } from '@/hooks/audio/useAudioContext';
 import { useVisualizerConfig } from './config/visualizerConfig';
 import { useVisualizerInitialization } from './hooks/useVisualizerInitialization';
@@ -17,6 +17,14 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
   isPlaying,
   className = ''
 }) => {
+  // Debug logging for component lifecycle
+  useEffect(() => {
+    console.log('MultiVisualizer mounted/updated');
+    return () => {
+      console.log('MultiVisualizer unmounted - cleaning up visualizers');
+    };
+  }, []);
+  
   // Audio context initialization
   const audioContext = useAudioContext(audioRef);
   

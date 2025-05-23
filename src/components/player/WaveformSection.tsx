@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Waveform from "../Waveform";
 import MultiVisualizer from '../visualizer/MultiVisualizer';
 import TrackActions from './TrackActions';
@@ -64,11 +64,24 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   trackTitle = "",
   isPlaylistMode = false
 }) => {
+  // Debug logging for component lifecycle
+  useEffect(() => {
+    console.log(`WaveformSection mounted/updated for trackId: ${trackId}`);
+    return () => {
+      console.log(`WaveformSection unmounted for trackId: ${trackId}`);
+    };
+  }, [trackId]);
+  
   // Check if we're on mobile
   const isMobile = useIsMobile();
   
   // State to track if we should analyze audio (only if database loading fails)
   const [shouldAnalyzeAudio, setShouldAnalyzeAudio] = useState(false);
+  
+  // Reset shouldAnalyzeAudio when trackId changes
+  useEffect(() => {
+    setShouldAnalyzeAudio(false);
+  }, [trackId]);
   
   // Handle database loading completion
   const handleDatabaseLoadingComplete = useCallback((success: boolean) => {
@@ -124,11 +137,12 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   
   return (
     <div className="flex flex-col space-y-4">
-      {/* Waveform component - now pass trackId to ensure database loading works */}
+      {/* Waveform component - add key prop to force remount when trackId changes */}
       <Waveform 
+        key={trackId} // Add key prop to force remount when trackId changes
         audioUrl={playbackUrl}
         peaksDataUrl={waveformPeaksUrl}
-        trackId={trackId} // Add trackId here to ensure it's passed down
+        trackId={trackId}
         waveformData={finalWaveformData || undefined}
         isPlaying={isPlaying}
         currentTime={currentTime}
@@ -160,10 +174,11 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
         </div>
       )}
       
-      {/* Updated visualizer with no blue borders */}
+      {/* Updated visualizer with key prop to force remount when trackId changes */}
       {showFFTVisualizer && (
         <div className="mt-2 mb-6">
           <MultiVisualizer 
+            key={trackId} // Add key prop to force remount when trackId changes
             audioRef={audioRef}
             isPlaying={isPlaying}
             className={isMobile ? "w-full" : "h-[150px] w-full"}
