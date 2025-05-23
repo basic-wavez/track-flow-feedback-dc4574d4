@@ -2,8 +2,8 @@
 import React, { useRef } from 'react';
 import { useAudioVisualizer } from '@/hooks/audio/useAudioVisualizer';
 import { AudioContextState } from '@/hooks/audio/useAudioContext';
-import VisualizerCanvas from './VisualizerCanvas';
-import VisualizerPanel from './VisualizerPanel';
+import VisualizerCanvas from './components/VisualizerCanvas';
+import VisualizerPanel from './components/VisualizerPanel';
 
 interface FFTVisualizerPanelProps {
   audioContext: AudioContextState;
