@@ -125,7 +125,7 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   });
   
   // Trigger analysis if we should analyze
-  React.useEffect(() => {
+  useEffect(() => {
     if (shouldAnalyzeAudio && audioRef.current && !isAnalyzing) {
       console.log("Triggering audio analysis as fallback");
       analyzeAudio();
@@ -137,9 +137,9 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
   
   return (
     <div className="flex flex-col space-y-4">
-      {/* Waveform component - add key prop to force remount when trackId changes */}
+      {/* Waveform component - key prop forces remount when trackId changes */}
       <Waveform 
-        key={trackId} // Add key prop to force remount when trackId changes
+        key={`waveform-${trackId}`} 
         audioUrl={playbackUrl}
         peaksDataUrl={waveformPeaksUrl}
         trackId={trackId}
@@ -178,7 +178,7 @@ const WaveformSection: React.FC<WaveformSectionProps> = ({
       {showFFTVisualizer && (
         <div className="mt-2 mb-6">
           <MultiVisualizer 
-            key={trackId} // Add key prop to force remount when trackId changes
+            key={`visualizer-${trackId}`}
             audioRef={audioRef}
             isPlaying={isPlaying}
             className={isMobile ? "w-full" : "h-[150px] w-full"}

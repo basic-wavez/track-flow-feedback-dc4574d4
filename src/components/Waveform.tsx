@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import WaveformContainer from './waveform/WaveformContainer';
 
 interface WaveformProps {
@@ -23,8 +23,8 @@ interface WaveformProps {
 
 const Waveform = (props: WaveformProps) => {
   // Add debugging for component lifecycle
-  React.useEffect(() => {
-    console.log(`Waveform component mounted/updated for trackId: ${props.trackId}`);
+  useEffect(() => {
+    console.log(`Waveform component mounted for trackId: ${props.trackId}`);
     return () => {
       console.log(`Waveform component unmounted for trackId: ${props.trackId}`);
     };

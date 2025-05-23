@@ -24,14 +24,14 @@ const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({
   
   // Debug logging for component lifecycle
   useEffect(() => {
-    console.log('OscilloscopePanel mounted/updated');
+    console.log('OscilloscopePanel mounted');
     return () => {
       console.log('OscilloscopePanel unmounted - cleaning up oscilloscope');
     };
   }, []);
   
   // Initialize Oscilloscope visualizer
-  const { draw } = useOscilloscopeVisualizer(
+  const { draw, cleanup } = useOscilloscopeVisualizer(
     oscilloscopeCanvasRef,
     audioContext,
     isPlaying && enabled,
@@ -41,9 +41,11 @@ const OscilloscopePanel: React.FC<OscilloscopePanelProps> = ({
   // Make sure to clean up on unmount
   useEffect(() => {
     return () => {
-      // Extra cleanup logic if needed
+      if (cleanup) {
+        cleanup();
+      }
     };
-  }, []);
+  }, [cleanup]);
 
   return (
     <VisualizerPanel width="w-full" enabled={enabled} type="Oscilloscope">

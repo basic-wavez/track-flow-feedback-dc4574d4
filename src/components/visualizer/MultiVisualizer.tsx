@@ -19,7 +19,7 @@ const MultiVisualizer: React.FC<MultiVisualizerProps> = ({
 }) => {
   // Debug logging for component lifecycle
   useEffect(() => {
-    console.log('MultiVisualizer mounted/updated');
+    console.log('MultiVisualizer mounted');
     return () => {
       console.log('MultiVisualizer unmounted - cleaning up visualizers');
     };

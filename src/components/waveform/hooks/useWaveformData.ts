@@ -29,6 +29,8 @@ export const useWaveformData = ({
   const peaksLoadedRef = useRef(false);
   const currentTrackIdRef = useRef<string | undefined>(trackId);
   const isMountedRef = useRef(true);
+  const databaseLoadingStartedRef = useRef(false);
+  const peaksLoadingStartedRef = useRef(false);
   
   // Reset all state whenever trackId changes
   useEffect(() => {
@@ -39,8 +41,10 @@ export const useWaveformData = ({
       // Update the current track ref
       currentTrackIdRef.current = trackId;
       
-      // Reset all state variables
+      // Reset all state variables and refs
       peaksLoadedRef.current = false;
+      databaseLoadingStartedRef.current = false;
+      peaksLoadingStartedRef.current = false;
       setWaveformData([]);
       setIsPeaksLoading(false);
       setIsWaveformGenerated(false);
@@ -58,6 +62,8 @@ export const useWaveformData = ({
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      databaseLoadingStartedRef.current = false;
+      peaksLoadingStartedRef.current = false;
     };
   }, []);
   
@@ -73,7 +79,13 @@ export const useWaveformData = ({
   
   // Load waveform data from Supabase if available - only called once per track
   const loadWaveformDataFromDatabase = useCallback(async () => {
-    if (!trackId || peaksLoadedRef.current) return false;
+    // Prevent multiple concurrent database loading attempts for the same track
+    if (!trackId || peaksLoadedRef.current || databaseLoadingStartedRef.current) {
+      return false;
+    }
+    
+    // Set flag to prevent duplicate calls
+    databaseLoadingStartedRef.current = true;
     
     try {
       setIsPeaksLoading(true);
@@ -108,13 +120,20 @@ export const useWaveformData = ({
       if (isMountedRef.current) {
         setIsPeaksLoading(false);
         setDatabaseLoadingAttempted(true);
+        databaseLoadingStartedRef.current = false;
       }
     }
   }, [trackId, onDatabaseLoadingComplete]);
   
   // Function to load pre-computed peaks data from URL - only called once per track
   const loadPeaksData = useCallback(async (url: string) => {
-    if (peaksLoadedRef.current) return false;
+    // Prevent multiple concurrent peaks loading attempts
+    if (peaksLoadedRef.current || peaksLoadingStartedRef.current) {
+      return false;
+    }
+    
+    // Set flag to prevent duplicate calls
+    peaksLoadingStartedRef.current = true;
     
     try {
       setIsPeaksLoading(true);
@@ -145,12 +164,13 @@ export const useWaveformData = ({
     } finally {
       if (isMountedRef.current) {
         setIsPeaksLoading(false);
+        peaksLoadingStartedRef.current = false;
       }
     }
   }, [trackId]);
   
   // Changed load priority: 1. Database, 2. Pre-computed peaks URL, 3. Placeholder
-  // Run this effect only once per track ID change
+  // Only attempt loading once per track ID change
   useEffect(() => {
     // Skip if we already have peaks or if we're already loading
     if (peaksLoadedRef.current || isPeaksLoading) {
@@ -164,13 +184,13 @@ export const useWaveformData = ({
       let loaded = false;
       
       // First priority: Try to load from Supabase database if we have a track ID
-      if (trackId && !isCancelled) {
+      if (trackId && !isCancelled && !databaseLoadingStartedRef.current) {
         console.log('First priority: Loading waveform from database for track:', trackId);
         loaded = await loadWaveformDataFromDatabase();
       }
       
       // Second priority: If database loading failed and we have a peaks URL, try loading from URL
-      if (!loaded && !isCancelled && peaksDataUrl) {
+      if (!loaded && !isCancelled && peaksDataUrl && !peaksLoadingStartedRef.current) {
         console.log('Second priority: Loading waveform from peaksDataUrl:', peaksDataUrl);
         loaded = await loadPeaksData(peaksDataUrl);
       }

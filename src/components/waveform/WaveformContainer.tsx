@@ -44,7 +44,7 @@ const WaveformContainer: React.FC<WaveformContainerProps> = ({
 }) => {
   // Debug logging for component lifecycle
   useEffect(() => {
-    console.log(`WaveformContainer mounted/updated for trackId: ${trackId}`);
+    console.log(`WaveformContainer mounted for trackId: ${trackId}`);
     return () => {
       console.log(`WaveformContainer unmounted for trackId: ${trackId}`);
     };
@@ -62,7 +62,7 @@ const WaveformContainer: React.FC<WaveformContainerProps> = ({
   } = useWaveformData({
     peaksDataUrl,
     isGeneratingWaveform,
-    trackId, // This prop change will trigger the reset in the useWaveformData hook
+    trackId,
     onDatabaseLoadingComplete
   });
   
